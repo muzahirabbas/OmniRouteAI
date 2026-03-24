@@ -234,7 +234,9 @@ export async function getProviders() {
   try {
     // 1. Try Redis cache
     const cached = await get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+    }
 
     // 2. Try Firestore
     const db = getDb();

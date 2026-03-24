@@ -22,6 +22,7 @@ export async function getCached(prompt, model = '', taskType = '') {
   const cached = await get(key);
 
   if (cached) {
+    if (typeof cached !== 'string') return cached;
     try {
       return JSON.parse(cached);
     } catch {
