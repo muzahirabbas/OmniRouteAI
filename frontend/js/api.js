@@ -24,7 +24,13 @@ const API = {
    * Save settings to localStorage.
    */
   saveSettings(url, apiKey) {
-    if (url) localStorage.setItem('omniroute_api_url', url.replace(/\/$/, ''));
+    if (url) {
+      let finalUrl = url.trim().replace(/\/$/, '');
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      localStorage.setItem('omniroute_api_url', finalUrl);
+    }
     if (apiKey) localStorage.setItem('omniroute_api_key', apiKey);
   },
 

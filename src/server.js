@@ -39,8 +39,8 @@ export async function buildServer(opts = {}) {
   const API_KEY = process.env.API_KEY;
 
   app.addHook('onRequest', async (request, reply) => {
-    // Skip auth for health checks
-    if (request.url === '/health' || request.url === '/') return;
+    // Skip auth for health checks and CORS preflight OPTIONS requests
+    if (request.url === '/health' || request.url === '/' || request.method === 'OPTIONS') return;
 
     if (!API_KEY) {
       app.log.warn('API_KEY not set — auth disabled');
