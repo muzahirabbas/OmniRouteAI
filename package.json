@@ -1,0 +1,25 @@
+{
+  "name": "omniroute-ai",
+  "version": "1.0.0",
+  "description": "Multi-Provider AI API Router with key rotation, caching, failover, and streaming",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "dev": "node --watch --env-file=.env src/index.js",
+    "worker": "node --env-file=.env src/workers/jobWorker.js"
+  },
+  "keywords": ["ai", "api-router", "proxy", "fastify"],
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^11.0.0",
+    "ioredis": "^5.4.2",
+    "bullmq": "^5.34.6",
+    "firebase-admin": "^13.0.3",
+    "uuid": "^11.1.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
+  }
+}

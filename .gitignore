@@ -1,0 +1,15 @@
+node_modules/
+.env
+serviceAccountKey.json
+serviceAccountKey.backup.json
+dist/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.vscode/
+.idea/
+scripts/verify-providers.js
+scripts/debug-redis.js
+tmp/

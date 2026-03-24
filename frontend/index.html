@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniRouteAI — Dashboard</title>
+  <meta name="description" content="Multi-Provider AI API Router Dashboard — Monitor providers, keys, usage, and system health.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚡</div>
+      <h1>OmniRoute<span class="brand-accent">AI</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-link active" data-page="overview">
+        <span class="nav-icon">📊</span>Overview
+      </a>
+      <a href="#" class="nav-link" data-page="providers">
+        <span class="nav-icon">🔌</span>Providers
+      </a>
+      <a href="#" class="nav-link" data-page="keys">
+        <span class="nav-icon">🔑</span>API Keys
+      </a>
+      <a href="#" class="nav-link" data-page="logs">
+        <span class="nav-icon">📝</span>Logs
+      </a>
+      <a href="#" class="nav-link" data-page="stats">
+        <span class="nav-icon">📈</span>Stats
+      </a>
+      <a href="#" class="nav-link" data-page="settings">
+        <span class="nav-icon">⚙️</span>Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="health-indicator" id="health-indicator">
+        <span class="health-dot"></span>
+        <span class="health-text">Checking...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mobile nav toggle -->
+  <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">☰</button>
+
+  <!-- Main content -->
+  <main class="main" id="main">
+    <!-- Page: Overview -->
+    <section class="page active" id="page-overview">
+      <div class="page-header">
+        <h2>Dashboard Overview</h2>
+        <button class="btn btn-ghost" onclick="refreshOverview()">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="overview-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Requests Today</div>
+          <div class="stat-value" id="stat-total-requests">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Providers</div>
+          <div class="stat-value" id="stat-active-providers">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">System Status</div>
+          <div class="stat-value" id="stat-system-status">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" id="stat-uptime">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Provider Health</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Error Rate</th>
+                <th>Models</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody id="overview-providers-body">
+              <tr><td colspan="5" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Providers -->
+    <section class="page" id="page-providers">
+      <div class="page-header">
+        <h2>Providers</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="seedProviders()">🌱 Seed Defaults</button>
+          <button class="btn btn-ghost" onclick="refreshProviders()">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="providers-list" class="providers-grid">
+        <div class="empty-state">Loading providers...</div>
+      </div>
+    </section>
+
+    <!-- Page: API Keys -->
+    <section class="page" id="page-keys">
+      <div class="page-header">
+        <h2>API Keys</h2>
+      </div>
+      <div class="card">
+        <div class="form-row">
+          <select id="key-provider-select" class="input">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="xai">xAI</option>
+            <option value="alibaba">Alibaba</option>
+            <option value="ollama">Ollama</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="moonshot">Moonshot</option>
+            <option value="together">Together AI</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="cloudflare">Cloudflare</option>
+            <option value="inception">Inception Labs</option>
+            <option value="xiaomi">Xiaomi (MiMo)</option>
+            <option value="huggingface">Hugging Face</option>
+            <option value="sambanova">SambaNova</option>
+            <option value="cerebras">Cerebras</option>
+            <option value="cohere">Cohere</option>
+          </select>
+          <input type="text" id="key-input" class="input" placeholder="Paste API key here...">
+          <button class="btn btn-primary" onclick="addKey()">+ Add Key</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 1rem;">
+        <div class="form-row" style="margin-bottom: 1rem;">
+          <select id="key-view-provider" class="input" onchange="refreshKeys()">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="xai">xAI</option>
+            <option value="alibaba">Alibaba</option>
+            <option value="ollama">Ollama</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="moonshot">Moonshot</option>
+            <option value="together">Together AI</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="cloudflare">Cloudflare</option>
+            <option value="inception">Inception Labs</option>
+            <option value="xiaomi">Xiaomi (MiMo)</option>
+            <option value="huggingface">Hugging Face</option>
+            <option value="sambanova">SambaNova</option>
+            <option value="cerebras">Cerebras</option>
+            <option value="cohere">Cohere</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Usage Today</th>
+                <th>RPM</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="keys-body">
+              <tr><td colspan="5" class="empty-state">Select a provider</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Logs -->
+    <section class="page" id="page-logs">
+      <div class="page-header">
+        <h2>Request Logs</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="flushLogs()">📤 Flush Buffer</button>
+          <button class="btn btn-ghost" onclick="refreshLogs()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="form-row" style="margin-bottom: 1rem;">
+          <select id="log-filter-provider" class="input" onchange="refreshLogs()">
+            <option value="">All Providers</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="xai">xAI</option>
+            <option value="alibaba">Alibaba</option>
+            <option value="ollama">Ollama</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="moonshot">Moonshot</option>
+            <option value="together">Together AI</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="cloudflare">Cloudflare</option>
+            <option value="inception">Inception Labs</option>
+            <option value="xiaomi">Xiaomi (MiMo)</option>
+            <option value="huggingface">Hugging Face</option>
+            <option value="sambanova">SambaNova</option>
+            <option value="cerebras">Cerebras</option>
+            <option value="cohere">Cohere</option>
+          </select>
+          <select id="log-filter-status" class="input" onchange="refreshLogs()">
+            <option value="">All Statuses</option>
+            <option value="success">Success</option>
+            <option value="error">Error</option>
+            <option value="cache_hit">Cache Hit</option>
+          </select>
+          <input type="number" id="log-limit" class="input" value="50" min="10" max="200" placeholder="Limit">
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Request ID</th>
+                <th>Provider</th>
+                <th>Model</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Tokens</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body">
+              <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Stats -->
+    <section class="page" id="page-stats">
+      <div class="page-header">
+        <h2>Usage Statistics</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="aggregateStats()">📦 Aggregate Now</button>
+          <button class="btn btn-ghost" onclick="refreshStatsPage()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-today">
+        <div class="stat-card">
+          <div class="stat-label">Requests Today</div>
+          <div class="stat-value" id="stat-day-requests">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Input Tokens</div>
+          <div class="stat-value" id="stat-day-input-tokens">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Output Tokens</div>
+          <div class="stat-value" id="stat-day-output-tokens">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Daily History</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Total Requests</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="stats-history-body">
+              <tr><td colspan="3" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Settings -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <h2>Settings</h2>
+      </div>
+
+      <div class="card">
+        <h3>Backend Connection</h3>
+        <div class="form-group">
+          <label class="form-label">Backend API URL</label>
+          <input type="text" id="settings-api-url" class="input" placeholder="https://your-backend.com">
+          <small class="form-hint">The URL where your OmniRouteAI backend is running</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Router API Key</label>
+          <input type="password" id="settings-api-key" class="input" placeholder="Bearer token for authenticating with the backend">
+          <small class="form-hint">This is the API_KEY set in your backend .env file</small>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Quick Actions</h3>
+        <div class="actions-grid">
+          <button class="btn btn-secondary" onclick="seedProviders()">🌱 Seed Default Providers</button>
+          <button class="btn btn-secondary" onclick="flushLogs()">📤 Flush Log Buffer</button>
+          <button class="btn btn-secondary" onclick="aggregateStats()">📦 Aggregate Daily Stats</button>
+          <button class="btn btn-danger" onclick="testConnection()">🔌 Test Connection</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Connection Status</h3>
+        <pre class="code-block" id="connection-status">Not tested yet</pre>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
