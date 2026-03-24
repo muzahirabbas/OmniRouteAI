@@ -1,110 +1,147 @@
-import Redis from 'ioredis';
+import IoRedis from 'ioredis';
+import { Redis as UpstashRedis } from '@upstash/redis';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-/**
- * Redis client singleton with auto-reconnect.
- */
-const redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: 3, // Main connection uses 3, BullMQ duplicate uses null
-  pingInterval: 30000,     // Ping every 30s instead of sending keepAlive packets
+// ─── 1. BullMQ TCP Client (ioredis) ──────────────────────────────────
+// BullMQ STRICTLY requires an ioredis TCP connection.
+const bullmqRedis = new IoRedis(REDIS_URL, {
+  maxRetriesPerRequest: 3, 
+  pingInterval: 30000,
   retryStrategy(times) {
-    // Basic backoff
     return Math.min(times * 100, 3000);
   },
   enableReadyCheck: false,
   lazyConnect: false,
-  // Automatically enable TLS if rediss:// scheme is used (Upstash requires this)
   tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
 });
 
-redis.on('error', (err) => {
-  console.error(JSON.stringify({ level: 'error', msg: 'Redis connection error', error: err.message }));
+bullmqRedis.on('error', (err) => {
+  console.error(JSON.stringify({ level: 'error', msg: 'BullMQ TCP connection error', error: err.message }));
+});
+bullmqRedis.on('connect', () => {
+  console.log(JSON.stringify({ level: 'info', msg: 'BullMQ TCP connected' }));
 });
 
-redis.on('connect', () => {
-  console.log(JSON.stringify({ level: 'info', msg: 'Redis connected', url: REDIS_URL }));
-});
+// ─── 2. Standard REST Client (@upstash/redis) ───────────────────────
+// Bypasses TCP/SNI routing issues on Railway by using HTTP requests.
+let restRedis = null;
+
+if (REDIS_URL.includes('upstash.io')) {
+  let restUrl = process.env.UPSTASH_REDIS_REST_URL;
+  let restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  // Auto-parse Upstash credentials from REDIS_URL if missing
+  if (!restUrl || !restToken) {
+    try {
+      const urlObj = new URL(REDIS_URL);
+      restUrl = `https://${urlObj.hostname}`;
+      restToken = urlObj.password;
+    } catch (err) {
+      console.warn('Failed to parse Upstash credentials from REDIS_URL');
+    }
+  }
+
+  if (restUrl && restToken) {
+    restRedis = new UpstashRedis({ url: restUrl, token: restToken });
+    console.log(JSON.stringify({ level: 'info', msg: 'Upstash REST HTTP Client initialized' }));
+  }
+}
+
+const primaryClient = restRedis || bullmqRedis;
 
 // ─── Helper functions ────────────────────────────────────────────────
 
 export async function get(key) {
-  return redis.get(key);
+  return primaryClient.get(key);
 }
 
 export async function set(key, value) {
-  return redis.set(key, value);
+  return primaryClient.set(key, value);
 }
 
 export async function setex(key, ttl, value) {
-  return redis.setex(key, ttl, value);
+  return primaryClient.setex(key, ttl, value);
 }
 
 export async function del(key) {
-  return redis.del(key);
+  return primaryClient.del(key);
 }
 
 export async function incr(key) {
-  return redis.incr(key);
+  return primaryClient.incr(key);
 }
 
 export async function incrWithTTL(key, ttl) {
-  const pipeline = redis.pipeline();
+  const pipeline = primaryClient.pipeline();
   pipeline.incr(key);
   pipeline.expire(key, ttl);
   const results = await pipeline.exec();
-  return results[0][1]; // incr result
+  
+  // Upstash returns plain results array. ioredis returns array of [err, result] tuples.
+  return restRedis ? results[0] : results[0][1];
 }
 
 export async function expire(key, seconds) {
-  return redis.expire(key, seconds);
+  return primaryClient.expire(key, seconds);
 }
 
 export async function zadd(key, score, member) {
-  return redis.zadd(key, score, member);
+  return primaryClient.zadd(key, { score, member });
 }
 
 export async function zincrby(key, increment, member) {
-  return redis.zincrby(key, increment, member);
+  // ioredis uses (key, increment, member), @upstash uses (key, increment, member) as well
+  return primaryClient.zincrby(key, increment, member);
 }
 
 export async function zrangeByScore(key, min, max, withScores = false) {
-  if (withScores) {
-    return redis.zrangebyscore(key, min, max, 'WITHSCORES');
+  if (restRedis) {
+    return restRedis.zrangebyscore(key, min, max, withScores ? { withScores: true } : undefined);
+  } else {
+    return bullmqRedis.zrangebyscore(key, min, max, withScores ? 'WITHSCORES' : undefined);
   }
-  return redis.zrangebyscore(key, min, max);
 }
 
 export async function zrange(key, start, stop, withScores = false) {
-  if (withScores) {
-    return redis.zrange(key, start, stop, 'WITHSCORES');
+  if (restRedis) {
+    return restRedis.zrange(key, start, stop, withScores ? { withScores: true } : undefined);
+  } else {
+    // ioredis optionally takes 'WITHSCORES' as a variadic string argument
+    if (withScores) {
+      return bullmqRedis.zrange(key, start, stop, 'WITHSCORES');
+    }
+    return bullmqRedis.zrange(key, start, stop);
   }
-  return redis.zrange(key, start, stop);
 }
 
 export async function zrem(key, member) {
-  return redis.zrem(key, member);
+  return primaryClient.zrem(key, member);
 }
 
 export async function keys(pattern) {
-  return redis.keys(pattern);
+  return primaryClient.keys(pattern);
 }
 
 /**
  * Execute a Lua script atomically.
- * @param {string} script - Lua source
- * @param {number} numkeys - number of KEYS args
- * @param  {...any} args - KEYS and ARGV values
+ * Adapts between ioredis and @upstash/redis signatures.
  */
 export async function evalLua(script, numkeys, ...args) {
-  return redis.eval(script, numkeys, ...args);
+  if (restRedis) {
+    const keysArray = args.slice(0, numkeys);
+    const argsArray = args.slice(numkeys);
+    return restRedis.eval(script, keysArray, argsArray);
+  } else {
+    return bullmqRedis.eval(script, numkeys, ...args);
+  }
 }
 
 /**
  * Get the raw ioredis client for BullMQ or other advanced use.
  */
 export function getClient() {
-  return redis;
+  return bullmqRedis;
 }
 
 /**
@@ -112,7 +149,7 @@ export function getClient() {
  * BullMQ requires maxRetriesPerRequest to be null.
  */
 export function createDuplicate() {
-  return redis.duplicate({ maxRetriesPerRequest: null });
+  return bullmqRedis.duplicate({ maxRetriesPerRequest: null });
 }
 
-export default redis;
+export default bullmqRedis;
