@@ -153,6 +153,10 @@ async function refreshProviders() {
           ${(p.models || []).map((m) => `<span class="model-tag">${m}</span>`).join('')}
         </div>
         <div class="provider-actions">
+          <button class="btn btn-sm btn-secondary"
+            onclick="openEditProviderModal('${p.name}', ${p.priority}, ${p.weight}, ${JSON.stringify(p.models).replace(/"/g, '&quot;')}, '${p.default_model || ''}')">
+            ✏️ Edit
+          </button>
           <button class="btn btn-sm ${p.disabled ? 'btn-primary' : 'btn-danger'}"
             onclick="toggleProvider('${p.name}', ${!p.disabled})">
             ${p.disabled ? '✅ Enable' : '🚫 Disable'}
@@ -183,6 +187,43 @@ async function seedProviders() {
     refreshOverview();
   } catch (err) {
     showToast('error', err.message);
+  }
+}
+
+// ─── Provider Modal ──────────────────────────────────────────────────
+
+function openEditProviderModal(name, priority, weight, models, defaultModel) {
+  document.getElementById('edit-provider-title').textContent = `Edit Provider: ${name}`;
+  document.getElementById('edit-provider-name').value = name;
+  document.getElementById('edit-provider-priority').value = priority;
+  document.getElementById('edit-provider-weight').value = weight;
+
+  const modelSelect = document.getElementById('edit-provider-default-model');
+  modelSelect.innerHTML = models.map(m => `
+    <option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>
+  `).join('');
+
+  document.getElementById('modal-edit-provider').classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(`modal-${id}`).classList.remove('active');
+}
+
+async function saveProviderConfig() {
+  const name = document.getElementById('edit-provider-name').value;
+  const priority = parseInt(document.getElementById('edit-provider-priority').value, 10);
+  const weight = parseInt(document.getElementById('edit-provider-weight').value, 10);
+  const default_model = document.getElementById('edit-provider-default-model').value;
+
+  try {
+    await API.updateProvider(name, { priority, weight, default_model });
+    showToast('success', `Provider ${name} updated successfully`);
+    closeModal('edit-provider');
+    refreshProviders();
+    refreshOverview();
+  } catch (err) {
+    showToast('error', `Update failed: ${err.message}`);
   }
 }
 

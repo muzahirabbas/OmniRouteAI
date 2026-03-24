@@ -135,10 +135,14 @@ export async function route(prompt, opts = {}) {
   for (const provider of activeProviders) {
     if (excludeProviders.includes(provider.name)) continue;
 
-    // Select model
-    const model = opts.model && provider.models.includes(opts.model)
-      ? opts.model
-      : provider.models[0]; // Default to first model
+    // Select model: specific request -> provider default -> first in list
+    let model = opts.model && provider.models.includes(opts.model) ? opts.model : null;
+    
+    if (!model) {
+      model = (provider.default_model && provider.models.includes(provider.default_model))
+        ? provider.default_model
+        : provider.models[0];
+    }
 
     // Get key (atomic, RPM-checked)
     const apiKey = excludeKeys.length > 0
