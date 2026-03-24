@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { getClient } from '../config/redis.js';
+import { createDuplicate } from '../config/redis.js';
 
 /**
  * BullMQ queue for non-streaming chat completions.
@@ -11,7 +11,7 @@ let queue;
 function getQueue() {
   if (!queue) {
     queue = new Queue('chat-completions', {
-      connection: getClient().duplicate(),
+      connection: createDuplicate(),
       defaultJobOptions: {
         removeOnComplete: { count: 1000 },
         removeOnFail: { count: 500 },
@@ -21,7 +21,6 @@ function getQueue() {
   }
   return queue;
 }
-
 /**
  * Enqueue a chat completion job.
  *

@@ -6,14 +6,10 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 // ─── 1. BullMQ TCP Client (ioredis) ──────────────────────────────────
 // BullMQ STRICTLY requires an ioredis TCP connection.
 const bullmqRedis = new IoRedis(REDIS_URL, {
-  maxRetriesPerRequest: 3, 
-  pingInterval: 30000,
-  retryStrategy(times) {
-    return Math.min(times * 100, 3000);
-  },
-  enableReadyCheck: false,
-  lazyConnect: false,
+  maxRetriesPerRequest: null, // Required by BullMQ to allow infinite retries without crashing the Node process
+  enableReadyCheck: false,    // Strongly recommended by Upstash to avoid connection stall checks
   tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+  // No artificial ping intervals or disconnect trackers here, relying on ioredis built-in backoff
 });
 
 bullmqRedis.on('error', (err) => {
