@@ -8,12 +8,15 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const bullmqRedis = new IoRedis(REDIS_URL, {
   maxRetriesPerRequest: null, // Required by BullMQ to allow infinite retries without crashing the Node process
   enableReadyCheck: false,    // Strongly recommended by Upstash to avoid connection stall checks
+  family: 0,                  // CRITICAL: Required for Railway IPv6 routing to Upstash
   tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
-  // No artificial ping intervals or disconnect trackers here, relying on ioredis built-in backoff
 });
 
 bullmqRedis.on('error', (err) => {
-  console.error(JSON.stringify({ level: 'error', msg: 'BullMQ TCP connection error', error: err.message }));
+  // Suppress verbose reconnect errors from standard drops
+  if (err.message && !err.message.includes('ECONNREFUSED')) {
+    // console.error(JSON.stringify({ level: 'error', msg: 'BullMQ TCP connection error expected drop', error: err.message }));
+  }
 });
 bullmqRedis.on('connect', () => {
   console.log(JSON.stringify({ level: 'info', msg: 'BullMQ TCP connected' }));
