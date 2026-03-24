@@ -39,8 +39,8 @@ export async function buildServer(opts = {}) {
   const API_KEY = process.env.API_KEY;
 
   app.addHook('onRequest', async (request, reply) => {
-    // Skip auth for health check
-    if (request.url === '/health') return;
+    // Skip auth for health checks
+    if (request.url === '/health' || request.url === '/') return;
 
     if (!API_KEY) {
       app.log.warn('API_KEY not set — auth disabled');
@@ -63,6 +63,11 @@ export async function buildServer(opts = {}) {
         message: 'Invalid API key',
       });
     }
+  });
+
+  // ─── Root Level Health Check (Railway requirement) ──────────────────
+  app.get('/', async () => {
+    return { name: 'OmniRouteAI', status: 'online' };
   });
 
 
