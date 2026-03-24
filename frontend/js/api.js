@@ -42,9 +42,13 @@ const API = {
     const apiKey = this.getApiKey();
 
     const headers = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    // Only set Content-Type to JSON if we are actually sending a body
+    if (options.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
