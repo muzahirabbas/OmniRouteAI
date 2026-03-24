@@ -6,13 +6,15 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
  * Redis client singleton with auto-reconnect.
  */
 const redis = new Redis(REDIS_URL, {
-  family: 0, // Enable dual-stack (IPv4 & IPv6) resolution for cloud platforms like Railway
   maxRetriesPerRequest: null,
+  connectTimeout: 10000, // 10 seconds to connect
+  keepAlive: 10000,      // keep alive every 10s
+  tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined, // Essential for Upstash TLS
   retryStrategy(times) {
-    const delay = Math.min(times * 200, 5000);
+    const delay = Math.min(times * 100, 3000);
     return delay;
   },
-  enableReadyCheck: true,
+  enableReadyCheck: false, // Upstash recommended
   lazyConnect: false,
 });
 
