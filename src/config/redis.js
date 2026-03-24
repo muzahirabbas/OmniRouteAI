@@ -6,6 +6,7 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
  * Redis client singleton with auto-reconnect.
  */
 const redis = new Redis(REDIS_URL, {
+  family: 0, // Enable dual-stack (IPv4 & IPv6) resolution for cloud platforms like Railway
   maxRetriesPerRequest: null,
   retryStrategy(times) {
     const delay = Math.min(times * 200, 5000);
