@@ -65,6 +65,11 @@ export async function buildServer(opts = {}) {
     }
   });
 
+  // ─── Health Check ──────────────────────────────────────────────────
+  app.get('/health', async () => {
+    return { status: 'healthy', timestamp: new Date().toISOString() };
+  });
+
   // ─── Routes ─────────────────────────────────────────────────────────
   await app.register(chatRoutes);
   await app.register(adminRoutes);
