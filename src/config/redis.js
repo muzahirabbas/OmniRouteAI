@@ -6,16 +6,16 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
  * Redis client singleton with auto-reconnect.
  */
 const redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: null,
-  connectTimeout: 10000, // 10 seconds to connect
-  keepAlive: 10000,      // keep alive every 10s
-  tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined, // Essential for Upstash TLS
+  maxRetriesPerRequest: 3, // Main connection uses 3, BullMQ duplicate uses null
+  pingInterval: 30000,     // Ping every 30s instead of sending keepAlive packets
   retryStrategy(times) {
-    const delay = Math.min(times * 100, 3000);
-    return delay;
+    // Basic backoff
+    return Math.min(times * 100, 3000);
   },
-  enableReadyCheck: false, // Upstash recommended
+  enableReadyCheck: false,
   lazyConnect: false,
+  // Automatically enable TLS if rediss:// scheme is used (Upstash requires this)
+  tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
 });
 
 redis.on('error', (err) => {
