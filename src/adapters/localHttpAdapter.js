@@ -164,6 +164,7 @@ export class LocalHttpAdapter extends BaseAdapter {
    * Expected format: { output: string, tokens?: { input, output } }
    */
   normalizeResponse(rawResponse) {
+    if (!rawResponse) rawResponse = {};
     const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || '';
     const tokens = extractTokens(rawResponse, output);
 

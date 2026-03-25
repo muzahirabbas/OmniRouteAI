@@ -216,10 +216,8 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       return [prompt, ...(model ? ['--model', model] : [])];
 
     case 'copilot':
-      // copilot suggest -t shell "prompt" -- or just copilot "prompt"
-      // the official "gh copilot suggest" requires tty, but basic copilot might wrap it. 
-      // We'll pass the prompt as the primary intent.
-      return ['suggest', '-t', 'doc', prompt];
+      // gh copilot suggest -t doc "prompt"
+      return ['copilot', 'suggest', '-t', 'doc', prompt];
 
     case 'custom':
       return [prompt];
