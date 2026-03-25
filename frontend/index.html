@@ -29,6 +29,9 @@
       <a href="#" class="nav-link" data-page="logs">
         <span class="nav-icon">📝</span>Logs
       </a>
+      <a href="#" class="nav-link" data-page="playground">
+        <span class="nav-icon">🎮</span>Playground
+      </a>
       <a href="#" class="nav-link" data-page="stats">
         <span class="nav-icon">📈</span>Stats
       </a>
@@ -323,6 +326,57 @@
               <tr><td colspan="3" class="empty-state">Loading...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Page: Playground -->
+    <section class="page" id="page-playground">
+      <div class="page-header">
+        <h2>AI Playground</h2>
+        <div class="header-actions">
+           <span class="badge badge-success">Live Ready</span>
+        </div>
+      </div>
+
+      <div class="playground-layout">
+        <div class="playground-sidebar">
+          <div class="card" style="margin-bottom: 1rem;">
+             <h3>Configuration</h3>
+             <div class="form-group">
+                <label class="form-label">Target Provider</label>
+                <select id="playground-provider" class="input">
+                   <option value="auto">Auto Router (Live)</option>
+                   <option disabled>── Local CLI Daemons ──</option>
+                   <option value="claude_cli_local">Claude CLI (Local)</option>
+                   <option value="gemini_cli_local">Gemini CLI (Local)</option>
+                   <option value="qwen_cli_local">Qwen CLI (Local)</option>
+                   <option value="antigravity_cli_local">Antigravity CLI (Local)</option>
+                   <option value="copilot_cli_local">GitHub Copilot CLI (Local)</option>
+                   <option disabled>── Cloud Providers ──</option>
+                   <option value="openai">OpenAI</option>
+                   <option value="anthropic">Anthropic</option>
+                   <option value="google">Google Gemini</option>
+                </select>
+             </div>
+             <div class="form-group">
+                <label class="form-label">Model Override</label>
+                <input type="text" id="playground-model" class="input" placeholder="auto">
+             </div>
+             <button class="btn btn-ghost" style="width: 100%;" onclick="clearChat()">Clear Window</button>
+          </div>
+        </div>
+
+        <div class="playground-main">
+          <div id="chat-window" class="chat-window">
+             <div class="chat-message bot">
+                How can I help you test your AI providers today?
+             </div>
+          </div>
+          <div class="chat-controls">
+             <textarea id="chat-input" class="chat-input input" placeholder="Message your AI..." rows="1"></textarea>
+             <button id="send-btn" class="btn btn-primary" onclick="sendMessage()">Send</button>
+          </div>
         </div>
       </div>
     </section>

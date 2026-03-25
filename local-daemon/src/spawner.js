@@ -168,26 +168,27 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
     case 'claude':
       // claude -p "prompt" [--model model]
       return [
-        '-p', prompt,
+        '-p', `"${prompt}"`,
         ...(model ? ['--model', model] : []),
+        '--dangerously-skip-permissions',
         '--output-format', 'text',
       ];
 
     case 'gemini':
       // gemini -p "prompt" [--model model]
       return [
-        '-p', prompt,
+        '-p', `"${prompt}"`,
         ...(model ? ['--model', model] : []),
       ];
 
     case 'qwen':
       // qwen run "prompt"
-      return ['run', prompt];
+      return ['run', `"${prompt}"`];
 
     case 'antigravity':
-      // antigravity "prompt" [--model model]
+      // antigravity chat "prompt" [--model model]
       return [
-        prompt,
+        'chat', `"${prompt}"`,
         ...(model ? ['--model', model] : []),
       ];
 
@@ -212,12 +213,15 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       return ['chat', prompt, ...(model ? ['--model', model] : [])];
 
     case 'grok':
-      // grok "prompt"
-      return [prompt, ...(model ? ['--model', model] : [])];
+      // grok --prompt "prompt"
+      return ['--prompt', `"${prompt}"`, ...(model ? ['--model', model] : [])];
 
     case 'copilot':
-      // gh copilot suggest -t doc "prompt"
-      return ['copilot', 'suggest', '-t', 'doc', prompt];
+      // copilot -p "prompt"
+      return [
+        '-p', `"${prompt}"`,
+        ...(model ? ['--model', model] : []),
+      ];
 
     case 'custom':
       return [prompt];

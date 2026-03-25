@@ -481,3 +481,76 @@ function getStatusBadge(status) {
     default: return 'badge-warning';
   }
 }
+// ─── AI Playground ───────────────────────────────────────────────────
+
+async function sendMessage() {
+  const inputEl = document.getElementById('chat-input');
+  const chatWindow = document.getElementById('chat-window');
+  const provider = document.getElementById('playground-provider').value;
+  const model = document.getElementById('playground-model').value || 'auto';
+  const prompt = inputEl.value.trim();
+
+  if (!prompt) return;
+
+  // Add user message to UI
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-message user';
+  userMsg.textContent = prompt;
+  chatWindow.appendChild(userMsg);
+  
+  // Clear input
+  inputEl.value = '';
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+
+  // Add thinking indicator
+  const botMsg = document.createElement('div');
+  botMsg.className = 'chat-message bot thinking';
+  botMsg.textContent = 'Thinking...';
+  chatWindow.appendChild(botMsg);
+
+  try {
+    const payload = {
+      model,
+      prompt,
+      // If a specific local provider is chosen, we force it
+      provider: provider !== 'auto' ? provider : undefined
+    };
+
+    const response = await apiFetch('/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    botMsg.classList.remove('thinking');
+    if (response.error) {
+       botMsg.classList.add('error');
+       botMsg.textContent = `Error: ${response.message}`;
+    } else {
+       botMsg.textContent = response.output;
+       // Add metadata
+       const meta = document.createElement('div');
+       meta.className = 'chat-meta';
+       meta.textContent = `Used: ${response.provider || 'unknown'} (${response.model || 'auto'})`;
+       botMsg.appendChild(meta);
+    }
+  } catch (err) {
+    botMsg.classList.remove('thinking');
+    botMsg.classList.add('error');
+    botMsg.textContent = `Connection Failed: ${err.message}`;
+  }
+
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function clearChat() {
+  const chatWindow = document.getElementById('chat-window');
+  chatWindow.innerHTML = '<div class="chat-message bot">Window cleared. How can I help you?</div>';
+}
+
+// Global enter handler for chat
+document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'chat-input' && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});

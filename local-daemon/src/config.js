@@ -103,7 +103,7 @@ const DEFAULT_CONFIG = {
     },
     copilot: {
       enabled:  true,
-      command:  'gh',
+      command:  'copilot',
       args:     [],
       timeout:  60000,
       env:      {},
