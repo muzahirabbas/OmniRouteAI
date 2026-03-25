@@ -2,122 +2,129 @@
 
 [![Fastify](https://img.shields.io/badge/Fastify-000000?style=for-the-badge&logo=fastify&logoColor=white)](https://fastify.io/)
 [![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![BullMQ](https://img.shields.io/badge/BullMQ-FF4136?style=for-the-badge&logo=bull&logoColor=white)](https://bullmq.io/)
 [![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg?style=for-the-badge)](LICENSE)
 
-**OmniRouteAI** is a production-grade AI API router and management system. It allows you to unify 17+ AI providers (including OpenAI, Anthropic, Google, DeepSeek, and more) into a single, highly reliable API with automatic failover, smart load balancing, and enterprise-grade observability.
+**OmniRouteAI** is a high-availability, production-grade AI inference engine and router. It unifies **24+ AI providers** and hundreds of models—from cloud giants to local CLI agents—into a single, resilient API.
 
----
-
-## ⚡ Key Features
-
-*   **🛡️ Resilient Failover**: If a provider or key fails, the router instantly switches to the next available healthy provider in milliseconds.
-*   **🔑 Smart Key Rotation**: Cycle through multiple API keys for each provider to maximize throughput and avoid rate limits.
-*   **💾 Multi-Level Caching**: Integrated **Redis** caching for identical prompts, reducing costs and latency to near-zero for repeating queries.
-*   **🚀 17+ Integrated Providers**: Out-of-the-box support for OpenAI, Anthropic, Google Gemini, xAI (Grok), SambaNova, Cerebras, Cloudflare, DeepSeek, and more.
-*   **📊 Full Observability**: A stunning **Real-time Dashboard** to track logs, token usage, error rates, and key health.
-*   **🌪️ High Performance**: Built on **Fastify** for ultra-low overhead and **BullMQ** for reliable background job processing.
-*   **🧪 No Vendor Lock-in**: Switch from Claude to Llama, or OpenAI to DeepSeek in the dashboard without changing any code in your apps.
+Built on **Fastify**, **BullMQ**, and **Redis**, it offers automatic failover, smart key rotation, multi-level caching, and a world-class observability dashboard.
 
 ---
 
-## 🏗️ Architecture
+## ⚡ Core Features
+
+*   **🛡️ Enterprise Failover**: Seamlessly switches to the next available healthy provider/key in milliseconds if a failure occurs.
+*   **🔑 Dynamic Key Rotation**: Cycle through an unlimited pool of API keys to bypass rate limits and maximize throughput.
+*   **💾 Multi-Layer Caching**: Shared **Redis** caching for identical prompts, reducing latency to <50ms for repeat queries and minimizing costs.
+*   **🌉 Local CLI Bridge (v1.1.8)**: A unique architecture that allows cloud-hosted backends to tunnel requests to your **local machine** to run CLI-based agents like Claude Code, Gemini CLI, Zai, or Cline.
+*   **📊 Unified Dashboard**: A sleek, real-time UI to manage keys, audit logs, monitor provider health, and analyze token usage.
+*   **🌪️ High Performance**: Ultra-low overhead routing designed for extreme concurrency using asynchronous background workers.
+*   **🧪 No Vendor Lock-in**: Swap between OpenAI, Claude, or DeepSeek R1 globally by simply flipping a switch—no code changes required.
+
+---
+
+## 🏗️ The Ecosystem
+
+### ☁️ Cloud Providers (API First)
+- **Direct Access**: OpenAI, Anthropic, Google Gemini, xAI (Grok), DeepSeek, Alibaba (Qwen), Moonshot (Kimi), Groq, SambaNova, Cerebras, NVIDIA, Cloudflare, Inception Labs, Xiaomi (MiMo), Together AI, Hugging Face, Cohere.
+- **Hosted Runners**: OpenRouter, Ollama-Cloud.
+
+### 💻 Local Bridge Tools (The Daemon)
+The **OmniRouteAI-Local Daemon** exposes CLI tools via a secure HTTP bridge on your local machine:
+- **Agents**: Antigravity, Claude Code, Gemini CLI, Kilo AI, OpenCode, Codex, Kiro, Grok CLI, Zai, Cline, Kimi CLI.
+- **Engines**: Ollama (Direct), Ollama Bridge (via Daemon).
+
+---
+
+## 🖼️ Architecture & Flow
 
 ```mermaid
 graph TD
-    A[User App / Dashboard] -->|HTTPS| B(OmniRoute Router)
-    B -->|Fastify| C{Router Service}
-    C -->|Check Health| D[(Redis - State & Cache)]
-    C -->|Fetch Keys| E[(Firestore - Database)]
+    A[Client App / Dashboard] -->|Unified API| B(OmniRoute Router)
+    B -->|Fastify Gateway| C{Routing Engine}
     
-    subgraph "Intelligent Routing"
-        F[Failover Engine]
-        G[Key Rotation]
-        H[Circuit Breaker]
+    subgraph "Infrastructure"
+        D[(Redis State & Cache)]
+        E[(Firestore Config)]
     end
     
-    C --> F
-    F --> G
-    G --> H
+    C -->|Check Health| D
+    C -->|Fetch Keys| E
     
-    H -->|Execute| I[BullMQ Worker]
-    I -->|API Call| J{AI Providers}
+    subgraph "Intelligent Logic"
+        F[Resilient Failover]
+        G[Key Rotation Hub]
+        H[Cost Optimizer]
+    end
     
-    J -->|OK| K[Success Response]
-    J -->|FAIL| L[Trigger Failover]
-    L --> C
+    C --> F --> G --> H
+    H -->|Push Task| I[BullMQ / Redis Queue]
+    
+    I -->|Execute| J[Worker Cluster]
+    
+    subgraph "Inference Targets"
+        K[Cloud APIs]
+        L[Local Bridge]
+        M[Edge Nodes]
+    end
+    
+    J --> K
+    J --> L
+    J --> M
+    
+    L -->|X-Local-Token| N[OmniRoute Local Daemon]
+    N -->|Spawn CLI| O[Claude Code / Antigravity / etc.]
 ```
 
 ---
 
-## 📱 Dashboard Overview
+## 🕹️ Dashboard Overview
 
-The project includes a built-in static dashboard that lets you manage your entire AI fleet:
--   **Overview**: System pulse and provider health.
--   **API Keys**: Add and manage keys for all 17 providers.
--   **Provider Control**: Enable/Disable providers and update priorities.
--   **Detailed Logs**: Audit every single prompt, response, and latency metic.
--   **Stats**: Track your input/output token economy.
-
----
-
-## 🚀 Quick Start
-
-### 1. Installation
-```bash
-git clone https://github.com/yourusername/OmniRouteAI.git
-cd OmniRouteAI
-npm install
-```
-
-### 2. Configuration
-Create a `.env` file (copied from `.env.example`):
-```env
-PORT=3000
-API_KEY=your-router-api-key
-REDIS_URL=rediss://...
-GOOGLE_APPLICATION_CREDENTIALS=your-json-here
-```
-
-### 3. Run Locally
-```bash
-# Terminal 1: Start Backend
-npm start
-
-# Terminal 2: Start Worker
-npm run worker
-```
+Manage your entire AI fleet from a single responsive interface:
+- **📋 Overview**: Real-time system health alerts and provider status grids.
+- **🔌 Providers**: Fine-grained control over priority, weight, and model selection per-provider.
+- **🔑 Key Vault**: Secure management of API keys for 24+ services.
+- **📝 Logs**: Deep observability—inspect latency, token usage, and raw request/response objects.
+- **🎮 Playground**: A live AI testing ground with model overrides and multi-provider selection.
+- **📈 Stats**: Economic insights into your daily token burn and request volume.
 
 ---
 
-## 🌩️ Deployment (FREE)
+## 🚀 Deployment Guide
 
-This project is optimized for deployment on **Railway** (Backend) and **Cloudflare Pages** (Frontend).
+### 1. Cloud Backend (Recommended: Railway)
+OmniRouteAI is optimized for **Railway** deployment:
+1.  Connect your repository.
+2.  Paste your entire **Google Service Account JSON** into `GOOGLE_APPLICATION_CREDENTIALS`.
+3.  Deploy two services:
+    - **API Node**: Default `npm start`.
+    - **Inference Worker**: Command `npm run worker`.
 
-### Railway Deployment (Backend)
-1.  Connect your repo to [Railway](https://railway.app/).
-2.  Set your `.env` variables in the dashboard.
-3.  For `GOOGLE_APPLICATION_CREDENTIALS`, paste your **entire service account JSON token**.
-4.  Create two services:
-    -   **Server**: Uses the default `npm start`.
-    -   **Worker**: Set start command to `npm run worker`.
+### 2. Local CLI Daemon (The Bridge)
+To use local agents (Claude/Antigravity) on a cloud backend:
+1.  Navigate to `local-daemon/`.
+2.  Run `npm run build:win` or use the pre-compiled `OmniRouteAI-Local.exe`.
+3.  Set `LOCAL_DAEMON_TOKEN` in your backend `.env` to match the daemon's auto-generated token.
+4.  Point the backend to the daemon via tunnel (e.g., Cloudflare Tunnel / Ngrok) or direct IP.
 
----
-
-## 🛠️ Supported Providers
-
-| Provider | Status | Models |
-| :--- | :--- | :--- |
-| **OpenAI** | ✅ Ready | All GPT, o1, o3-mini |
-| **Anthropic** | ✅ Ready | Claude 3, 3.5, 4.5, 4.6 |
-| **Google** | ✅ Ready | Gemini 2.x, 3.x, Gemma 2, 3 |
-| **DeepSeek** | ✅ Ready | V3, R1, Chat, Reasoning |
-| **SambaNova** | ✅ Ready | Llama 3.3, Qwen, DeepSeek |
-| **Cerebras** | ✅ Ready | Llama 3.1 8B/70B (Fast) |
-| **...and 10+ more!** | ✅ Ready | Groq, Cisco, Together, NVIDIA, etc. |
+### 3. Frontend Dashboard
+Static files from `/frontend` can be served by any CDN or hosted on **Vercel / Netlify / Cloudflare Pages**. Just set `API_URL` to your backend URL.
 
 ---
 
-## 📜 License
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+## 📑 Feature Roadmap
+
+- [ ] **OpenAuth Layer**: Built-in user authentication for shared playground hosting.
+- [ ] **Usage Quotas**: Granular API limits per user/key.
+- [ ] **Prompt Engineering Hub**: Versioned system prompt templates shared across all providers.
+- [ ] **Auto-Discovery**: Automatically find and register local CLI tools on start.
+- [ ] **Smart Semantic Cache**: Using vector embeddings to cache similar (not just identical) prompts.
+
+---
+
+## 📜 License & Compliance
+
+OmniRouteAI is open-source software licensed under the **MIT License**. We believe in the power of an open AI ecosystem without gatekeepers.
+
+---
+*Developed with ⚡ by the OmniRouteAI Team.*
