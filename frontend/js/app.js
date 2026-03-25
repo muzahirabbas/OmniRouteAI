@@ -544,6 +544,7 @@ async function refreshOllamaHealth() {
     } else {
       setChipStatus(serverChip, 'offline', 'Ollama (11434)');
       hint.style.display = 'block';
+      hint.textContent = `⚠️ Ollama server is not responding on 127.0.0.1:11434. Try: ollama serve — ${data.error || 'unreachable'}`;
     }
   } catch (err) {
     setChipStatus(daemonChip, 'offline', 'Daemon Bridge');
