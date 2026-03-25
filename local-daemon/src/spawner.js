@@ -188,15 +188,14 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'antigravity':
-      // Phase 6: Claude Code Proxy Bridge for Antigravity (as requested)
-      // If we use 'claude -p', it may act as a better headless bridge if configured
-      // Fallback to absolute path of antigravity.cmd if claude is not logged in
+      // Phase 7: Native Antigravity Agent CLI (as requested)
+      // Uses the actual Google account and skills headlessly
       return [
-        'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
-        '-p',
-        `Ask Antigravity: ${q}`,
-        '--dangerously-skip-permissions',
-        '--no-session-persistence',
+        'C:/Users/Zaari/AppData/Local/Programs/Antigravity/bin/antigravity.cmd',
+        'agent',
+        '--non-interactive',
+        '--mode', 'act',
+        q,
       ];
 
     case 'kilo':
