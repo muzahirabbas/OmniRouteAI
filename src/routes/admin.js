@@ -127,15 +127,32 @@ export async function adminRoutes(app) {
 
   // Disable/enable a provider manually
   app.post('/api/admin/providers/:name/toggle', async (request) => {
-    const { name }         = request.params;
+    const { name }          = request.params;
     const { disabled, ttl } = request.body || {};
+    const newStatus         = disabled ? 'inactive' : 'active';
 
-    if (disabled) {
-      await disableProvider(name, ttl || 3600);
-      return { success: true, provider: name, status: 'disabled' };
-    } else {
-      await del(`provider:disabled:${name}`);
-      return { success: true, provider: name, status: 'active' };
+    try {
+      const db = getDb();
+      const providerRef = db.collection('providers').doc(name);
+      const doc = await providerRef.get();
+
+      if (doc.exists) {
+        await providerRef.update({ status: newStatus });
+      } else {
+        await providerRef.set({ name, status: newStatus });
+      }
+
+      await del('providers:list'); // Invalidate cache
+
+      if (disabled) {
+        await disableProvider(name, ttl || 3600);
+      } else {
+        await del(`provider:disabled:${name}`);
+      }
+
+      return { success: true, provider: name, status: newStatus };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   });
 
@@ -196,18 +213,28 @@ export async function adminRoutes(app) {
       // 4. Reload API keys from Firestore into Redis sorted sets
       const keysSnapshot = await db.collection('api_keys').get();
       const keysByProvider = {};
+      const disabledKeys = [];
 
       keysSnapshot.forEach(doc => {
         const data = doc.data();
         if (data.provider && data.key) {
           if (!keysByProvider[data.provider]) keysByProvider[data.provider] = [];
           keysByProvider[data.provider].push(data.key);
+
+          if (data.is_disabled) {
+            disabledKeys.push({ provider: data.provider, key: data.key });
+          }
         }
       });
 
       // Register keys with NX (only add if not already in set, preserve no-score on existing)
       for (const [providerName, providerKeys] of Object.entries(keysByProvider)) {
         await registerKeys(providerName, providerKeys);
+      }
+
+      // Re-apply permanently disabled status in Redis
+      for (const dk of disabledKeys) {
+        await disableKey(dk.provider, dk.key, 31536000); // 1 year
       }
 
       return {
@@ -363,13 +390,28 @@ export async function adminRoutes(app) {
     const { provider, key } = request.params;
     const { disabled }      = request.body || {};
 
-    if (disabled) {
-      await disableKey(provider, key, 3600);
-    } else {
-      await del(`key:disabled:${provider}:${key}`);
-    }
+    try {
+      const db = getDb();
+      const snapshot = await db.collection('api_keys')
+        .where('provider', '==', provider)
+        .where('key',      '==', key)
+        .limit(1)
+        .get();
 
-    return { success: true, provider, key: maskKey(key), disabled };
+      if (!snapshot.empty) {
+        await snapshot.docs[0].ref.update({ is_disabled: disabled });
+      }
+
+      if (disabled) {
+        await disableKey(provider, key, 31536000); // 1 year TTL
+      } else {
+        await del(`key:disabled:${provider}:${key}`);
+      }
+
+      return { success: true, provider, key: maskKey(key), disabled };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   // ─── Logs ─────────────────────────────────────────────────────────────
