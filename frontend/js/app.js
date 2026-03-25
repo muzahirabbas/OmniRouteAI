@@ -471,7 +471,8 @@ async function saveSettings() {
     return;
   }
   
-  await API.saveSettings(url, key, { useEncryption, passphrase });
+  // Only update API key if value entered (prevents overwriting with empty string)
+  await API.saveSettings(url, key || null, { useEncryption, passphrase });
   showToast('success', 'Settings saved' + (useEncryption ? ' (encrypted)' : ''));
   checkHealth();
 }

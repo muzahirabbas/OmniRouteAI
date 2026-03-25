@@ -219,7 +219,7 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
     case 'copilot':
       return [
         '-p', q,
-        ...(model ? ['--model', model] : []),
+        ...(model && model !== 'default' ? ['--model', model] : []),
       ];
 
     case 'custom':

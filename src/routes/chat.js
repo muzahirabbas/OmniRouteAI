@@ -171,7 +171,7 @@ export async function chatRoutes(app) {
         systemPrompt,
         requestId
       });
-      const result = await waitForResult(jobId, 30000);
+      const result = await waitForResult(jobId, 120000); // 120s timeout for CLI tools
 
       const latency = Date.now() - startTime;
 
