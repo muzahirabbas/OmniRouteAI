@@ -164,8 +164,10 @@ export class LocalHttpAdapter extends BaseAdapter {
    * Expected format: { output: string, tokens?: { input, output } }
    */
   normalizeResponse(rawResponse) {
-    if (!rawResponse) rawResponse = {};
-    const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || '';
+    // Defensive check for null/undefined response
+    if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
+
+    const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || rawResponse.choices?.[0]?.text || '';
     const tokens = extractTokens(rawResponse, output);
 
     // Prefer explicit token fields from the local server if present
@@ -174,7 +176,7 @@ export class LocalHttpAdapter extends BaseAdapter {
       tokens.output = rawResponse.tokens.output;
     }
 
-    return { output, tokens, raw: rawResponse };
+    return { output, tokens: tokens || { input: 0, output: 0 }, raw: rawResponse };
   }
 
   handleError(err) {

@@ -164,8 +164,7 @@ export async function spawnCLI(opts) {
  * @returns {string[]}
  */
 export function buildArgs(tool, prompt, model, extraArgs = {}) {
-  // CRITICAL: All prompts MUST be double-quoted to prevent Windows cmd.exe
-  // from splitting multi-word prompts into separate arguments (shell: true).
+  // CRITICAL: Double-quote prompt for Windows shell stability (shell: true).
   const q = `"${prompt}"`;
 
   switch (tool) {
@@ -179,49 +178,45 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'gemini':
-      // gemini -p "prompt" [--model model]
+      // Some versions of Gemini CLI require -p for headless mode
       return [
         '-p', q,
         ...(model ? ['--model', model] : []),
+        '--yolo', // Auto-accept safely if supported
       ];
 
     case 'qwen':
-      // qwen run "prompt"
+      // Qwen uses "run" specifically for prompt execution
       return ['run', q];
 
     case 'antigravity':
-      // antigravity chat "prompt" [--model model]
+      // Antigravity (the agent CLI) uses "chat"
       return [
         'chat', q,
         ...(model ? ['--model', model] : []),
       ];
 
     case 'kilo':
-      // kilo run "prompt"
       return ['run', q];
 
     case 'opencode':
-      // opencode run "prompt"
       return ['run', q];
 
     case 'qodo':
-      // qodo chat "prompt"
       return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'codex':
-      // codex "prompt"
+      // Often positional
       return [q, ...(model ? ['--model', model] : [])];
 
     case 'kiro':
-      // kiro-cli chat "prompt"
+      // kiro-cli became kiro usually
       return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'grok':
-      // grok --prompt "prompt"
       return ['--prompt', q, ...(model ? ['--model', model] : [])];
 
     case 'copilot':
-      // copilot -p "prompt"
       return [
         '-p', q,
         ...(model ? ['--model', model] : []),

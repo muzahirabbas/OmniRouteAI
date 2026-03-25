@@ -290,7 +290,7 @@ export async function routeAndExecute(prompt, opts = {}) {
         }
 
         const finalResult = {
-          output:   result.output || '',
+          output:   result?.output ?? '',
           provider: provider.name,
           model,
           keyUsed:  apiKey,
@@ -308,6 +308,10 @@ export async function routeAndExecute(prompt, opts = {}) {
         systemPrompt: opts.systemPrompt,
       });
 
+      if (!rawResponse) {
+        throw new ProviderError(provider.name, 'Empty response from provider', 502);
+      }
+
       const normalized = adapter.normalizeResponse(rawResponse);
       await recordProviderResult(provider.name, true);
 
@@ -316,8 +320,12 @@ export async function routeAndExecute(prompt, opts = {}) {
         tokens.input = estimatedInputTokens;
       }
 
+      if (!normalized) {
+        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502);
+      }
+
       return {
-        output:   normalized.output,
+        output:   normalized.output ?? '',
         provider: provider.name,
         model,
         tokens,
