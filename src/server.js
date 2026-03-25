@@ -24,9 +24,9 @@ export async function buildServer(opts = {}) {
 
   // ─── CORS ──────────────────────────────────────────────────────────
   await app.register(cors, {
-    origin: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   });
 
   // ─── Request ID decoration ──────────────────────────────────────────
