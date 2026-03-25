@@ -163,6 +163,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
    * Returns: { output: string, tokens: { input, output }, raw: object }
    */
   async normalizeResponse(rawResponse) {
+    if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
     const output = rawResponse.choices?.[0]?.message?.content || '';
     const tokens = await extractTokens(rawResponse, output);
     return { output, tokens, raw: rawResponse };

@@ -135,6 +135,7 @@ export class GeminiAdapter extends BaseAdapter {
    * Normalize Gemini response.
    */
   async normalizeResponse(rawResponse) {
+    if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
     const output = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const tokens = await extractTokens(rawResponse, output);
 

@@ -176,6 +176,7 @@ export class AnthropicAdapter extends BaseAdapter {
    * Format: { content: [{type, text}], usage: {input_tokens, output_tokens} }
    */
   async normalizeResponse(rawResponse) {
+    if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
     const output = rawResponse.content
       ?.filter((c) => c.type === 'text')
       .map((c) => c.text)

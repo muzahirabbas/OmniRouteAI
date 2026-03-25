@@ -172,6 +172,7 @@ export async function chatRoutes(app) {
         requestId
       });
       const result = await waitForResult(jobId, 120000); // 120s timeout for CLI tools
+      if (!result) throw new Error('No result returned from background worker');
 
       const latency = Date.now() - startTime;
 
