@@ -377,14 +377,14 @@ export async function getProviders() {
 
     // 2. Try Firestore
     const db = getDb();
-    const snapshot = await db.collection('providers').where('status', '==', 'active').get();
+    const snapshot = await db.collection('providers').get();
 
     let providers = [];
     if (!snapshot.empty) {
       snapshot.forEach(doc => providers.push(doc.data()));
     } else {
       // 3. Fallback to static config
-      providers = STATIC_PROVIDERS.filter(p => p.status === 'active');
+      providers = [...STATIC_PROVIDERS];
     }
 
     // Sort by priority (ascending) and then weight (descending)
@@ -396,7 +396,7 @@ export async function getProviders() {
     return providers;
   } catch (err) {
     console.warn('Failed to fetch providers from DB/Cache, using static fallback:', err.message);
-    return STATIC_PROVIDERS.filter(p => p.status === 'active');
+    return [...STATIC_PROVIDERS];
   }
 }
 
