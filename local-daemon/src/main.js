@@ -102,6 +102,8 @@ async function startDaemon() {
       'POST /cline',
       'POST /kimi',
       'POST /ollama',
+      'GET  /ollama/health',
+      'GET  /ollama/models',
       'POST /copilot',
       'POST /custom',
       'GET  /auth/status',

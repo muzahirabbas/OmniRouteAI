@@ -45,6 +45,12 @@ function navigateTo(page) {
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 
+  // Cleanup: clear Ollama log auto-refresh when leaving that page
+  if (window._ollamaLogTimer) {
+    clearInterval(window._ollamaLogTimer);
+    window._ollamaLogTimer = null;
+  }
+
   // Load page data
   switch (page) {
     case 'overview': refreshOverview(); break;
@@ -52,6 +58,7 @@ function navigateTo(page) {
     case 'keys': refreshKeys(); break;
     case 'logs': refreshLogs(); break;
     case 'stats': refreshStatsPage(); break;
+    case 'ollama': initOllamaPage(); break;
     case 'playground': /* playground is self-contained, no refresh needed */ break;
   }
 }
@@ -461,6 +468,8 @@ function loadSettingsForm() {
   document.getElementById('settings-encryption').addEventListener('change', (e) => {
     document.getElementById('passphrase-group').style.display = e.target.checked ? 'block' : 'none';
   });
+
+  loadDaemonSettings();
 }
 
 async function saveSettings() {
@@ -498,6 +507,197 @@ async function testConnection() {
     statusEl.textContent = `ERROR: ${err.message}`;
     showToast('error', `Connection failed: ${err.message}`);
   }
+}
+
+// ─── Ollama Playground Page ─────────────────────────────────────────
+
+let _ollamaLogTimer = null;
+
+function initOllamaPage() {
+  refreshOllamaHealth();
+  loadOllamaModels();
+  refreshOllamaLogs();
+  // Auto-refresh daemon logs every 10s
+  if (_ollamaLogTimer) clearInterval(_ollamaLogTimer);
+  _ollamaLogTimer = setInterval(refreshOllamaLogs, 10000);
+  window._ollamaLogTimer = _ollamaLogTimer;
+}
+
+async function refreshOllamaHealth() {
+  const daemonChip = document.getElementById('ollama-chip-daemon');
+  const serverChip = document.getElementById('ollama-chip-server');
+  const hint = document.getElementById('ollama-hint');
+
+  // Reset to checking
+  setChipStatus(daemonChip, 'checking', 'Daemon Bridge');
+  setChipStatus(serverChip, 'checking', 'Ollama (11434)');
+
+  try {
+    const data = await API.daemonRequest('/ollama/health');
+    // Daemon responded
+    setChipStatus(daemonChip, 'running', 'Daemon Bridge');
+
+    if (data.status === 'running') {
+      setChipStatus(serverChip, 'running', `Ollama (${data.models?.length || 0} models)`);
+      hint.style.display = 'none';
+    } else {
+      setChipStatus(serverChip, 'offline', 'Ollama (11434)');
+      hint.style.display = 'block';
+    }
+  } catch (err) {
+    setChipStatus(daemonChip, 'offline', 'Daemon Bridge');
+    setChipStatus(serverChip, 'offline', 'Ollama (11434)');
+    hint.style.display = 'block';
+    hint.textContent = `⚠️ Cannot reach daemon: ${err.message}. Is the local daemon running?`;
+  }
+}
+
+function setChipStatus(chip, status, label) {
+  const dot = chip.querySelector('.status-chip-dot');
+  const text = chip.querySelector('span:last-child');
+  chip.className = `status-chip status-${status}`;
+  text.textContent = label;
+}
+
+async function loadOllamaModels() {
+  const select = document.getElementById('ollama-model-select');
+  select.innerHTML = '<option value="">Loading...</option>';
+
+  try {
+    const data = await API.daemonRequest('/ollama/models');
+    if (data.models?.length) {
+      select.innerHTML = data.models.map(m =>
+        `<option value="${m.name}">${m.name}</option>`
+      ).join('');
+    } else {
+      select.innerHTML = '<option value="">No models found</option>';
+      if (data.error) {
+        showToast('warning', `Models: ${data.error}`);
+      }
+    }
+  } catch (err) {
+    select.innerHTML = '<option value="">Error loading models</option>';
+    showToast('error', `Models fetch failed: ${err.message}`);
+  }
+}
+
+async function sendOllamaMessage() {
+  const inputEl = document.getElementById('ollama-chat-input');
+  const chatWindow = document.getElementById('ollama-chat-window');
+  const modelSelect = document.getElementById('ollama-model-select');
+  const prompt = inputEl.value.trim();
+
+  if (!prompt) return;
+
+  const model = modelSelect.value || 'llama3';
+
+  // Add user message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-message user';
+  userMsg.textContent = prompt;
+  chatWindow.appendChild(userMsg);
+  inputEl.value = '';
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+
+  // Thinking indicator
+  const botMsg = document.createElement('div');
+  botMsg.className = 'chat-message bot thinking';
+  botMsg.textContent = 'Thinking...';
+  chatWindow.appendChild(botMsg);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+
+  try {
+    const data = await API.daemonRequest('/ollama', {
+      method: 'POST',
+      body: JSON.stringify({ prompt, model }),
+    });
+
+    botMsg.classList.remove('thinking');
+    if (data.error) {
+      botMsg.classList.add('error');
+      botMsg.textContent = data.error;
+      if (data.hint) {
+        const hintEl = document.createElement('div');
+        hintEl.className = 'chat-meta';
+        hintEl.textContent = data.hint;
+        botMsg.appendChild(hintEl);
+      }
+    } else {
+      botMsg.textContent = data.output || '(empty response)';
+      const meta = document.createElement('div');
+      meta.className = 'chat-meta';
+      meta.textContent = `Model: ${data.model || model} · Tokens: ${data.tokens?.input || 0}→${data.tokens?.output || 0}`;
+      botMsg.appendChild(meta);
+    }
+  } catch (err) {
+    botMsg.classList.remove('thinking');
+    botMsg.classList.add('error');
+    botMsg.textContent = `Connection failed: ${err.message}`;
+  }
+
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+async function refreshOllamaLogs() {
+  const logEl = document.getElementById('ollama-logs');
+  const filterOllama = document.getElementById('ollama-log-filter')?.checked ?? true;
+
+  try {
+    const data = await API.daemonRequest('/logs?limit=200');
+    let entries = data.logs || [];
+
+    if (filterOllama) {
+      entries = entries.filter(e =>
+        e.tool === 'ollama' ||
+        (e.msg && e.msg.toLowerCase().includes('ollama')) ||
+        (e.msg && e.msg.includes('11434'))
+      );
+    }
+
+    const last50 = entries.slice(-50);
+    if (last50.length === 0) {
+      logEl.textContent = filterOllama ? 'No Ollama-related log entries found.' : 'No log entries found.';
+      return;
+    }
+
+    logEl.textContent = last50.map(e => {
+      if (e.raw) return e.raw;
+      const ts = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '?';
+      const lvl = (e.level || 'info').toUpperCase();
+      return `[${ts}] ${lvl} ${e.msg || ''}${e.error ? ' | error=' + e.error : ''}${e.duration ? ' | ' + e.duration + 'ms' : ''}`;
+    }).join('\n');
+
+    logEl.scrollTop = logEl.scrollHeight;
+  } catch (err) {
+    logEl.textContent = `Failed to load logs: ${err.message}`;
+  }
+}
+
+// ─── Daemon Settings ───────────────────────────────────────────────────
+
+function loadDaemonSettings() {
+  const tokenInput = document.getElementById('settings-daemon-token');
+  const urlInput = document.getElementById('settings-daemon-url');
+  if (tokenInput) {
+    const saved = localStorage.getItem('daemonToken');
+    if (saved) {
+      tokenInput.value = '';
+      tokenInput.placeholder = '•••••••• (saved)';
+    }
+  }
+  if (urlInput) {
+    urlInput.value = localStorage.getItem('daemonUrl') || 'http://localhost:5059';
+  }
+}
+
+function saveDaemonSettings() {
+  const token = document.getElementById('settings-daemon-token').value.trim();
+  const url = document.getElementById('settings-daemon-url').value.trim();
+
+  if (token) localStorage.setItem('daemonToken', token);
+  if (url) localStorage.setItem('daemonUrl', url);
+
+  showToast('success', 'Daemon settings saved');
 }
 
 // ─── Toast Notifications ─────────────────────────────────────────────
@@ -624,5 +824,9 @@ document.addEventListener('keydown', (e) => {
   if (e.target.id === 'chat-input' && e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
+  }
+  if (e.target.id === 'ollama-chat-input' && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendOllamaMessage();
   }
 });

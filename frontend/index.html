@@ -32,6 +32,9 @@
       <a href="#" class="nav-link" data-page="playground">
         <span class="nav-icon">🎮</span>Playground
       </a>
+      <a href="#" class="nav-link" data-page="ollama">
+        <span class="nav-icon">🦙</span>Ollama
+      </a>
       <a href="#" class="nav-link" data-page="stats">
         <span class="nav-icon">📈</span>Stats
       </a>
@@ -419,6 +422,75 @@
       </div>
     </section>
 
+    <!-- Page: Ollama Playground -->
+    <section class="page" id="page-ollama">
+      <div class="page-header">
+        <h2>🦙 Ollama Playground</h2>
+        <div class="header-actions">
+          <button class="btn btn-ghost" onclick="refreshOllamaHealth()">↻ Refresh Status</button>
+        </div>
+      </div>
+
+      <!-- Status Panel -->
+      <div class="card" style="margin-bottom: 1rem;">
+        <h3>Connection Status</h3>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div class="status-chip" id="ollama-chip-daemon">
+            <span class="status-chip-dot"></span>
+            <span>Daemon Bridge</span>
+          </div>
+          <div class="status-chip" id="ollama-chip-server">
+            <span class="status-chip-dot"></span>
+            <span>Ollama (11434)</span>
+          </div>
+          <div id="ollama-hint" class="form-hint" style="display: none; color: var(--color-warning);">
+            ⚠️ Ollama is not running. Start it with: <code>ollama serve</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playground Panel -->
+      <div class="playground-layout" style="height: calc(100vh - 380px); min-height: 350px;">
+        <div class="playground-sidebar">
+          <div class="card" style="margin-bottom: 1rem;">
+            <h3>Configuration</h3>
+            <div class="form-group">
+              <label class="form-label">Model</label>
+              <select id="ollama-model-select" class="input" style="width: 100%;">
+                <option value="">Loading models...</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost" style="width: 100%;" onclick="loadOllamaModels()">↻ Refresh Models</button>
+          </div>
+        </div>
+        <div class="playground-main">
+          <div id="ollama-chat-window" class="chat-window">
+            <div class="chat-message bot">
+              Welcome to the local Ollama playground. Select a model and start chatting — all requests go directly to your local Ollama instance.
+            </div>
+          </div>
+          <div class="chat-controls">
+            <textarea id="ollama-chat-input" class="chat-input input" placeholder="Message Ollama..." rows="1"></textarea>
+            <button id="ollama-send-btn" class="btn btn-primary" onclick="sendOllamaMessage()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daemon Logs Panel -->
+      <div class="card" style="margin-top: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="margin: 0;">Daemon Logs (Ollama)</h3>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+              <input type="checkbox" id="ollama-log-filter" checked> Ollama only
+            </label>
+            <button class="btn btn-sm btn-ghost" onclick="refreshOllamaLogs()">↻ Refresh</button>
+          </div>
+        </div>
+        <pre class="code-block" id="ollama-logs" style="max-height: 250px; font-size: 0.78rem;">Loading...</pre>
+      </div>
+    </section>
+
     <!-- Page: Settings -->
     <section class="page" id="page-settings">
       <div class="page-header">
@@ -438,6 +510,20 @@
           <small class="form-hint">This is the API_KEY set in your backend .env file</small>
         </div>
         <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Local Daemon Connection</h3>
+        <div class="form-group">
+          <label class="form-label">Daemon Token</label>
+          <input type="password" id="settings-daemon-token" class="input" placeholder="Token for local daemon (localhost:5059)">
+          <small class="form-hint">Stored at ~/.omniroute/local-cli/token.txt — required for Ollama Playground</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Daemon URL</label>
+          <input type="text" id="settings-daemon-url" class="input" value="http://localhost:5059" placeholder="http://localhost:5059">
+        </div>
+        <button class="btn btn-secondary" onclick="saveDaemonSettings()">💾 Save Daemon Settings</button>
       </div>
 
       <div class="card" style="margin-top: 1rem;">

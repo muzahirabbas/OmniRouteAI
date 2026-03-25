@@ -331,6 +331,58 @@ const API = {
   async aggregateStats() {
     return this.request('/api/admin/stats/aggregate', { method: 'POST' });
   },
+
+  // ─── Local Daemon (direct localhost calls) ──────────────────────────
+
+  getDaemonUrl() {
+    return localStorage.getItem('daemonUrl') || 'http://localhost:5059';
+  },
+
+  getDaemonToken() {
+    return localStorage.getItem('daemonToken') || '';
+  },
+
+  /**
+   * Make a request directly to the local daemon (bypasses cloud backend).
+   * Uses X-Local-Token header for auth.
+   */
+  async daemonRequest(path, options = {}) {
+    const base = this.getDaemonUrl();
+    const token = this.getDaemonToken();
+
+    const headers = {
+      ...options.headers,
+    };
+
+    if (options.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (token) {
+      headers['X-Local-Token'] = token;
+    }
+
+    const url = `${base}${path}`;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Cannot connect to local daemon. Is it running on port 5059?');
+      }
+      throw err;
+    }
+  },
 };
 
 // Export for module environments, or set globally

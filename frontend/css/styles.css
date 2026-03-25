@@ -701,6 +701,65 @@ select.input {
 .text-error { color: var(--color-error); }
 .text-info { color: var(--color-info); }
 .text-muted { color: var(--text-muted); }
+
+/* ─── Status Chips (Ollama page) ──────────────────────────────────────── */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  transition: all var(--transition-fast);
+}
+
+.status-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-chip.status-running {
+  border-color: rgba(52,211,153,0.3);
+  background: rgba(52,211,153,0.08);
+  color: var(--color-success);
+}
+
+.status-chip.status-running .status-chip-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 6px rgba(52,211,153,0.5);
+}
+
+.status-chip.status-offline {
+  border-color: rgba(248,113,113,0.3);
+  background: rgba(248,113,113,0.08);
+  color: var(--color-error);
+}
+
+.status-chip.status-offline .status-chip-dot {
+  background: var(--color-error);
+  box-shadow: 0 0 6px rgba(248,113,113,0.5);
+}
+
+.status-chip.status-checking .status-chip-dot {
+  background: var(--color-warning);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.status-chip.status-checking {
+  border-color: rgba(251,191,36,0.3);
+  color: var(--text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 /* ─── Modals ───────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
