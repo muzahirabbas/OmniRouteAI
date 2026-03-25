@@ -176,6 +176,7 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       // Note: needs a model configured with API key (e.g. kilo -m openai/gpt-4o-mini)
       return [
         'run', q,
+        '--auto',
         ...(model && model !== 'default' ? ['--model', model] : []),
       ];
 
