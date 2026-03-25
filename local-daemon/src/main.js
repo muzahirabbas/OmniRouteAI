@@ -70,18 +70,23 @@ async function startDaemon() {
     catch (err) { done(new Error('Invalid JSON'), undefined); }
   });
 
-  // ─── CORS (local access for dashboard) ──────────────────────────
-  app.addHook('onSend', async (request, reply) => {
+  // ─── CORS (allow any origin for deployed/local dashboards) ─────────────
+  const setCorsHeaders = (request, reply) => {
     const origin = request.headers.origin;
-    // Allow any origin so deployed dashboards (like omnirouteai.pages.dev) can connect
     reply.header('Access-Control-Allow-Origin', origin || '*');
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     reply.header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Local-Token, Authorization');
+    reply.header('Access-Control-Max-Age', '3600');
+  };
+
+  // Set headers on all real responses
+  app.addHook('onSend', async (request, reply) => {
+    setCorsHeaders(request, reply);
   });
 
+  // For OPTIONS preflight: we must set headers BEFORE send (onSend is too late for 204)
   app.options('*', async (request, reply) => {
-    // We already bypass auth for OPTIONS in the onRequest hook
-    // and headers are added by the onSend hook
+    setCorsHeaders(request, reply);
     reply.code(204).send();
   });
 

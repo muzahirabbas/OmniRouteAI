@@ -821,11 +821,26 @@ async function sendMessage() {
 
     let res, data;
 
-    if (provider && provider.endsWith('_local')) {
-      // Intercept local providers: Route directly to the user's local daemon bypassing the cloud backend
+    // LOCAL providers: intercept and route directly to user's local daemon
+    const isLocalProvider = provider && (
+      provider.endsWith('_local') ||
+      provider.endsWith('_local_bridge') ||
+      provider === 'ollama_local_bridge' ||
+      provider === 'ollama'
+    );
+
+    if (isLocalProvider) {
       try {
-        const daemonProvider = provider.replace(/_cli_local$|_local$/, ''); // e.g. ollama_local -> ollama
-        data = await API.daemonRequest(`/${daemonProvider}`, {
+        // Map provider name to its daemon route
+        let daemonPath;
+        if (provider === 'ollama_local_bridge' || provider === 'ollama_local' || provider === 'ollama') {
+          daemonPath = '/ollama';
+        } else {
+          // e.g. gemini_cli_local -> /gemini, qwen_cli_local -> /qwen
+          daemonPath = '/' + provider.replace(/_cli_local$|_local_bridge$|_local$/, '');
+        }
+
+        data = await API.daemonRequest(daemonPath, {
           method: 'POST',
           body: JSON.stringify({ prompt, model: model !== 'auto' ? model : undefined })
         });
