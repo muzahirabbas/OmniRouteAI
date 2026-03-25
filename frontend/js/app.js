@@ -413,11 +413,20 @@ async function aggregateStats() {
 function loadSettingsForm() {
   document.getElementById('settings-api-url').value = API.getBaseUrl();
   
-  // Show encryption status
+  // Show encryption status and key presence
   const isEncrypted = API.isEncryptionEnabled();
+  const hasPlainKey = !!localStorage.getItem('omniroute_api_key');
   const apiKeyInput = document.getElementById('settings-api-key');
+  
   apiKeyInput.value = ''; // Don't show the key
-  apiKeyInput.placeholder = isEncrypted ? '•••••••••••• (encrypted)' : 'Enter API key...';
+  
+  if (isEncrypted) {
+    apiKeyInput.placeholder = '•••••••••••• (encrypted & saved)';
+  } else if (hasPlainKey) {
+    apiKeyInput.placeholder = '•••••••••••• (plain & saved)';
+  } else {
+    apiKeyInput.placeholder = 'Enter API key...';
+  }
   
   // Show encryption checkbox
   let encryptionHtml = `
