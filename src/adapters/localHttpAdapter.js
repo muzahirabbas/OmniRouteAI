@@ -28,7 +28,10 @@ export class LocalHttpAdapter extends BaseAdapter {
   }
 
   buildHeaders() {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = { 
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true' // Bypass ngrok free tier HTML warning
+    };
     // Automatically attach daemon auth token when talking to the local daemon
     if (process.env.LOCAL_DAEMON_TOKEN) {
       headers['X-Local-Token'] = process.env.LOCAL_DAEMON_TOKEN;
