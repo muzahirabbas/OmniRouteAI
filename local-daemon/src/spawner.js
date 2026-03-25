@@ -26,8 +26,8 @@ export function getExecutable(tool, defaultCmd) {
     kiro:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kiro-cli.cmd',
     zai:                'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\zai.cmd',
     cline:              'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\cline.cmd',
-    kimi:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kimi.cmd',
-    ollama:             'http://localhost:11434',
+    kimi:               'C:\\Users\\Zaari\\.local\\bin\\kimi.exe',  // kimi is not in npm, lives in .local/bin
+    ollama:             'http://127.0.0.1:11434',
   };
   return paths[tool] || defaultCmd;
 }
@@ -154,16 +154,17 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
   switch (tool) {
     case 'claude':
+      // claude -p "prompt" --dangerously-skip-permissions --output-format text
+      // Note: newer Claude CLIs require --dangerously-skip-permissions BEFORE the prompt flag
       return [
         '-p', q,
-        ...(model ? ['--model', model] : []),
         '--dangerously-skip-permissions',
         '--output-format', 'text',
+        ...(model && model !== 'default' ? ['--model', model] : []),
       ];
 
     case 'antigravity':
     case 'antigravity-bridge':
-      // Phase 15: Use the registered Antigravity model slug for headless access
       return [
         'run',
         '--model', (model && model !== 'default') ? `google/antigravity-${model}` : 'google/antigravity-claude-sonnet-4-6',
@@ -171,30 +172,42 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'kilo':
-      return ['run', q, '--auto'];
+      // kilo run "prompt" --no-interactive prevents it from hanging waiting for user input
+      return ['run', q, '--no-interactive'];
 
     case 'opencode':
       return ['run', q];
 
     case 'gemini':
-      return ['chat', '-p', q];
+      // gemini -p "prompt" --yolo (no 'chat' subcommand exists)
+      return [
+        '-p', q,
+        '--yolo',
+        ...(model && model !== 'default' ? ['--model', model] : []),
+      ];
 
     case 'kiro':
-      return ['chat', q, '--non-interactive', ...(model ? ['--model', model] : [])];
+      // kiro-cli chat "prompt" (no --non-interactive flag exists)
+      return ['chat', q, ...(model && model !== 'default' ? ['--model', model] : [])];
 
     case 'grok':
-      return ['--prompt', q, '--non-interactive', ...(model ? ['--model', model] : [])];
+      // grok --prompt "prompt" (--non-interactive does NOT exist)
+      return ['--prompt', q, ...(model && model !== 'default' ? ['--model', model] : [])];
 
     case 'zai':
-      return ['-p', q, '--no-color', '--non-interactive', ...(model ? ['--model', model] : [])];
+      // zai -p "prompt" --no-color (--non-interactive does NOT exist)
+      return ['-p', q, '--no-color', ...(model && model !== 'default' ? ['--model', model] : [])];
 
     case 'cline':
-      // Cline autonomous mode (-y / --yolo)
       return [q, '-y'];
 
     case 'kimi':
-      // Kimi CLI takes the prompt directly
+      // kimi exe takes prompt directly as positional arg
       return [q];
+
+    case 'codex':
+      // codex exec "prompt" --full-auto --sandbox danger-full-access works headlessly
+      return ['exec', q, '--full-auto', '--sandbox', 'danger-full-access'];
 
     case 'copilot':
       return [
