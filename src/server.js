@@ -18,7 +18,7 @@ export async function buildServer(opts = {}) {
         : undefined,
     },
     genReqId: () => uuidv4(),
-    requestTimeout: 60000,
+    requestTimeout: 120000,
     ...opts,
   });
 
