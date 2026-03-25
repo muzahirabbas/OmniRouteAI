@@ -201,18 +201,53 @@ async function seedProviders() {
 
 // ─── Provider Modal ──────────────────────────────────────────────────
 
+// Global array to track models being edited for a provider
+window._currentEditingModels = [];
+
 function openEditProviderModal(name, priority, weight, models, defaultModel) {
   document.getElementById('edit-provider-title').textContent = `Edit Provider: ${name}`;
   document.getElementById('edit-provider-name').value = name;
   document.getElementById('edit-provider-priority').value = priority;
   document.getElementById('edit-provider-weight').value = weight;
 
+  // Clone models array for editing
+  window._currentEditingModels = Array.isArray(models) ? [...models] : [];
+
   const modelSelect = document.getElementById('edit-provider-default-model');
-  modelSelect.innerHTML = models.map(m => `
-    <option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>
-  `).join('');
+  renderProviderModelSelect(modelSelect, window._currentEditingModels, defaultModel);
 
   document.getElementById('modal-edit-provider').classList.add('active');
+}
+
+function renderProviderModelSelect(selectElement, models, defaultModel) {
+  selectElement.innerHTML = models.map(m => `
+    <option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>
+  `).join('');
+}
+
+function addProviderModel() {
+  const input = document.getElementById('edit-provider-new-model');
+  const model = input.value.trim();
+  
+  if (!model) {
+    showToast('warning', 'Please enter a model name');
+    return;
+  }
+  
+  if (window._currentEditingModels.includes(model)) {
+    showToast('warning', 'Model already exists');
+    input.value = '';
+    return;
+  }
+  
+  window._currentEditingModels.push(model);
+  renderProviderModelSelect(
+    document.getElementById('edit-provider-default-model'),
+    window._currentEditingModels,
+    document.getElementById('edit-provider-default-model').value
+  );
+  input.value = '';
+  showToast('success', `Model "${model}" added`);
 }
 
 function closeModal(id) {
@@ -226,7 +261,12 @@ async function saveProviderConfig() {
   const default_model = document.getElementById('edit-provider-default-model').value;
 
   try {
-    await API.updateProvider(name, { priority, weight, default_model });
+    await API.updateProvider(name, { 
+      priority, 
+      weight, 
+      default_model,
+      models: window._currentEditingModels 
+    });
     showToast('success', `Provider ${name} updated successfully`);
     closeModal('edit-provider');
     refreshProviders();
@@ -324,8 +364,11 @@ async function refreshLogs() {
   const limit = document.getElementById('log-limit').value;
   const tbody = document.getElementById('logs-body');
 
+  // Map 'all' or empty string to '' so backend returns all statuses
+  const effectiveStatus = status === 'all' || status === '' ? '' : status;
+
   try {
-    const data = await API.getLogs({ provider, status, limit });
+    const data = await API.getLogs({ provider, status: effectiveStatus, limit });
     if (!data.logs?.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No logs found</td></tr>';
       return;
@@ -359,6 +402,23 @@ async function flushLogs() {
 
 // ─── Stats Page ──────────────────────────────────────────────────────
 
+/**
+ * Recursively flatten a nested object into dot-notation keys.
+ * e.g. { requests: { total: 5 } } → { 'requests.total': 5 }
+ */
+function flattenObject(obj, prefix = '') {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}.${key}` : key;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(result, flattenObject(value, newKey));
+    } else {
+      result[newKey] = value;
+    }
+  }
+  return result;
+}
+
 async function refreshStatsPage() {
   try {
     const [current, history] = await Promise.all([
@@ -385,15 +445,18 @@ async function refreshStatsPage() {
     const histBody = document.getElementById('stats-history-body');
     if (history.history?.length) {
       histBody.innerHTML = history.history.map((day) => {
-        const details = Object.entries(day)
+        // Flatten the day object to handle both nested and flat formats
+        const flatDay = flattenObject(day);
+        
+        const details = Object.entries(flatDay)
           .filter(([k]) => !['date', 'aggregated_at', 'id'].includes(k))
           .map(([k, v]) => `${k}: ${v}`)
           .join(', ');
 
         return `
           <tr>
-            <td>${day.date}</td>
-            <td>${day['requests:total'] || '—'}</td>
+            <td>${flatDay.date || day.date}</td>
+            <td>${flatDay['requests:total'] || flatDay['requests.total'] || '—'}</td>
             <td class="text-muted" style="font-size:0.78rem">${details || '—'}</td>
           </tr>
         `;

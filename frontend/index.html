@@ -571,6 +571,14 @@
             <select id="edit-provider-default-model" class="input"></select>
             <small class="form-hint">The model used if none is requested specifically.</small>
           </div>
+          <div class="form-group">
+            <label class="form-label">Add Custom Model</label>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="edit-provider-new-model" class="input" placeholder="e.g., my-custom-model-70b" style="flex: 1;">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addProviderModel()">+ Add</button>
+            </div>
+            <small class="form-hint">Add custom models to the provider's model list.</small>
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" onclick="closeModal('edit-provider')">Cancel</button>
             <button type="submit" class="btn btn-primary">Save Changes</button>
