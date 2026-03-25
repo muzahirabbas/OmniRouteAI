@@ -8,6 +8,7 @@ import { OpenAICompatibleAdapter } from './openaiCompatibleAdapter.js';
 export class OllamaCloudAdapter extends OpenAICompatibleAdapter {
   constructor() {
     // Default to a placeholder, usually configured via PROVIDER_OLLAMA_CLOUD_ENDPOINT
-    super('ollama-cloud', process.env.PROVIDER_OLLAMA_CLOUD_ENDPOINT || 'https://ollama.com/api');
+    // Must be the full path for the OpenAI-compatible endpoint.
+    super('ollama-cloud', process.env.PROVIDER_OLLAMA_CLOUD_ENDPOINT || 'https://ollama.com/v1/chat/completions');
   }
 }
