@@ -49,6 +49,14 @@ const worker = new Worker(
       model:    result.model,
     }));
 
+    if (!result) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        msg:   'routeAndExecute returned null/undefined',
+        jobId: job.id,
+      }));
+    }
+
     return result;
   },
   {

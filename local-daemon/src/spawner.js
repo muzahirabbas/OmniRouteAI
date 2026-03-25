@@ -190,18 +190,18 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       return ['run', q];
 
     case 'antigravity':
-      // Antigravity (the agent CLI) uses "chat"
+      // Use 'ask' mode which is more stateless/headless
       return [
         'chat', q,
+        '--mode', 'ask',
         ...(model ? ['--model', model] : []),
-        '--headless', // Prevent opening the IDE window
       ];
 
     case 'kilo':
       return ['run', q, '--auto'];
 
     case 'opencode':
-      return ['run', q, '--quiet'];
+      return ['run', q];
 
     case 'qodo':
       return ['chat', q, ...(model ? ['--model', model] : [])];
