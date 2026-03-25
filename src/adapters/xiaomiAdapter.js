@@ -6,6 +6,6 @@ import { OpenAICompatibleAdapter } from './openaiCompatibleAdapter.js';
  */
 export class XiaomiAdapter extends OpenAICompatibleAdapter {
   constructor() {
-    super('xiaomi', 'https://api.mimo.xiaomi.com/v1/chat/completions');
+    super('xiaomi', 'https://api.xiaomimimo.com/v1/chat/completions');
   }
 }

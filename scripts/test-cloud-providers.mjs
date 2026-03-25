@@ -14,6 +14,21 @@ import { OpenAIAdapter } from '../src/adapters/openaiAdapter.js';
 import { InceptionAdapter } from '../src/adapters/inceptionAdapter.js';
 import { OllamaCloudAdapter } from '../src/adapters/ollamaCloudAdapter.js';
 import { OpenRouterAdapter } from '../src/adapters/openrouterAdapter.js';
+import { AlibabaAdapter } from '../src/adapters/alibabaAdapter.js';
+import { CerebrasAdapter } from '../src/adapters/cerebrasAdapter.js';
+import { CloudflareAdapter } from '../src/adapters/cloudflareAdapter.js';
+import { CohereAdapter } from '../src/adapters/cohereAdapter.js';
+import { DeepSeekAdapter } from '../src/adapters/deepseekAdapter.js';
+import { HuggingFaceAdapter } from '../src/adapters/huggingfaceAdapter.js';
+import { MoonshotAdapter } from '../src/adapters/moonshotAdapter.js';
+import { NvidiaAdapter } from '../src/adapters/nvidiaAdapter.js';
+import { SambaNovaAdapter } from '../src/adapters/sambanovaAdapter.js';
+import { TogetherAdapter } from '../src/adapters/togetherAdapter.js';
+import { XAIAdapter } from '../src/adapters/xaiAdapter.js';
+import { XiaomiAdapter } from '../src/adapters/xiaomiAdapter.js';
+
+// Mock Config specifically for Cloudflare to bypass configuration checks in the test environment
+process.env.CF_ACCOUNT_ID = 'test-account-id';
 
 const GREEN  = '\x1b[32m';
 const RED    = '\x1b[31m';
@@ -32,6 +47,18 @@ const PROVIDERS = [
   { name: 'Inception',    model: 'inception-base',       AdapterClass: InceptionAdapter },
   { name: 'Ollama-Cloud', model: 'llama3',               AdapterClass: OllamaCloudAdapter },
   { name: 'OpenRouter',   model: 'openrouter/auto',      AdapterClass: OpenRouterAdapter },
+  { name: 'Alibaba',      model: 'qwen-turbo',           AdapterClass: AlibabaAdapter },
+  { name: 'Cerebras',     model: 'llama3.1-8b',          AdapterClass: CerebrasAdapter },
+  { name: 'Cloudflare',   model: '@cf/meta/llama-3-8b-instruct', AdapterClass: CloudflareAdapter },
+  { name: 'Cohere',       model: 'command-r-plus',       AdapterClass: CohereAdapter },
+  { name: 'DeepSeek',     model: 'deepseek-chat',        AdapterClass: DeepSeekAdapter },
+  { name: 'HuggingFace',  model: 'meta-llama/Meta-Llama-3-8B-Instruct', AdapterClass: HuggingFaceAdapter },
+  { name: 'Moonshot',     model: 'moonshot-v1-8k',       AdapterClass: MoonshotAdapter },
+  { name: 'NVIDIA',       model: 'mistralai/mixtral-8x7b-instruct-v0.1', AdapterClass: NvidiaAdapter },
+  { name: 'SambaNova',    model: 'Meta-Llama-3.1-8B-Instruct', AdapterClass: SambaNovaAdapter },
+  { name: 'Together',     model: 'meta-llama/Llama-2-70b-chat-hf', AdapterClass: TogetherAdapter },
+  { name: 'xAI',          model: 'grok-beta',            AdapterClass: XAIAdapter },
+  { name: 'Xiaomi',       model: 'mi-mix',               AdapterClass: XiaomiAdapter },
 ];
 
 function log(level, msg) {
