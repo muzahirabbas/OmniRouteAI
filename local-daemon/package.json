@@ -7,19 +7,21 @@
   "scripts": {
     "start": "node src/main.js",
     "dev": "node --watch src/main.js",
-    "build:win": "pkg src/main.js --target node18-win-x64 --output dist/OmniRouteAI-Local.exe --assets src/**",
-    "build:linux": "pkg src/main.js --target node18-linux-x64 --output dist/OmniRouteAI-Local",
-    "build:mac": "pkg src/main.js --target node18-macos-x64 --output dist/OmniRouteAI-Local-mac",
+    "prebuild": "esbuild src/main.js --bundle --platform=node --format=cjs --outfile=dist/bundle.cjs",
+    "build:win": "npm run prebuild && pkg dist/bundle.cjs --target node18-win-x64 --output dist/OmniRouteAI-Local.exe",
+    "build:linux": "npm run prebuild && pkg dist/bundle.cjs --target node18-linux-x64 --output dist/OmniRouteAI-Local",
+    "build:mac": "npm run prebuild && pkg dist/bundle.cjs --target node18-macos-x64 --output dist/OmniRouteAI-Local-mac",
     "build:all": "npm run build:win && npm run build:linux && npm run build:mac"
   },
   "dependencies": {
     "fastify": "^4.28.1"
   },
   "devDependencies": {
+    "esbuild": "^0.27.4",
     "pkg": "^5.8.1"
   },
   "pkg": {
-    "scripts": "src/**/*.js",
+    "scripts": [],
     "assets": [],
     "targets": [
       "node18-win-x64",
