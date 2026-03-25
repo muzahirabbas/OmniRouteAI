@@ -66,10 +66,11 @@ async function startDaemon() {
     catch (err) { done(new Error('Invalid JSON'), undefined); }
   });
 
-  // ─── CORS (localhost only) ───────────────────────────────────────
+  // ─── CORS (local access for dashboard) ──────────────────────────
   app.addHook('onSend', async (request, reply) => {
     const origin = request.headers.origin;
-    if (origin === 'http://localhost:3000' || origin === 'null' || !origin) {
+    // Allow any localhost origin or null (for local file opening)
+    if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1')) || !origin || origin === 'null') {
       reply.header('Access-Control-Allow-Origin', origin || '*');
     }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
