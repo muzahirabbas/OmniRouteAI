@@ -73,15 +73,15 @@ async function startDaemon() {
   // ─── CORS (local access for dashboard) ──────────────────────────
   app.addHook('onSend', async (request, reply) => {
     const origin = request.headers.origin;
-    // Allow any localhost origin or null (for local file opening)
-    if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1')) || !origin || origin === 'null') {
-      reply.header('Access-Control-Allow-Origin', origin || '*');
-    }
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', 'Content-Type, X-Local-Token');
+    // Allow any origin so deployed dashboards (like omnirouteai.pages.dev) can connect
+    reply.header('Access-Control-Allow-Origin', origin || '*');
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    reply.header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Local-Token, Authorization');
   });
 
   app.options('*', async (request, reply) => {
+    // We already bypass auth for OPTIONS in the onRequest hook
+    // and headers are added by the onSend hook
     reply.code(204).send();
   });
 
