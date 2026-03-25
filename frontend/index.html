@@ -516,12 +516,12 @@
         <h3>Local Daemon Connection</h3>
         <div class="form-group">
           <label class="form-label">Daemon Token</label>
-          <input type="password" id="settings-daemon-token" class="input" placeholder="Token for local daemon (localhost:5059)">
+          <input type="password" id="settings-daemon-token" class="input" placeholder="Token for local daemon (127.0.0.1:5059)">
           <small class="form-hint">Stored at ~/.omniroute/local-cli/token.txt — required for Ollama Playground</small>
         </div>
         <div class="form-group">
           <label class="form-label">Daemon URL</label>
-          <input type="text" id="settings-daemon-url" class="input" value="http://localhost:5059" placeholder="http://localhost:5059">
+          <input type="text" id="settings-daemon-url" class="input" value="http://127.0.0.1:5059" placeholder="http://127.0.0.1:5059">
         </div>
         <button class="btn btn-secondary" onclick="saveDaemonSettings()">💾 Save Daemon Settings</button>
       </div>

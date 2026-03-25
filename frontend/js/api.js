@@ -342,7 +342,7 @@ const API = {
   // ─── Local Daemon (direct localhost calls) ──────────────────────────
 
   getDaemonUrl() {
-    return localStorage.getItem('daemonUrl') || 'http://localhost:5059';
+    return (localStorage.getItem('daemonUrl') || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1');
   },
 
   getDaemonToken() {

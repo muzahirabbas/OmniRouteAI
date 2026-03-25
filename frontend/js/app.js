@@ -725,7 +725,7 @@ function loadDaemonSettings() {
     }
   }
   if (urlInput) {
-    urlInput.value = localStorage.getItem('daemonUrl') || 'http://localhost:5059';
+    urlInput.value = (localStorage.getItem('daemonUrl') || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1');
   }
 }
 
