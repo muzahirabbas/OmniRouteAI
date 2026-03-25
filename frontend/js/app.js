@@ -516,7 +516,7 @@ async function sendMessage() {
       provider: provider !== 'auto' ? provider : undefined
     };
 
-    const response = await apiFetch('/v1/chat/completions', {
+    const response = await API.request('/v1/chat/completions', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
