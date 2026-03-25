@@ -509,28 +509,34 @@ async function sendMessage() {
   chatWindow.appendChild(botMsg);
 
   try {
-    const payload = {
-      model,
-      prompt,
-      // If a specific local provider is chosen, we force it
-      provider: provider !== 'auto' ? provider : undefined
-    };
+    // The router's schema only accepts: prompt, model, task_type, system_prompt, stream
+    // Provider selection is handled by the router's own priority logic.
+    const payload = { prompt };
+    if (model && model !== 'auto') payload.model = model;
 
-    const response = await API.request('/v1/chat/completions', {
+    const base = API.getBaseUrl();
+    const apiKey = API.getApiKey();
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const res = await fetch(`${base}/v1/chat/completions`, {
       method: 'POST',
+      headers,
       body: JSON.stringify(payload)
     });
 
+    const data = await res.json();
+
     botMsg.classList.remove('thinking');
-    if (response.error) {
+    if (!res.ok || data.error) {
        botMsg.classList.add('error');
-       botMsg.textContent = `Error: ${response.message}`;
+       botMsg.textContent = `Error (${res.status}): ${data.message || data.error || 'Unknown error'}`;
     } else {
-       botMsg.textContent = response.output;
+       botMsg.textContent = data.output || JSON.stringify(data);
        // Add metadata
        const meta = document.createElement('div');
        meta.className = 'chat-meta';
-       meta.textContent = `Used: ${response.provider || 'unknown'} (${response.model || 'auto'})`;
+       meta.textContent = `Provider: ${data.provider || 'unknown'} · Model: ${data.model || 'auto'}`;
        botMsg.appendChild(meta);
     }
   } catch (err) {
