@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node --env-file=.env src/index.js",
-    "worker": "node --env-file=.env src/workers/jobWorker.js",
+    "start": "node src/index.js",
+    "worker": "node src/workers/jobWorker.js",
     "dev": "node --env-file=.env --watch src/index.js",
     "start:local": "node --env-file=.env src/index.js",
     "worker:local": "node --env-file=.env src/workers/jobWorker.js"

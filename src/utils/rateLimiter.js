@@ -29,6 +29,9 @@ export function createRateLimiter(options = {}) {
   const windowSec = Math.ceil(windowMs / 1000);
 
   return async function rateLimitHook(request, reply) {
+    // Skip rate limiting for CORS preflight requests
+    if (request.method === 'OPTIONS') return;
+
     // Skip rate limiting for health checks
     if (request.url.includes('/health')) return;
 
