@@ -50,18 +50,26 @@ function initFirestore() {
 }
 
 function createMockDb() {
+  const collectionMock = {
+    doc: () => ({
+      get: async () => ({ exists: false, data: () => ({}) }),
+      set: async () => {},
+      update: async () => {},
+    }),
+    add: async () => {},
+    // Generic .get() for the collection itself (e.g. .collection('providers').get())
+    get: async () => ({
+      empty: true,
+      docs: [],
+      forEach: () => {},
+    }),
+    where: () => collectionMock,
+    orderBy: () => collectionMock,
+    limit: () => collectionMock,
+  };
+
   db = {
-    collection: () => ({
-      doc: () => ({
-        get: async () => ({ exists: false, data: () => ({}) }),
-        set: async () => {},
-        update: async () => {},
-      }),
-      add: async () => {},
-      where: () => ({ limit: () => ({ get: async () => ({ empty: true, docs: [] }) }) }),
-      orderBy: () => ({ limit: () => ({ get: async () => ({ empty: true, docs: [] }) }) }),
-      limit: () => ({ get: async () => ({ empty: true, docs: [] }) }),
-    })
+    collection: () => collectionMock
   };
   return db;
 }

@@ -509,10 +509,12 @@ async function sendMessage() {
   chatWindow.appendChild(botMsg);
 
   try {
-    // The router's schema only accepts: prompt, model, task_type, system_prompt, stream
-    // Provider selection is handled by the router's own priority logic.
+    const provider = document.getElementById('playground-provider').value;
+    const model    = document.getElementById('playground-model').value?.trim();
+
     const payload = { prompt };
     if (model && model !== 'auto') payload.model = model;
+    if (provider && provider !== 'auto') payload.provider = provider;
 
     const base = API.getBaseUrl();
     const apiKey = API.getApiKey();

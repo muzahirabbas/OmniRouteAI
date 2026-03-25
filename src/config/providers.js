@@ -375,20 +375,28 @@ export async function getProviders() {
       return typeof cached === 'string' ? JSON.parse(cached) : cached;
     }
 
-    // 2. Try Firestore
+    // 2. Load from source (Firestore or Static base)
     const db = getDb();
     const snapshot = await db.collection('providers').get();
 
-    let providers = [];
+    // Strategy: Start with STATIC_PROVIDERS as the base (always includes local CLI)
+    // Then merge/overwrite with any data found in Firestore
+    const providersMap = {};
+    STATIC_PROVIDERS.forEach(p => { providersMap[p.name] = { ...p }; });
+
     if (!snapshot.empty) {
-      snapshot.forEach(doc => providers.push(doc.data()));
-    } else {
-      // 3. Fallback to static config
-      providers = [...STATIC_PROVIDERS];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.name) {
+          providersMap[data.name] = { ...providersMap[data.name], ...data };
+        }
+      });
     }
 
+    const providers = Object.values(providersMap);
+
     // Sort by priority (ascending) and then weight (descending)
-    providers.sort((a, b) => a.priority - b.priority || b.weight - a.weight);
+    providers.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99) || (b.weight ?? 0) - (a.weight ?? 0));
 
     // Cache in Redis for 60 seconds
     await setex(cacheKey, 60, JSON.stringify(providers));
@@ -398,6 +406,7 @@ export async function getProviders() {
     console.warn('Failed to fetch providers from DB/Cache, using static fallback:', err.message);
     return [...STATIC_PROVIDERS];
   }
+
 }
 
 /**
