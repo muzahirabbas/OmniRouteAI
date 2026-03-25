@@ -23,11 +23,11 @@ const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
  */
 export function getExecutable(tool, defaultCmd) {
   const paths = {
-    kilo:        'C:/Users/Zaari/AppData/Roaming/npm/kilo.cmd',
-    opencode:    'C:/Users/Zaari/AppData/Roaming/npm/opencode.cmd',
-    antigravity: 'C:/Users/Zaari/AppData/Local/Programs/Antigravity/bin/antigravity.cmd',
-    gemini:      'C:/Users/Zaari/AppData/Roaming/npm/gemini.cmd',
-    claude:      'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
+    kilo:        'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kilo.cmd',
+    opencode:    'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
+    antigravity: 'C:\\Users\\Zaari\\AppData\\Local\\Programs\\Antigravity\\bin\\antigravity.cmd',
+    gemini:      'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
+    claude:      'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
   };
   return paths[tool] || defaultCmd;
 }
@@ -68,10 +68,12 @@ export async function spawnCLI(opts) {
       cwd: process.cwd(),
     }));
 
-    const child = spawn(command, args, {
+    const child = spawn(`"${command}"`, args, {
       shell:  true,
+      cwd:    process.cwd(),
       env:    { ...process.env, ...env },
       signal: abortController.signal,
+      windowsVerbatimArguments: true,
     });
 
     child.stdout.on('data', (chunk) => {
