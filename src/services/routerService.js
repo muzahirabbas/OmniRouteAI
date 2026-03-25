@@ -1,155 +1,199 @@
 import { classify } from '../utils/classifier.js';
-import { getActiveProviders, recordProviderResult, getProviderConfig } from './providerService.js';
+import { getActiveProviders, recordProviderResult } from './providerService.js';
 import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure } from './keyService.js';
+import { estimateTokens } from './statsService.js';
 import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
 
-// Adapter registry — lazy loaded
+/**
+ * Router service — provider selection, adapter dispatch, retry/failover.
+ *
+ * Retry policy (STRICT — 3 total attempts max):
+ *   Attempt 1: Provider A, Key 1 → fail
+ *   Attempt 2: Provider A, Key 2 (different key) → fail
+ *   Attempt 3: Provider B (next provider), Key 1 → fail → throw
+ *
+ * Rules enforced:
+ * - NEVER retry the same key twice (usedKeys exclusion set)
+ * - After 2 failures on Provider A → mark Provider A as failed → next provider
+ * - MAX 3 total attempts regardless of key/provider availability
+ * - routerService is the SINGLE source of retry truth — workers do NOT retry
+ *
+ * Pre-request token estimation:
+ * - Input tokens are estimated BEFORE the request using estimateTokens(prompt)
+ * - This is passed into the result for quota accounting even if provider tokens are missing
+ */
+
+// ─── Adapter registry — lazy loaded ──────────────────────────────────
 const adapterCache = {};
 
-async function getAdapter(providerName) {
-  if (adapterCache[providerName]) return adapterCache[providerName];
+async function getAdapter(providerName, providerConfig = null) {
+  const cacheKey = providerConfig?.type === 'local_http'
+    ? `local_http:${providerConfig.endpoint}`
+    : providerName;
 
-  let AdapterClass;
+  if (adapterCache[cacheKey]) return adapterCache[cacheKey];
+
+  let adapter;
   switch (providerName) {
     case 'groq': {
       const mod = await import('../adapters/groqAdapter.js');
-      AdapterClass = mod.GroqAdapter;
+      adapter = new mod.GroqAdapter();
       break;
     }
     case 'google':
     case 'gemini': {
       const mod = await import('../adapters/geminiAdapter.js');
-      AdapterClass = mod.GeminiAdapter;
+      adapter = new mod.GeminiAdapter();
       break;
     }
     case 'cloudflare': {
       const mod = await import('../adapters/cloudflareAdapter.js');
-      AdapterClass = mod.CloudflareAdapter;
+      adapter = new mod.CloudflareAdapter();
       break;
     }
     case 'openai': {
       const mod = await import('../adapters/openaiAdapter.js');
-      AdapterClass = mod.OpenAIAdapter;
+      adapter = new mod.OpenAIAdapter();
       break;
     }
     case 'anthropic': {
       const mod = await import('../adapters/anthropicAdapter.js');
-      AdapterClass = mod.AnthropicAdapter;
+      adapter = new mod.AnthropicAdapter();
       break;
     }
     case 'xai': {
       const mod = await import('../adapters/xaiAdapter.js');
-      AdapterClass = mod.XAIAdapter;
+      adapter = new mod.XAIAdapter();
       break;
     }
     case 'alibaba': {
       const mod = await import('../adapters/alibabaAdapter.js');
-      AdapterClass = mod.AlibabaAdapter;
+      adapter = new mod.AlibabaAdapter();
       break;
     }
     case 'ollama': {
       const mod = await import('../adapters/ollamaAdapter.js');
-      AdapterClass = mod.OllamaAdapter;
+      adapter = new mod.OllamaAdapter();
       break;
     }
     case 'openrouter': {
       const mod = await import('../adapters/openrouterAdapter.js');
-      AdapterClass = mod.OpenRouterAdapter;
+      adapter = new mod.OpenRouterAdapter();
       break;
     }
     case 'deepseek': {
       const mod = await import('../adapters/deepseekAdapter.js');
-      AdapterClass = mod.DeepSeekAdapter;
+      adapter = new mod.DeepSeekAdapter();
       break;
     }
     case 'moonshot': {
       const mod = await import('../adapters/moonshotAdapter.js');
-      AdapterClass = mod.MoonshotAdapter;
+      adapter = new mod.MoonshotAdapter();
       break;
     }
     case 'together': {
       const mod = await import('../adapters/togetherAdapter.js');
-      AdapterClass = mod.TogetherAdapter;
+      adapter = new mod.TogetherAdapter();
       break;
     }
     case 'nvidia': {
       const mod = await import('../adapters/nvidiaAdapter.js');
-      AdapterClass = mod.NvidiaAdapter;
+      adapter = new mod.NvidiaAdapter();
       break;
     }
     case 'inception': {
       const mod = await import('../adapters/inceptionAdapter.js');
-      AdapterClass = mod.InceptionAdapter;
+      adapter = new mod.InceptionAdapter();
       break;
     }
     case 'xiaomi': {
       const mod = await import('../adapters/xiaomiAdapter.js');
-      AdapterClass = mod.XiaomiAdapter;
+      adapter = new mod.XiaomiAdapter();
       break;
     }
     case 'sambanova': {
       const mod = await import('../adapters/sambanovaAdapter.js');
-      AdapterClass = mod.SambaNovaAdapter;
+      adapter = new mod.SambaNovaAdapter();
       break;
     }
     case 'cerebras': {
       const mod = await import('../adapters/cerebrasAdapter.js');
-      AdapterClass = mod.CerebrasAdapter;
+      adapter = new mod.CerebrasAdapter();
       break;
     }
     case 'huggingface': {
       const mod = await import('../adapters/huggingfaceAdapter.js');
-      AdapterClass = mod.HuggingFaceAdapter;
+      adapter = new mod.HuggingFaceAdapter();
       break;
     }
     case 'cohere': {
       const mod = await import('../adapters/cohereAdapter.js');
-      AdapterClass = mod.CohereAdapter;
+      adapter = new mod.CohereAdapter();
       break;
     }
-    default:
+    default: {
+      // Support local_http provider type generically
+      if (providerConfig?.type === 'local_http') {
+        const mod = await import('../adapters/localHttpAdapter.js');
+        adapter = new mod.LocalHttpAdapter(providerName, providerConfig.endpoint);
+        adapterCache[cacheKey] = adapter;
+        return adapter;
+      }
       throw new ProviderError(providerName, `No adapter found for provider: ${providerName}`);
+    }
   }
 
-  adapterCache[providerName] = new AdapterClass();
-  return adapterCache[providerName];
+  adapterCache[cacheKey] = adapter;
+  return adapter;
 }
 
 /**
- * Route a request: classify → select provider → select model → select key.
+ * Route a request to the best available provider+key.
+ * Applies priority-then-weighted-random provider selection.
  *
  * @param {string} prompt
  * @param {object} opts
- * @param {string} [opts.model] - preferred model
- * @param {string} [opts.taskType] - override classifier
- * @param {string[]} [opts.excludeProviders] - providers to skip
- * @returns {Promise<{provider: object, model: string, apiKey: string, taskType: string}>}
+ * @param {string}   [opts.model]            - preferred model
+ * @param {string}   [opts.taskType]         - override classifier
+ * @param {string[]} [opts.excludeProviders] - providers to skip entirely
+ * @param {string[]} [opts.excludeKeys]      - keys to skip (retry exclusion)
+ * @returns {Promise<{provider, model, apiKey, taskType}>}
  */
 export async function route(prompt, opts = {}) {
-  const taskType = opts.taskType || classify(prompt);
+  const taskType        = opts.taskType || classify(prompt);
   const excludeProviders = opts.excludeProviders || [];
-  const excludeKeys = opts.excludeKeys || [];
+  const excludeKeys      = opts.excludeKeys      || [];
 
+  // getActiveProviders() returns providers ordered by priority-tier weighted random
   const activeProviders = await getActiveProviders();
 
   for (const provider of activeProviders) {
     if (excludeProviders.includes(provider.name)) continue;
 
-    // Select model: specific request -> provider default -> first in list
-    let model = opts.model && provider.models.includes(opts.model) ? opts.model : null;
-    
+    // Model selection: requested model → provider default → first model in list
+    let model = opts.model && provider.models?.includes(opts.model) ? opts.model : null;
     if (!model) {
-      model = (provider.default_model && provider.models.includes(provider.default_model))
+      model = (provider.default_model && provider.models?.includes(provider.default_model))
         ? provider.default_model
-        : provider.models[0];
+        : provider.models?.[0] || 'default';
     }
 
-    // Get key (atomic, RPM-checked)
-    const apiKey = excludeKeys.length > 0
-      ? await getLeastUsedKeyExcluding(provider.name, excludeKeys)
-      : await getLeastUsedKey(provider.name);
+    // ─── Key Selection ───────────────────────────────────────────────
+    let apiKey;
 
-    if (!apiKey) continue; // All keys exhausted or RPM exceeded for this provider
+    if (provider.type === 'local_http') {
+      // Local CLI tools use session auth handled by the daemon.
+      // We use a constant identifier to satisfy the rotation logic.
+      apiKey = 'local-cli-session';
+    } else {
+      // Atomic key selection (Lua): skips disabled + RPM-exceeded keys
+      apiKey = excludeKeys.length > 0
+        ? await getLeastUsedKeyExcluding(provider.name, excludeKeys)
+        : await getLeastUsedKey(provider.name);
+    }
+
+    // Skip if no key available (always skip for local_http if already in excludeKeys)
+    if (!apiKey || excludeKeys.includes(apiKey)) continue;
 
     return { provider, model, apiKey, taskType };
   }
@@ -160,114 +204,144 @@ export async function route(prompt, opts = {}) {
 /**
  * Route, execute, and handle retries/failover.
  *
- * Retry order:
- * 1. Same provider → different key
- * 2. Same provider → another different key
- * 3. Next provider
+ * STRICT RETRY POLICY (3 total attempts):
+ *   Attempt 0 (1st): Provider A, Key 1
+ *   Attempt 1 (2nd): Provider A, Key 2  ← same provider, different key
+ *   Attempt 2 (3rd): Provider B, any key ← failover to next provider
+ *   → Throw if all fail
  *
- * Max 3 total attempts. Never reuses the same key.
+ * The caller (jobWorker) MUST NOT attempt additional retries.
+ * routerService is the single source of retry truth.
  *
  * @param {string} prompt
  * @param {object} opts
- * @param {string} [opts.model]
- * @param {string} [opts.taskType]
- * @param {string} [opts.requestId]
- * @param {boolean} [opts.stream]
- * @param {Function} [opts.onChunk] - streaming callback
- * @param {Function} [opts.onDone] - streaming done callback
- * @param {Function} [opts.onError] - streaming error callback
- * @returns {Promise<{output: string, provider: string, model: string, tokens: object, keyUsed: string}>}
+ * @param {string}   [opts.model]
+ * @param {string}   [opts.taskType]
+ * @param {string}   [opts.systemPrompt]
+ * @param {string}   [opts.requestId]
+ * @param {boolean}  [opts.stream]
+ * @param {Function} [opts.onChunk]
+ * @param {Function} [opts.onDone]
+ * @param {Function} [opts.onError]
+ * @returns {Promise<{output, provider, model, tokens, keyUsed}>}
  */
 export async function routeAndExecute(prompt, opts = {}) {
   const MAX_ATTEMPTS = 3;
+
+  // Track keys used across ALL attempts — NEVER reuse the same key
   const usedKeys = [];
-  const failedProviders = [];
+
+  // Track per-provider failure counts to decide when to escalate
+  const providerFailCount  = {};
+  const failedProviders    = [];
   let lastError;
+
+  // Pre-estimate input tokens BEFORE first request — for quota accounting
+  const estimatedInputTokens = estimateTokens(prompt);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let routeResult;
 
     try {
       routeResult = await route(prompt, {
-        model: opts.model,
-        taskType: opts.taskType,
+        model:            opts.model,
+        taskType:         opts.taskType,
         excludeProviders: failedProviders,
-        excludeKeys: usedKeys,
+        excludeKeys:      usedKeys,
       });
-    } catch (err) {
-      // No providers/keys available at all
-      throw err;
+    } catch {
+      // No providers/keys available
+      break;
     }
 
     const { provider, model, apiKey, taskType } = routeResult;
-    usedKeys.push(apiKey);
+    usedKeys.push(apiKey); // Prevent this key from being selected again
 
     try {
-      const adapter = await getAdapter(provider.name);
+      const adapter = await getAdapter(provider.name, provider);
 
       if (opts.stream) {
-        // Streaming execution
+        // ── Streaming path ─────────────────────────────────────────
         const result = await adapter.sendStreamRequest(prompt, model, apiKey, {
-          requestId: opts.requestId,
+          requestId:    opts.requestId,
           taskType,
-          onChunk: opts.onChunk,
+          systemPrompt: opts.systemPrompt,
+          onChunk:      opts.onChunk,
         });
 
         await recordProviderResult(provider.name, true);
 
+        const tokens = result.tokens || {};
+        // Prefer provider-returned input tokens; fall back to pre-estimate
+        if (!tokens.input || tokens.input === 0) {
+          tokens.input = estimatedInputTokens;
+        }
+
         const finalResult = {
+          output:   result.output || '',
           provider: provider.name,
           model,
-          keyUsed: apiKey,
-          tokens: result.tokens,
-          output: result.output || '',
+          keyUsed:  apiKey,
+          tokens,
         };
 
         if (opts.onDone) opts.onDone(finalResult);
         return finalResult;
       }
 
-      // Non-streaming execution
+      // ── Non-streaming path ────────────────────────────────────────
       const rawResponse = await adapter.sendRequest(prompt, model, apiKey, {
-        requestId: opts.requestId,
+        requestId:    opts.requestId,
         taskType,
+        systemPrompt: opts.systemPrompt,
       });
 
       const normalized = adapter.normalizeResponse(rawResponse);
       await recordProviderResult(provider.name, true);
 
+      const tokens = normalized.tokens || {};
+      if (!tokens.input || tokens.input === 0) {
+        tokens.input = estimatedInputTokens;
+      }
+
       return {
-        output: normalized.output,
+        output:   normalized.output,
         provider: provider.name,
         model,
-        tokens: normalized.tokens,
-        keyUsed: apiKey,
+        tokens,
+        keyUsed:  apiKey,
       };
 
     } catch (err) {
       lastError = err;
 
-      // Record failure
-      await recordKeyFailure(provider.name, apiKey);
-      await recordProviderResult(provider.name, false);
+      // Record key failure (may auto-disable key if threshold exceeded)
+      await recordKeyFailure(provider.name, apiKey).catch(() => {});
 
-      // Decide if we should try a different provider on next attempt
-      // After 2 same-provider failures, switch provider
-      const sameProviderAttempts = usedKeys.filter((k) =>
-        k !== apiKey // we already added current key
-      ).length;
+      // Record provider failure (may trip circuit breaker)
+      await recordProviderResult(provider.name, false).catch(() => {});
 
-      if (attempt >= 1 && sameProviderAttempts >= 1) {
-        failedProviders.push(provider.name);
+      // Track per-provider failure count
+      providerFailCount[provider.name] = (providerFailCount[provider.name] || 0) + 1;
+
+      // After 2 failures on the same provider → escalate to next provider
+      // Attempt 0 → fail → attempt 1 (same provider, new key)
+      // Attempt 1 → fail → attempt 2 MUST use a different provider
+      if (providerFailCount[provider.name] >= 2) {
+        if (!failedProviders.includes(provider.name)) {
+          failedProviders.push(provider.name);
+        }
       }
     }
   }
 
   // All attempts exhausted
+  const finalErr = lastError || new AllProvidersExhaustedError();
+
   if (opts.stream && opts.onError) {
-    opts.onError(lastError || new AllProvidersExhaustedError());
+    opts.onError(finalErr);
     return;
   }
 
-  throw lastError || new AllProvidersExhaustedError();
+  throw finalErr;
 }

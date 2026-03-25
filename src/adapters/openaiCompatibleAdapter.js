@@ -1,20 +1,15 @@
 import { BaseAdapter } from './baseAdapter.js';
 import { ProviderError } from '../utils/errors.js';
-import { extractTokens } from '../services/statsService.js';
+import { extractTokens, estimateTokens } from '../services/statsService.js';
 
 /**
  * OpenAI-compatible adapter base.
  *
  * Used by: OpenAI, xAI, Ollama, Alibaba, OpenRouter, Groq, DeepSeek,
- *          Moonshot, Together AI, NVIDIA
+ *          Moonshot, Together AI, NVIDIA, Inception, Xiaomi, SambaNova, Cerebras
  *
- * All these providers share the same request/response format:
- *   POST /v1/chat/completions
- *   { model, messages: [{role, content}], stream }
- *   → { choices: [{message: {content}}], usage: {prompt_tokens, completion_tokens} }
- *
- * Subclasses only need to override constructor to set provider name, endpoint,
- * and optionally buildHeaders() for provider-specific auth headers.
+ * Normalized return format (ALL methods):
+ *   { output: string, tokens: { input: number, output: number }, raw: object }
  */
 export class OpenAICompatibleAdapter extends BaseAdapter {
   constructor(providerName, endpoint) {
@@ -22,40 +17,39 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     this.endpoint = endpoint;
   }
 
-  /**
-   * Build request headers. Override in subclasses for custom auth.
-   * Default: Bearer token authorization.
-   */
   buildHeaders(apiKey) {
     return {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization:  `Bearer ${apiKey}`,
     };
   }
 
-  /**
-   * Build request body. Override in subclasses if format differs.
-   */
-  buildBody(prompt, model, stream = false) {
-    return {
+  buildBody(prompt, model, stream = false, options = {}) {
+    const body = {
       model,
       messages: [{ role: 'user', content: prompt }],
       stream,
     };
+    if (options.systemPrompt) {
+      body.messages.unshift({ role: 'system', content: options.systemPrompt });
+    }
+    return body;
   }
 
   /**
    * Non-streaming request.
+   *
+   * @returns {Promise<object>} raw provider response
    */
   async sendRequest(prompt, model, apiKey, options = {}) {
     const controller = this.createTimeout();
 
     try {
       const response = await fetch(this.endpoint, {
-        method: 'POST',
+        method:  'POST',
         headers: this.buildHeaders(apiKey),
-        body: JSON.stringify(this.buildBody(prompt, model, false)),
-        signal: controller.signal,
+        body:    JSON.stringify(this.buildBody(prompt, model, false, options)),
+        signal:  controller.signal,
       });
 
       this.clearTimeout(controller);
@@ -75,17 +69,20 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
 
   /**
    * Streaming request (SSE).
+   *
+   * Returns normalized: { output: string, tokens: { input, output }, raw: object }
+   * No buffering — chunks are forwarded to options.onChunk immediately.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
     const controller = this.createTimeout(60000);
-    let fullOutput = '';
+    let fullOutput   = '';
 
     try {
       const response = await fetch(this.endpoint, {
-        method: 'POST',
+        method:  'POST',
         headers: this.buildHeaders(apiKey),
-        body: JSON.stringify(this.buildBody(prompt, model, true)),
-        signal: controller.signal,
+        body:    JSON.stringify(this.buildBody(prompt, model, true, options)),
+        signal:  controller.signal,
       });
 
       this.clearTimeout(controller);
@@ -95,9 +92,12 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
         throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
       }
 
-      const reader = response.body.getReader();
+      const reader  = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer    = '';
+
+      // Capture the last usage chunk (some providers send it in the final event)
+      let usageFromStream = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -115,6 +115,10 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
 
           try {
             const parsed = JSON.parse(data);
+
+            // Capture usage if provided in stream (e.g. OpenAI stream_options)
+            if (parsed.usage) usageFromStream = parsed.usage;
+
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               fullOutput += content;
@@ -126,9 +130,18 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
         }
       }
 
+      // Build normalized token counts — prefer stream-provided usage
+      const tokens = usageFromStream
+        ? extractTokens({ usage: usageFromStream }, fullOutput, prompt)
+        : {
+            input:  estimateTokens(prompt),
+            output: estimateTokens(fullOutput),
+          };
+
       return {
         output: fullOutput,
-        tokens: extractTokens(null, fullOutput, prompt),
+        tokens,
+        raw: { streaming: true, provider: this.providerName, model },
       };
     } catch (err) {
       this.clearTimeout(controller);
@@ -138,7 +151,8 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
   }
 
   /**
-   * Normalize OpenAI-compatible response.
+   * Normalize a non-streaming OpenAI-compatible response.
+   * Returns: { output: string, tokens: { input, output }, raw: object }
    */
   normalizeResponse(rawResponse) {
     const output = rawResponse.choices?.[0]?.message?.content || '';

@@ -222,8 +222,121 @@ export const STATIC_PROVIDERS = [
     endpoint: 'https://api.cohere.ai/v2/chat',
     models: ['command-r-08-2024', 'command-r-plus-08-2024'],
     rpmLimit: 40
+  },
+  // ─── Local CLI Daemon providers (type: local_http) ───────────────
+  // Served by OmniRouteAI-Local daemon on http://localhost:5059
+  // Enable via Firestore by setting status: 'active'
+  // Daemon must be running: cd local-daemon && node src/main.js
+  {
+    name: 'claude_cli_local',
+    type: 'local_http',
+    priority: 0,      // Highest priority when enabled
+    weight: 30,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/claude`
+      : 'http://localhost:5059/claude',
+    models: ['claude-opus-4.5', 'claude-sonnet-4.5', 'claude-3-5-sonnet', 'default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'gemini_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 30,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/gemini`
+      : 'http://localhost:5059/gemini',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'qwen_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/qwen`
+      : 'http://localhost:5059/qwen',
+    models: ['qwen3-235b-a22b', 'default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'antigravity_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/antigravity`
+      : 'http://localhost:5059/antigravity',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'kilo_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kilo`
+      : 'http://localhost:5059/kilo',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'opencode_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/opencode`
+      : 'http://localhost:5059/opencode',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'qodo_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/qodo`
+      : 'http://localhost:5059/qodo',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'codex_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/codex`
+      : 'http://localhost:5059/codex',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'kiro_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kiro`
+      : 'http://localhost:5059/kiro',
+    models: ['default'],
+    rpmLimit: 999999
   }
 ];
+
 
 /**
  * Fetch active providers from Firestore, with local fallback and Redis caching.

@@ -45,28 +45,27 @@ export class CohereAdapter extends BaseAdapter {
   }
 
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    // TODO: Implement Cohere SSE streaming
-    // For now, fallback to non-streaming
+    // Cohere streaming: fallback to non-streaming and emit as single chunk
     const result = await this.sendRequest(prompt, model, apiKey, options);
-    const text = result.message?.content?.[0]?.text || '';
-    
-    if (options.onChunk && text) {
-      options.onChunk({ content: text, provider: this.providerName, model });
+    const normalized = this.normalizeResponse(result);
+
+    if (options.onChunk && normalized.output) {
+      options.onChunk({ content: normalized.output, provider: this.providerName, model });
     }
 
     return {
-      output: text,
-      tokens: extractTokens(result.usage, text, prompt),
+      output: normalized.output,
+      tokens: normalized.tokens,
+      raw:    { streaming: false, provider: 'cohere', model },
     };
   }
 
   normalizeResponse(rawResponse) {
-    // Cohere V2 format: { message: { content: [{ type: 'text', text: "..." }] }, usage: { ... } }
+    // Cohere V2 format: { message: { content: [{type, text}] }, usage: { tokens: { input_tokens, output_tokens } } }
     const output = rawResponse.message?.content?.[0]?.text || '';
     const tokens = {
-      prompt: rawResponse.usage?.tokens?.input_tokens || 0,
-      completion: rawResponse.usage?.tokens?.output_tokens || 0,
-      total: rawResponse.usage?.tokens?.total_tokens || 0,
+      input:  rawResponse.usage?.tokens?.input_tokens  || 0,
+      output: rawResponse.usage?.tokens?.output_tokens || 0,
     };
     return { output, tokens, raw: rawResponse };
   }

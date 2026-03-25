@@ -16,36 +16,34 @@ export class GeminiAdapter extends BaseAdapter {
   /**
    * Send a non-streaming request to Gemini.
    */
+  buildBody(prompt, options = {}) {
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 8192 },
+    };
+    if (options.systemPrompt) {
+      body.systemInstruction = { parts: [{ text: options.systemPrompt }] };
+    }
+    return body;
+  }
+
   async sendRequest(prompt, model, apiKey, options = {}) {
-    const url = `${this.baseUrl}/${model}:generateContent?key=${apiKey}`;
+    const url        = `${this.baseUrl}/${model}:generateContent?key=${apiKey}`;
     const controller = this.createTimeout();
 
     try {
       const response = await fetch(url, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: 8192,
-          },
-        }),
-        signal: controller.signal,
+        body:    JSON.stringify(this.buildBody(prompt, options)),
+        signal:  controller.signal,
       });
 
       this.clearTimeout(controller);
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new ProviderError(
-          this.providerName,
-          `HTTP ${response.status}: ${errorBody}`,
-          response.status,
-        );
+        throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
       }
 
       return await response.json();
@@ -60,41 +58,29 @@ export class GeminiAdapter extends BaseAdapter {
    * Send a streaming request to Gemini.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const url = `${this.baseUrl}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+    const url        = `${this.baseUrl}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
     const controller = this.createTimeout(60000);
-    let fullOutput = '';
+    let fullOutput   = '';
+    let lastRaw      = null; // capture last parsed chunk for usageMetadata
 
     try {
       const response = await fetch(url, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: 8192,
-          },
-        }),
-        signal: controller.signal,
+        body:    JSON.stringify(this.buildBody(prompt, options)),
+        signal:  controller.signal,
       });
 
       this.clearTimeout(controller);
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new ProviderError(
-          this.providerName,
-          `HTTP ${response.status}: ${errorBody}`,
-          response.status,
-        );
+        throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
       }
 
-      const reader = response.body.getReader();
+      const reader  = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer    = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -108,10 +94,9 @@ export class GeminiAdapter extends BaseAdapter {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith('data: ')) continue;
 
-          const data = trimmed.slice(6);
-
           try {
-            const parsed = JSON.parse(data);
+            const parsed = JSON.parse(trimmed.slice(6));
+            lastRaw = parsed;
             const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
               fullOutput += text;
@@ -119,15 +104,17 @@ export class GeminiAdapter extends BaseAdapter {
                 options.onChunk({ content: text, provider: this.providerName, model });
               }
             }
-          } catch {
-            // Skip unparseable lines
-          }
+          } catch { /* skip unparseable */ }
         }
       }
 
+      // Gemini includes usageMetadata in final chunk
+      const tokens = extractTokens(lastRaw, fullOutput, prompt);
+
       return {
         output: fullOutput,
-        tokens: extractTokens(null, fullOutput, prompt),
+        tokens,
+        raw: { streaming: true, provider: this.providerName, model },
       };
     } catch (err) {
       this.clearTimeout(controller);
