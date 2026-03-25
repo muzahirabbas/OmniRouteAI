@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load settings into form
   loadSettingsForm();
+  loadDaemonSettings();
 
   // Initial page load
   navigateTo('overview');
@@ -673,7 +674,45 @@ async function refreshOllamaLogs() {
   }
 }
 
-// ─── Daemon Settings ───────────────────────────────────────────────────
+// ─── Backend Settings ─────────────────────────────────────────────────
+
+function loadSettingsForm() {
+  const urlInput = document.getElementById('settings-api-url');
+  const encryptionCheck = document.getElementById('settings-use-encryption');
+  if (urlInput) urlInput.value = API.getBaseUrl();
+  if (encryptionCheck) encryptionCheck.checked = API.isEncryptionEnabled();
+}
+
+async function saveSettings() {
+  const url = document.getElementById('settings-api-url')?.value || '';
+  const key = document.getElementById('settings-api-key')?.value || '';
+  const useEncryption = document.getElementById('settings-use-encryption')?.checked || false;
+  const passphrase = document.getElementById('settings-encryption-passphrase')?.value || '';
+
+  try {
+    await API.saveSettings(url, key, { useEncryption, passphrase });
+    showToast('success', 'Settings saved!');
+    if (document.getElementById('settings-api-key')) document.getElementById('settings-api-key').value = '';
+    checkHealth();
+  } catch (err) {
+    showToast('error', `Save failed: ${err.message}`);
+  }
+}
+
+async function testConnection() {
+  const statusEl = document.getElementById('connection-status');
+  statusEl.textContent = 'Testing...';
+  try {
+    const data = await API.getHealth();
+    statusEl.textContent = JSON.stringify(data, null, 2);
+    showToast('success', 'Backend connected!');
+  } catch (err) {
+    statusEl.textContent = `Failed: ${err.message}`;
+    showToast('error', `Connection failed: ${err.message}`);
+  }
+}
+
+// ─── Daemon Settings ─────────────────────────────────────────────────
 
 function loadDaemonSettings() {
   const tokenInput = document.getElementById('settings-daemon-token');
