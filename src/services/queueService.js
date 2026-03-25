@@ -113,8 +113,7 @@ export async function waitForResult(jobId, timeout = 30000) {
 
     // Check if job is stuck in active state for too long
     if (state === 'active') {
-      const jobInfo = await job.getInfo();
-      const processingTime = Date.now() - (jobInfo?.processedOn || startTime);
+      const processingTime = Date.now() - (job.processedOn || startTime);
       
       // If processing for more than 2x timeout, consider it stuck
       if (processingTime > timeout * 2) {
