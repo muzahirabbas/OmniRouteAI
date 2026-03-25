@@ -3,13 +3,6 @@ import { log } from './logger.js';
 
 /**
  * CLI Spawner — the core of the local daemon.
- *
- * Responsibilities:
- * - Spawn CLI commands using child_process.spawn (shell: true)
- * - Stream stdout chunks directly to an HTTP reply (if streaming)
- * - Capture stderr separately (never mixed with stdout)
- * - Enforce timeouts via AbortController
- * - Return normalized { output, raw, tokens, exitCode, success, error? }
  */
 
 const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
@@ -23,11 +16,12 @@ const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
  */
 export function getExecutable(tool, defaultCmd) {
   const paths = {
-    kilo:        'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kilo.cmd',
-    opencode:    'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
-    antigravity: 'C:\\Users\\Zaari\\AppData\\Local\\Programs\\Antigravity\\bin\\antigravity.cmd',
-    gemini:      'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
-    claude:      'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
+    kilo:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kilo.cmd',
+    opencode:           'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
+    antigravity:        'C:\\Users\\Zaari\\AppData\\Local\\Programs\\Antigravity\\bin\\antigravity.cmd',
+    'antigravity-bridge': 'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
+    gemini:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
+    claude:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
   };
   return paths[tool] || defaultCmd;
 }
@@ -68,11 +62,15 @@ export async function spawnCLI(opts) {
       cwd: process.cwd(),
     }));
 
-    const child = spawn(`"${command}"`, args, {
+    // Use a single command string for Windows stability with batch files
+    const fullCommandString = `"${command}" ${args.join(' ')}`;
+
+    const child = spawn(fullCommandString, {
       shell:  true,
       cwd:    process.cwd(),
       env:    { ...process.env, ...env },
       signal: abortController.signal,
+      stdio:  ['ignore', 'pipe', 'pipe'],
       windowsVerbatimArguments: true,
     });
 
@@ -165,6 +163,15 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
         'agent',
         '--non-interactive',
         '--mode', 'act',
+        q,
+      ];
+
+    case 'antigravity-bridge':
+      // Phase 12: Antigravity-Claude Bridge via OpenCode Plugin
+      return [
+        'run',
+        '--agent', 'antigravity',
+        ...(model ? ['--model', model] : []),
         q,
       ];
 
