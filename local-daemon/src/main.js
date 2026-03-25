@@ -13,6 +13,8 @@ import { opencodeRoutes }    from './routes/opencode.js';
 import { qodoRoutes }        from './routes/qodo.js';
 import { codexRoutes }       from './routes/codex.js';
 import { kiroRoutes }        from './routes/kiro.js';
+import { grokRoutes }        from './routes/grok.js';
+import { copilotRoutes }     from './routes/copilot.js';
 import { customRoutes }      from './routes/custom.js';
 import { authRoutes }        from './routes/auth.js';
 
@@ -146,6 +148,8 @@ async function startDaemon() {
   await app.register(qodoRoutes);
   await app.register(codexRoutes);
   await app.register(kiroRoutes);
+  await app.register(grokRoutes);
+  await app.register(copilotRoutes);
   await app.register(customRoutes);
   await app.register(authRoutes);
 

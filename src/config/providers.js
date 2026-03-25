@@ -334,6 +334,30 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/kiro',
     models: ['default'],
     rpmLimit: 999999
+  },
+  {
+    name: 'grok_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/grok`
+      : 'http://localhost:5059/grok',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'copilot_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'inactive',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/copilot`
+      : 'http://localhost:5059/copilot',
+    models: ['default'],
+    rpmLimit: 999999
   }
 ];
 

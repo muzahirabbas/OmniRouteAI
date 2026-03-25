@@ -93,6 +93,22 @@ const DEFAULT_CONFIG = {
       env:      {},
       authCmd:  'kiro-cli auth',
     },
+    grok: {
+      enabled:  true,
+      command:  'grok',
+      args:     [],
+      timeout:  60000,
+      env:      {},
+      authCmd:  null,
+    },
+    copilot: {
+      enabled:  true,
+      command:  'copilot',
+      args:     [],
+      timeout:  60000,
+      env:      {},
+      authCmd:  'gh auth login --web -h github.com',
+    },
     custom: {
       enabled:  true,
       command:  null,   // Must be set by user
