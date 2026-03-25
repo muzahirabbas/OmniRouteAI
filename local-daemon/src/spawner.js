@@ -194,20 +194,21 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       return [
         'chat', q,
         ...(model ? ['--model', model] : []),
+        '--headless', // Prevent opening the IDE window
       ];
 
     case 'kilo':
-      return ['run', q];
+      return ['run', q, '--auto'];
 
     case 'opencode':
-      return ['run', q];
+      return ['run', q, '--quiet'];
 
     case 'qodo':
       return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'codex':
-      // Often positional
-      return [q, ...(model ? ['--model', model] : [])];
+      // Use "exec" for non-interactive plan execution
+      return ['exec', q, '--full-auto', '--sandbox', 'danger-full-access'];
 
     case 'kiro':
       // kiro-cli became kiro usually
