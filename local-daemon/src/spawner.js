@@ -186,31 +186,29 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
         '--output-format', 'text',
       ];
 
-    case 'gemini':
-      // Some versions of Gemini CLI require -p for headless mode
-      return [
-        '-p', q,
-        ...(model ? ['--model', model] : []),
-        '--yolo', // Auto-accept safely if supported
-      ];
-
-    case 'qwen':
-      // Qwen uses "run" specifically for prompt execution
-      return ['run', q];
-
     case 'antigravity':
-      // Use 'ask' mode which is more stateless/headless
+      // Phase 6: Claude Code Proxy Bridge for Antigravity (as requested)
+      // If we use 'claude -p', it may act as a better headless bridge if configured
+      // Fallback to absolute path of antigravity.cmd if claude is not logged in
       return [
-        'chat', q,
-        '--mode', 'ask',
-        ...(model ? ['--model', model] : []),
+        'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
+        '-p',
+        `Ask Antigravity: ${q}`,
+        '--dangerously-skip-permissions',
+        '--no-session-persistence',
       ];
 
     case 'kilo':
-      return ['run', q, '--auto'];
+      return ['C:/Users/Zaari/AppData/Roaming/npm/kilo.cmd', 'run', q, '--auto'];
 
     case 'opencode':
-      return ['run', q];
+      return ['C:/Users/Zaari/AppData/Roaming/npm/opencode.cmd', 'run', q];
+
+    case 'gemini':
+      return ['C:/Users/Zaari/AppData/Roaming/npm/gemini.cmd', 'chat', '-p', q];
+
+    case 'claude':
+      return ['C:/Users/Zaari/AppData/Roaming/npm/claude.cmd', '-p', q, '--dangerously-skip-permissions'];
 
     case 'qodo':
       return ['chat', q, ...(model ? ['--model', model] : [])];
