@@ -382,8 +382,15 @@ export async function routeAndExecute(prompt, opts = {}) {
         tokens.input = estimatedInputTokens;
       }
 
+      let finalOutput = normalized.output || '';
+      
+      // Fallback to stderr for successful but silent CLI responses
+      if (!finalOutput && rawResponse.stderr) {
+        finalOutput = rawResponse.stderr;
+      }
+
       return {
-        output:   normalized.output ?? '',
+        output:   finalOutput,
         provider: provider.name,
         model,
         tokens,

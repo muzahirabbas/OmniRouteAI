@@ -47,9 +47,9 @@ export function createToolRoute(toolName, providerName) {
 
     const cliArgs = buildArgs(toolName, prompt.trim(), model, extraArgs);
     
-    // Phase 8: Hardened absolute path resolution
+    // Phase 13: Force at least 5 minutes to override any faulty config.json defaults
+    const timeout = Math.max(toolConfig.timeout || 300000, 300000);
     const command = getExecutable(toolName, toolConfig.command);
-    const timeout = toolConfig.timeout || 300000; // Default to 5 minutes
     const env     = toolConfig.env || {};
 
     // ── STREAMING ─────────────────────────────────────────────────────
