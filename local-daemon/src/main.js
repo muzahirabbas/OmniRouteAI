@@ -46,6 +46,10 @@ async function startDaemon() {
   // ─── Security: Token auth hook ───────────────────────────────────
   // Skip token check only for /health (so OmniRouteAI can probe without token setup)
   app.addHook('onRequest', async (request, reply) => {
+    // 1. Always allow preflight requests to pass auth (browser doesn't send custom headers in OPTIONS)
+    if (request.method === 'OPTIONS') return;
+    
+    // 2. Allow public endpoints
     if (request.url === '/health' || request.url === '/') return;
 
     const tokenHeader = request.headers['x-local-token'];
