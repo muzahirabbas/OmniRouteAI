@@ -190,9 +190,19 @@ async function getAdapter(providerName, providerConfig = null) {
     }
     case 'zai_cli_local':
     case 'cline_cli_local':
-    case 'kimi_cli_local': {
+    case 'kimi_cli_local':
+    case 'claude_cli_local':
+    case 'gemini_cli_local':
+    case 'qwen_cli_local':
+    case 'antigravity_cli_local':
+    case 'kilo_cli_local':
+    case 'opencode_cli_local':
+    case 'codex_cli_local':
+    case 'kiro_cli_local':
+    case 'grok_cli_local':
+    case 'copilot_cli_local': {
       const mod = await import('../adapters/localHttpAdapter.js');
-      const toolName = providerName.split('_')[0]; // zai, cline, or kimi
+      const toolName = providerName.split('_')[0]; // zai, cline, kimi, claude, etc.
       const daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';
       adapter = new mod.LocalHttpAdapter(providerName, `${daemonUrl}/${toolName}`);
       break;

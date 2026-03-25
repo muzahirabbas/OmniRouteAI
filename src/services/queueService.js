@@ -58,14 +58,6 @@ export async function waitForResult(jobId, timeout = 30000) {
   const MAX_NULL_RESPONSES = 50; // ~5 seconds of null responses
 
   while (Date.now() - startTime < timeout) {
-    // Check max poll duration
-    if (Date.now() - startTime > maxPollDuration) {
-      const timeoutErr = new Error(`Job ${jobId} exceeded maximum poll duration of ${maxPollDuration}ms`);
-      timeoutErr.statusCode = 504;
-      timeoutErr.name = 'PollTimeoutError';
-      throw timeoutErr;
-    }
-
     const job = await getQueue().getJob(jobId);
 
     // Detect stuck job (job disappeared from queue)
@@ -89,7 +81,8 @@ export async function waitForResult(jobId, timeout = 30000) {
     const state = await job.getState();
 
     if (state === 'completed') {
-      return job.returnvalue;
+      // Guard against null returnvalue (Root Cause 2)
+      return job.returnvalue || { success: true, output: "" };
     }
 
     if (state === 'failed') {
@@ -128,6 +121,19 @@ export async function waitForResult(jobId, timeout = 30000) {
     }
 
     await sleep(pollInterval);
+  }
+
+  // --- Final poll before giving up (Fixes race condition) ---
+  const finalJob = await getQueue().getJob(jobId);
+  if (finalJob) {
+    const finalState = await finalJob.getState();
+    if (finalState === 'completed') {
+      // Guard against null returnvalue (Fixes Root Cause 2)
+      return finalJob.returnvalue || { success: true, output: "" };
+    }
+    if (finalState === 'failed') {
+      throw new Error(finalJob.failedReason || 'Job failed at the last millisecond');
+    }
   }
 
   const timeoutErr = new Error(`Job ${jobId} timed out after ${timeout}ms`);
