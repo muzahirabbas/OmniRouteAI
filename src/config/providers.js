@@ -232,7 +232,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,      // Highest priority when enabled
     weight: 30,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/claude`
       : 'http://localhost:5059/claude',
@@ -244,7 +244,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 30,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/gemini`
       : 'http://localhost:5059/gemini',
@@ -256,7 +256,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 25,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/qwen`
       : 'http://localhost:5059/qwen',
@@ -268,7 +268,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 25,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/antigravity`
       : 'http://localhost:5059/antigravity',
@@ -280,7 +280,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/kilo`
       : 'http://localhost:5059/kilo',
@@ -292,7 +292,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/opencode`
       : 'http://localhost:5059/opencode',
@@ -304,7 +304,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/qodo`
       : 'http://localhost:5059/qodo',
@@ -316,7 +316,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/codex`
       : 'http://localhost:5059/codex',
@@ -328,7 +328,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/kiro`
       : 'http://localhost:5059/kiro',
@@ -340,7 +340,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/grok`
       : 'http://localhost:5059/grok',
@@ -352,7 +352,7 @@ export const STATIC_PROVIDERS = [
     type: 'local_http',
     priority: 0,
     weight: 20,
-    status: 'inactive',
+    status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
       ? `${process.env.LOCAL_DAEMON_URL}/copilot`
       : 'http://localhost:5059/copilot',

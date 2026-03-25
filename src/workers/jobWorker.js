@@ -21,7 +21,7 @@ import http from 'http';
 const worker = new Worker(
   'chat-completions',
   async (job) => {
-    const { prompt, model, taskType, systemPrompt, requestId } = job.data;
+    const { prompt, model, provider, taskType, systemPrompt, requestId } = job.data;
 
     console.log(JSON.stringify({
       level:     'info',
@@ -33,6 +33,7 @@ const worker = new Worker(
     // Single call — routeAndExecute handles all retry/failover internally
     const result = await routeAndExecute(prompt, {
       model,
+      provider,
       taskType,
       systemPrompt,
       requestId,

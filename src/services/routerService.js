@@ -163,11 +163,21 @@ export async function route(prompt, opts = {}) {
   const taskType        = opts.taskType || classify(prompt);
   const excludeProviders = opts.excludeProviders || [];
   const excludeKeys      = opts.excludeKeys      || [];
+  const providerOverride = opts.provider;
 
   // getActiveProviders() returns providers ordered by priority-tier weighted random
   const activeProviders = await getActiveProviders();
 
-  for (const provider of activeProviders) {
+  // If a specific provider is requested, put it at the top of the search list
+  let searchList = [...activeProviders];
+  if (providerOverride) {
+    const target = activeProviders.find(p => p.name === providerOverride);
+    if (target) {
+      searchList = [target, ...activeProviders.filter(p => p.name !== providerOverride)];
+    }
+  }
+
+  for (const provider of searchList) {
     if (excludeProviders.includes(provider.name)) continue;
 
     // Model selection: requested model → provider default → first model in list
@@ -245,6 +255,7 @@ export async function routeAndExecute(prompt, opts = {}) {
     try {
       routeResult = await route(prompt, {
         model:            opts.model,
+        provider:         opts.provider,
         taskType:         opts.taskType,
         excludeProviders: failedProviders,
         excludeKeys:      usedKeys,

@@ -28,6 +28,7 @@ export async function chatRoutes(app) {
         properties: {
           prompt:        { type: 'string', minLength: 1 },
           model:         { type: 'string' },
+          provider:      { type: 'string' },
           task_type:     { type: 'string' },
           system_prompt: { type: 'string' },
           stream:        { type: 'boolean', default: false },
@@ -38,6 +39,7 @@ export async function chatRoutes(app) {
     const {
       prompt,
       model,
+      provider:      providerOverride,
       task_type:     taskType,
       system_prompt: systemPrompt,
       stream,
@@ -96,6 +98,7 @@ export async function chatRoutes(app) {
       try {
         await routeAndExecute(prompt, {
           model,
+          provider:     providerOverride,
           taskType,
           systemPrompt,
           requestId,
@@ -134,7 +137,14 @@ export async function chatRoutes(app) {
 
     // ── 3. Non-streaming → use BullMQ queue ────────────────────────────
     try {
-      const jobId  = await enqueue({ prompt, model, taskType, systemPrompt, requestId });
+      const jobId  = await enqueue({
+        prompt,
+        model,
+        provider: providerOverride,
+        taskType,
+        systemPrompt,
+        requestId
+      });
       const result = await waitForResult(jobId, 30000);
 
       const latency = Date.now() - startTime;
