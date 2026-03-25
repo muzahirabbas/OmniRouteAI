@@ -17,11 +17,19 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     this.endpoint = endpoint;
   }
 
-  buildHeaders(apiKey) {
-    return {
+  buildHeaders(apiKey, options = {}) {
+    const headers = {
       'Content-Type': 'application/json',
       Authorization:  `Bearer ${apiKey}`,
     };
+    
+    // Propagate request ID for tracing across provider logs
+    if (options?.requestId) {
+      headers['X-Request-ID'] = options.requestId;
+      headers['X-OmniRoute-Request-ID'] = options.requestId;
+    }
+    
+    return headers;
   }
 
   buildBody(prompt, model, stream = false, options = {}) {
@@ -47,7 +55,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     try {
       const response = await fetch(this.endpoint, {
         method:  'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: this.buildHeaders(apiKey, options),
         body:    JSON.stringify(this.buildBody(prompt, model, false, options)),
         signal:  controller.signal,
       });
@@ -80,7 +88,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     try {
       const response = await fetch(this.endpoint, {
         method:  'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: this.buildHeaders(apiKey, options),
         body:    JSON.stringify(this.buildBody(prompt, model, true, options)),
         signal:  controller.signal,
       });

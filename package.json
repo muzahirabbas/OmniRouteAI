@@ -28,6 +28,10 @@
     "node-cron": "^3.0.3",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
+    "tiktoken": "^1.0.20",
     "uuid": "^11.1.0"
+  },
+  "optionalDependencies": {
+    "tiktoken": "^1.0.20"
   }
 }

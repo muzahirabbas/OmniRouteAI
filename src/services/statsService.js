@@ -1,12 +1,14 @@
 import { incrWithTTL, get, keys, del } from '../config/redis.js';
 import { getDb } from '../config/firestore.js';
+import { estimateTokens as estimateTokensFallback } from './tokenService.js';
 
 /**
  * Stats service.
  *
  * Token tracking strategy:
  * 1. Prefer provider-returned token fields (most accurate)
- * 2. Fallback: heuristic estimation (chars / 4)
+ * 2. Fallback: tiktoken estimation (if installed)
+ * 3. Last resort: heuristic estimation (chars / 4)
  *
  * Token field detection covers:
  * - OpenAI-compatible: usage.prompt_tokens / usage.completion_tokens
@@ -48,14 +50,23 @@ export async function trackRequest(provider, key, tokens = { input: 0, output: 0
 
 /**
  * Estimate tokens from text when provider doesn't return token counts.
- * Simple heuristic: 1 token ≈ 4 characters.
+ * Uses tiktoken if available, falls back to character-based estimation.
  *
  * @param {string} text
- * @returns {number}
+ * @param {string} [model] - Optional model for tiktoken
+ * @returns {Promise<number>}
  */
-export function estimateTokens(text) {
+export async function estimateTokens(text, model) {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  
+  // Try to use tiktoken-based estimation from tokenService
+  try {
+    const { countTokens } = await import('./tokenService.js');
+    return await countTokens(text, model);
+  } catch {
+    // Fallback to simple character-based estimation
+    return estimateTokensFallback(text);
+  }
 }
 
 /**
@@ -65,11 +76,12 @@ export function estimateTokens(text) {
  *
  * @param {string} prompt
  * @param {string} [systemPrompt='']
- * @returns {number}
+ * @param {string} [model='gpt-3.5-turbo']
+ * @returns {Promise<number>}
  */
-export function estimateInputTokens(prompt, systemPrompt = '') {
-  const combined = (systemPrompt ? systemPrompt + '\n' : '') + (prompt || '');
-  return estimateTokens(combined);
+export async function estimateInputTokens(prompt, systemPrompt = '', model = 'gpt-3.5-turbo') {
+  const { estimateInputTokens: estimateWithTiktoken } = await import('./tokenService.js');
+  return estimateWithTiktoken(prompt, systemPrompt, model);
 }
 
 /**
@@ -79,9 +91,10 @@ export function estimateInputTokens(prompt, systemPrompt = '') {
  * @param {object} rawResponse   - raw provider response (may be null for streaming)
  * @param {string} outputText    - generated text (for fallback estimation)
  * @param {string} [inputText=''] - prompt text (for fallback estimation)
- * @returns {{ input: number, output: number }}
+ * @param {string} [model='gpt-3.5-turbo'] - model for tiktoken fallback
+ * @returns {Promise<{ input: number, output: number }>}
  */
-export function extractTokens(rawResponse, outputText = '', inputText = '') {
+export async function extractTokens(rawResponse, outputText = '', inputText = '', model = 'gpt-3.5-turbo') {
   if (rawResponse) {
     // ── OpenAI-compatible (Groq, OpenAI, xAI, DeepSeek, etc.) ──────
     if (rawResponse.usage?.prompt_tokens !== undefined) {
@@ -124,11 +137,13 @@ export function extractTokens(rawResponse, outputText = '', inputText = '') {
     }
   }
 
-  // ── Fallback: heuristic estimation ───────────────────────────────
-  return {
-    input:  estimateTokens(inputText),
-    output: estimateTokens(outputText),
-  };
+  // ── Fallback: tiktoken or heuristic estimation ─────────────────────
+  const [input, output] = await Promise.all([
+    estimateTokens(inputText, model),
+    estimateTokens(outputText, model),
+  ]);
+  
+  return { input, output };
 }
 
 /**

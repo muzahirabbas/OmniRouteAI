@@ -26,11 +26,11 @@ export async function chatRoutes(app) {
         type: 'object',
         required: ['prompt'],
         properties: {
-          prompt:        { type: 'string', minLength: 1 },
+          prompt:        { type: 'string', minLength: 1, maxLength: 100000 },
           model:         { type: 'string' },
           provider:      { type: 'string' },
           task_type:     { type: 'string' },
-          system_prompt: { type: 'string' },
+          system_prompt: { type: 'string', maxLength: 4000 },
           stream:        { type: 'boolean', default: false },
         },
       },
@@ -54,6 +54,32 @@ export async function chatRoutes(app) {
     const { enqueue, waitForResult }     = await import('../services/queueService.js');
     const { logRequest }                 = await import('../services/loggingService.js');
     const { trackRequest }               = await import('../services/statsService.js');
+
+    // ── Input validation ───────────────────────────────────────────────
+    // Additional runtime validation for edge cases
+    if (systemPrompt && systemPrompt.length > 4000) {
+      const err = new Error('system_prompt exceeds maximum length of 4000 characters');
+      err.statusCode = 400;
+      err.name = 'ValidationError';
+      reply.code(400).send({
+        error: 'ValidationError',
+        message: err.message,
+        requestId,
+      });
+      return;
+    }
+
+    if (prompt.length > 100000) {
+      const err = new Error('prompt exceeds maximum length of 100000 characters');
+      err.statusCode = 400;
+      err.name = 'ValidationError';
+      reply.code(400).send({
+        error: 'ValidationError',
+        message: err.message,
+        requestId,
+      });
+      return;
+    }
 
     // ── 1. Check cache ─────────────────────────────────────────────────
     // Cache is SKIPPED for streaming (SSE responses are not cacheable)

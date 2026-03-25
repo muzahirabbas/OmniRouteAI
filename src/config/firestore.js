@@ -3,6 +3,15 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { readFileSync } from 'node:fs';
 
 let db;
+let _isMockDb = false;
+
+/**
+ * Check if the current Firestore instance is a mock.
+ * @returns {boolean}
+ */
+export function isMockDb() {
+  return _isMockDb;
+}
 
 /**
  * Initialize Firestore.
@@ -18,6 +27,7 @@ function initFirestore() {
       if (!credPath) {
         console.warn(JSON.stringify({ level: 'warn', msg: 'GOOGLE_APPLICATION_CREDENTIALS is not defined. Firestore is running in mock/degraded mode.' }));
         // Do not crash the server if DB is entirely missing!
+        _isMockDb = true;
         return createMockDb();
       }
 
@@ -27,13 +37,13 @@ function initFirestore() {
         // Remove rogue quotes if user pasted them into Railway
         if (cleanedCreds.startsWith("'") && cleanedCreds.endsWith("'")) cleanedCreds = cleanedCreds.slice(1, -1);
         if (cleanedCreds.startsWith('"') && cleanedCreds.endsWith('"')) cleanedCreds = cleanedCreds.slice(1, -1);
-        
+
         serviceAccount = JSON.parse(cleanedCreds);
       } catch (e) {
         // Fallback to file execution if explicit path
         serviceAccount = JSON.parse(readFileSync(credPath, 'utf-8'));
       }
-      
+
       initializeApp({ credential: cert(serviceAccount) });
     }
 
@@ -41,10 +51,12 @@ function initFirestore() {
     db.settings({ ignoreUndefinedProperties: true });
 
     console.log(JSON.stringify({ level: 'info', msg: 'Firestore initialized successfully' }));
+    _isMockDb = false;
     return db;
   } catch (err) {
     console.error(JSON.stringify({ level: 'error', msg: 'Firestore init failed', error: err.message }));
     // Return a mock database so our endpoints don't inherently crash with HTTP 500s
+    _isMockDb = true;
     return createMockDb();
   }
 }
@@ -83,6 +95,38 @@ export function getDb() {
     initFirestore();
   }
   return db;
+}
+
+/**
+ * Test Firestore connectivity by attempting a simple read operation.
+ * @returns {Promise<{connected: boolean, error?: string}>}
+ */
+export async function testFirestoreConnectivity() {
+  try {
+    const testDb = getDb();
+    
+    // Check if using mock database
+    if (_isMockDb) {
+      return {
+        connected: false,
+        error: 'Firestore is running in mock mode (GOOGLE_APPLICATION_CREDENTIALS not set or invalid)',
+      };
+    }
+    
+    // Attempt a simple read - list collections or read a non-existent doc
+    const testRef = testDb.collection('providers').limit(1);
+    const snapshot = await testRef.get();
+    
+    return {
+      connected: true,
+      error: null,
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      error: err.message,
+    };
+  }
 }
 
 export default { getDb };

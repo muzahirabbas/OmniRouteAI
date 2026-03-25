@@ -16,6 +16,33 @@ import { extractTokens, estimateTokens } from '../services/statsService.js';
  *   Response (stream): Server-Sent Events (SSE) — same format as OpenAI
  *
  * Normalized return: { output: string, tokens: { input, output }, raw: object }
+ *
+ * ─── SECURITY CONSIDERATIONS ───────────────────────────────────────────
+ *
+ * 1. NGROK HEADER BYPASS:
+ *    The 'ngrok-skip-browser-warning' header is added to bypass ngrok's
+ *    free-tier HTML warning page. This is ONLY needed when:
+ *    - The local daemon is exposed via ngrok free tier
+ *    - ngrok intercepts HTTP requests with browser detection
+ *
+ *    SECURITY RISK: If the daemon is exposed to the public internet via
+ *    ngrok, this header alone does NOT provide security. Always use:
+ *    - LOCAL_DAEMON_TOKEN for authentication (see buildHeaders below)
+ *    - ngrok authentication middleware (ngrok basic auth)
+ *    - Or better: use ngrok paid tier with custom domains + TLS
+ *
+ *    RECOMMENDATION: Never expose the local daemon publicly without
+ *    proper authentication. The LOCAL_DAEMON_TOKEN env var provides
+ *    token-based auth that is validated by the daemon.
+ *
+ * 2. LOCALHOST-ONLY BINDING:
+ *    The local daemon binds to 127.0.0.1 by default (NOT 0.0.0.0).
+ *    This prevents external access unless explicitly configured.
+ *
+ * 3. TOKEN AUTHENTICATION:
+ *    When LOCAL_DAEMON_TOKEN is set, all requests include the
+ *    'X-Local-Token' header. The daemon validates this token on
+ *    every request (except /health).
  */
 export class LocalHttpAdapter extends BaseAdapter {
   /**

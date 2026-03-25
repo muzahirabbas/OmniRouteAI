@@ -70,6 +70,29 @@ export async function buildServer(opts = {}) {
     return { name: 'OmniRouteAI', status: 'online' };
   });
 
+  // ─── Redis Health Check ─────────────────────────────────────────────
+  // Run eviction policy check on startup (non-blocking)
+  const { checkEvictionPolicy, checkMemoryUsage } = await import('./config/redis.js');
+  const { testFirestoreConnectivity, isMockDb } = await import('./config/firestore.js');
+  
+  // Check eviction policy after a short delay (allow Redis to fully connect)
+  setTimeout(async () => {
+    await checkEvictionPolicy();
+    await checkMemoryUsage();
+    
+    // Check Firestore connectivity
+    const firestoreResult = await testFirestoreConnectivity();
+    if (!firestoreResult.connected) {
+      console.error(JSON.stringify({
+        level: 'fatal',
+        msg: 'FIRESTORE NOT CONNECTED - Running in degraded mode',
+        error: firestoreResult.error,
+        impact: 'Logs, stats, and provider configs will not persist',
+        fix: 'Set GOOGLE_APPLICATION_CREDENTIALS environment variable',
+      }));
+    }
+  }, 2000);
+
 
   // ─── Routes ─────────────────────────────────────────────────────────
   await app.register(chatRoutes);

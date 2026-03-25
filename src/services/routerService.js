@@ -1,4 +1,4 @@
-import { classify } from '../utils/classifier.js';
+import { classify, classifySync } from '../utils/classifier.js';
 import { getActiveProviders, recordProviderResult } from './providerService.js';
 import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure } from './keyService.js';
 import { estimateTokens } from './statsService.js';
@@ -25,6 +25,53 @@ import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
 
 // ─── Adapter registry — lazy loaded ──────────────────────────────────
 const adapterCache = {};
+
+/**
+ * Invalidate adapter cache for a specific provider or all providers.
+ * Called when provider configuration changes (e.g., endpoint URL changes).
+ * 
+ * @param {string} [providerName] - Specific provider to invalidate, or 'all' for full cache clear
+ */
+export function invalidateAdapterCache(providerName) {
+  if (providerName === 'all' || !providerName) {
+    Object.keys(adapterCache).forEach(key => {
+      delete adapterCache[key];
+    });
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Adapter cache fully invalidated',
+    }));
+  } else {
+    // Invalidate specific provider
+    const cacheKey = adapterCache[providerName] ? providerName : null;
+    
+    // Also check for local_http cache keys
+    for (const key of Object.keys(adapterCache)) {
+      if (key.startsWith(`local_http:`) && key.includes(providerName)) {
+        delete adapterCache[key];
+      }
+    }
+    
+    if (adapterCache[providerName]) {
+      delete adapterCache[providerName];
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: `Adapter cache invalidated for provider: ${providerName}`,
+      }));
+    }
+  }
+}
+
+/**
+ * Get adapter cache info for monitoring.
+ * @returns {{ size: number, keys: string[] }}
+ */
+export function getAdapterCacheInfo() {
+  return {
+    size: Object.keys(adapterCache).length,
+    keys: Object.keys(adapterCache),
+  };
+}
 
 async function getAdapter(providerName, providerConfig = null) {
   const cacheKey = providerConfig?.type === 'local_http'
@@ -160,7 +207,8 @@ async function getAdapter(providerName, providerConfig = null) {
  * @returns {Promise<{provider, model, apiKey, taskType}>}
  */
 export async function route(prompt, opts = {}) {
-  const taskType        = opts.taskType || classify(prompt);
+  // Use sync classify for performance (keywords cached in memory)
+  const taskType        = opts.taskType || classifySync(prompt);
   const excludeProviders = opts.excludeProviders || [];
   const excludeKeys      = opts.excludeKeys      || [];
   const providerOverride = opts.provider;

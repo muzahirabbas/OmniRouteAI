@@ -12,6 +12,14 @@ import {
 import { registerKeys, isKeyDisabled, disableKey, resetProviderKeys } from '../services/keyService.js';
 import { getStats, aggregateDaily } from '../services/statsService.js';
 import { flushLogs } from '../services/loggingService.js';
+import { createRateLimiter } from '../utils/rateLimiter.js';
+
+// Rate limiter for admin endpoints: 10 requests per minute per IP
+const adminRateLimiter = createRateLimiter({
+  windowMs: 60000,
+  maxRequests: 10,
+  keyPrefix: 'ratelimit:admin:',
+});
 
 /**
  * Admin API routes.
@@ -25,25 +33,35 @@ import { flushLogs } from '../services/loggingService.js';
  *   GET  /api/admin/logs                      — with pagination (cursor support)
  */
 export async function adminRoutes(app) {
+  // Apply rate limiting to all admin routes
+  app.addHook('onRequest', adminRateLimiter);
 
   // ─── System Health ────────────────────────────────────────────────────
   app.get('/api/admin/health', async () => {
     let redisOk = false;
     let firestoreOk = false;
+    let firestoreError = null;
 
     try { await getClient().ping(); redisOk = true; } catch {}
+    
     try {
-      const db = getDb();
-      await db.collection('providers').limit(1).get();
-      firestoreOk = true;
-    } catch {}
+      const { testFirestoreConnectivity, isMockDb } = await import('../config/firestore.js');
+      const result = await testFirestoreConnectivity();
+      firestoreOk = result.connected;
+      firestoreError = result.error;
+    } catch (err) {
+      firestoreOk = false;
+      firestoreError = err.message;
+    }
 
     return {
-      status:    redisOk && firestoreOk ? 'healthy' : 'degraded',
-      redis:     redisOk     ? 'connected' : 'disconnected',
-      firestore: firestoreOk ? 'connected' : 'disconnected',
-      uptime:    process.uptime(),
-      timestamp: new Date().toISOString(),
+      status:          redisOk && firestoreOk ? 'healthy' : 'degraded',
+      redis:           redisOk     ? 'connected' : 'disconnected',
+      firestore:       firestoreOk ? 'connected' : 'disconnected',
+      firestore_error: firestoreError,
+      is_mock_db:      !firestoreOk,
+      uptime:          process.uptime(),
+      timestamp:       new Date().toISOString(),
     };
   });
 
@@ -237,10 +255,15 @@ export async function adminRoutes(app) {
         await disableKey(dk.provider, dk.key, 31536000); // 1 year
       }
 
+      // 5. Invalidate adapter cache (for endpoint URL changes)
+      const { invalidateAdapterCache } = await import('../services/routerService.js');
+      invalidateAdapterCache('all');
+
       return {
         success:           true,
         providersRefreshed: providers.length,
         keysReloaded:      Object.values(keysByProvider).reduce((sum, ks) => sum + ks.length, 0),
+        adaptersInvalidated: true,
         timestamp:         new Date().toISOString(),
       };
     } catch (err) {

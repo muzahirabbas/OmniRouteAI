@@ -3,7 +3,106 @@
  *
  * Handles all communication with the backend admin API.
  * Settings (API URL, key) are stored in localStorage.
+ * 
+ * SECURITY: API key can be stored encrypted using Web Crypto API.
+ * Encryption key is derived from a user-provided passphrase (not stored).
+ * For maximum security, users should re-enter passphrase each session.
  */
+
+// ─── Crypto Utilities ──────────────────────────────────────────────────
+
+const CRYPTO_ENABLED = typeof crypto !== 'undefined' && crypto.subtle;
+
+/**
+ * Derive an encryption key from a passphrase using PBKDF2.
+ * @param {string} passphrase
+ * @param {Uint8Array} salt
+ * @returns {Promise<CryptoKey>}
+ */
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Encrypt data with a passphrase.
+ * @param {string} data - String to encrypt
+ * @param {string} passphrase
+ * @returns {Promise<string>} Base64-encoded encrypted data with salt
+ */
+async function encryptData(data, passphrase) {
+  if (!CRYPTO_ENABLED) return btoa(data); // Fallback to base64
+  
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const encoded = new TextEncoder().encode(data);
+  
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoded
+  );
+  
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+  
+  return btoa(String.fromCharCode(...combined));
+}
+
+/**
+ * Decrypt data with a passphrase.
+ * @param {string} encryptedDataBase64
+ * @param {string} passphrase
+ * @returns {Promise<string>}
+ */
+async function decryptData(encryptedDataBase64, passphrase) {
+  if (!CRYPTO_ENABLED) return atob(encryptedDataBase64); // Fallback
+  
+  try {
+    const combined = Uint8Array.from(atob(encryptedDataBase64), c => c.charCodeAt(0));
+    
+    const salt = combined.slice(0, 16);
+    const iv = combined.slice(16, 28);
+    const encrypted = combined.slice(28);
+    
+    const key = await deriveKey(passphrase, salt);
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encrypted
+    );
+    
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    throw new Error('Decryption failed. Check your passphrase.');
+  }
+}
+
+// ─── API Client ────────────────────────────────────────────────────────
 
 const API = {
   /**
@@ -15,15 +114,50 @@ const API = {
 
   /**
    * Get the configured API key.
+   * If encrypted, prompts for passphrase (optional based on settings).
    */
-  getApiKey() {
-    return localStorage.getItem('omniroute_api_key') || '';
+  async getApiKey() {
+    const encryptedKey = localStorage.getItem('omniroute_api_key_encrypted');
+    const plainKey = localStorage.getItem('omniroute_api_key');
+    
+    // If we have an encrypted key, decrypt it
+    if (encryptedKey) {
+      const useEncryption = localStorage.getItem('omniroute_use_encryption') === 'true';
+      if (useEncryption) {
+        // Check if passphrase is cached for this session
+        let passphrase = sessionStorage.getItem('omniroute_passphrase_cache');
+        
+        if (!passphrase) {
+          // Prompt user for passphrase
+          passphrase = prompt('Enter your passphrase to decrypt the API key:');
+          if (!passphrase) return plainKey || '';
+          
+          // Cache passphrase for this session only
+          sessionStorage.setItem('omniroute_passphrase_cache', passphrase);
+        }
+        
+        try {
+          return await decryptData(encryptedKey, passphrase);
+        } catch (err) {
+          console.error('Failed to decrypt API key:', err);
+          sessionStorage.removeItem('omniroute_passphrase_cache');
+          return plainKey || '';
+        }
+      }
+    }
+    
+    return plainKey || '';
   },
 
   /**
    * Save settings to localStorage.
+   * @param {string} url
+   * @param {string} apiKey
+   * @param {object} options - { useEncryption, passphrase }
    */
-  saveSettings(url, apiKey) {
+  async saveSettings(url, apiKey, options = {}) {
+    const { useEncryption = false, passphrase } = options;
+    
     if (url) {
       let finalUrl = url.trim().replace(/\/$/, '');
       if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
@@ -31,7 +165,40 @@ const API = {
       }
       localStorage.setItem('omniroute_api_url', finalUrl);
     }
-    if (apiKey) localStorage.setItem('omniroute_api_key', apiKey);
+    
+    if (apiKey) {
+      if (useEncryption && passphrase && CRYPTO_ENABLED) {
+        // Store encrypted key
+        const encrypted = await encryptData(apiKey, passphrase);
+        localStorage.setItem('omniroute_api_key_encrypted', encrypted);
+        localStorage.removeItem('omniroute_api_key');
+        localStorage.setItem('omniroute_use_encryption', 'true');
+      } else {
+        // Store plain key
+        localStorage.setItem('omniroute_api_key', apiKey);
+        localStorage.removeItem('omniroute_api_key_encrypted');
+        localStorage.removeItem('omniroute_use_encryption');
+      }
+    }
+  },
+
+  /**
+   * Check if encryption is enabled.
+   * @returns {boolean}
+   */
+  isEncryptionEnabled() {
+    return localStorage.getItem('omniroute_use_encryption') === 'true';
+  },
+
+  /**
+   * Clear stored credentials.
+   */
+  clearCredentials() {
+    localStorage.removeItem('omniroute_api_key');
+    localStorage.removeItem('omniroute_api_key_encrypted');
+    localStorage.removeItem('omniroute_use_encryption');
+    localStorage.removeItem('omniroute_api_url');
+    sessionStorage.removeItem('omniroute_passphrase_cache');
   },
 
   /**

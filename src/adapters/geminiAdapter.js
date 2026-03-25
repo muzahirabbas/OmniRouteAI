@@ -34,7 +34,11 @@ export class GeminiAdapter extends BaseAdapter {
     try {
       const response = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': options.requestId || '',
+          'X-OmniRoute-Request-ID': options.requestId || '',
+        },
         body:    JSON.stringify(this.buildBody(prompt, options)),
         signal:  controller.signal,
       });
@@ -66,7 +70,11 @@ export class GeminiAdapter extends BaseAdapter {
     try {
       const response = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': options.requestId || '',
+          'X-OmniRoute-Request-ID': options.requestId || '',
+        },
         body:    JSON.stringify(this.buildBody(prompt, options)),
         signal:  controller.signal,
       });

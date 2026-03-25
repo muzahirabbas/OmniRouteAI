@@ -24,12 +24,20 @@ export class AnthropicAdapter extends BaseAdapter {
     this.apiVersion = '2023-06-01';
   }
 
-  buildHeaders(apiKey) {
-    return {
+  buildHeaders(apiKey, options = {}) {
+    const headers = {
       'Content-Type':    'application/json',
       'x-api-key':       apiKey,
       'anthropic-version': this.apiVersion,
     };
+    
+    // Propagate request ID for tracing
+    if (options?.requestId) {
+      headers['X-Request-ID'] = options.requestId;
+      headers['X-OmniRoute-Request-ID'] = options.requestId;
+    }
+    
+    return headers;
   }
 
   buildBody(prompt, model, stream = false, options = {}) {
@@ -51,7 +59,7 @@ export class AnthropicAdapter extends BaseAdapter {
     try {
       const response = await fetch(this.endpoint, {
         method:  'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: this.buildHeaders(apiKey, options),
         body:    JSON.stringify(this.buildBody(prompt, model, false, options)),
         signal:  controller.signal,
       });
@@ -91,7 +99,7 @@ export class AnthropicAdapter extends BaseAdapter {
     try {
       const response = await fetch(this.endpoint, {
         method:  'POST',
-        headers: this.buildHeaders(apiKey),
+        headers: this.buildHeaders(apiKey, options),
         body:    JSON.stringify(this.buildBody(prompt, model, true, options)),
         signal:  controller.signal,
       });

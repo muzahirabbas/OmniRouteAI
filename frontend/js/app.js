@@ -411,15 +411,67 @@ async function aggregateStats() {
 
 function loadSettingsForm() {
   document.getElementById('settings-api-url').value = API.getBaseUrl();
-  document.getElementById('settings-api-key').value = API.getApiKey();
+  
+  // Show encryption status
+  const isEncrypted = API.isEncryptionEnabled();
+  const apiKeyInput = document.getElementById('settings-api-key');
+  apiKeyInput.value = ''; // Don't show the key
+  apiKeyInput.placeholder = isEncrypted ? '•••••••••••• (encrypted)' : 'Enter API key...';
+  
+  // Show encryption checkbox
+  let encryptionHtml = `
+    <div class="form-group" style="margin-top: 1rem;">
+      <label class="form-label">
+        <input type="checkbox" id="settings-encryption" ${isEncrypted ? 'checked' : ''}>
+        Encrypt API key storage (recommended)
+      </label>
+      <small class="form-hint">
+        When enabled, your API key is encrypted with a passphrase. 
+        The passphrase is NOT stored and must be entered each session.
+      </small>
+    </div>
+    <div class="form-group" id="passphrase-group" style="display: ${isEncrypted ? 'block' : 'none'};">
+      <label class="form-label">Passphrase</label>
+      <input type="password" id="settings-passphrase" class="input" placeholder="Enter a strong passphrase">
+      <small class="form-hint">This passphrase encrypts your API key. Don't forget it!</small>
+    </div>
+  `;
+  
+  // Insert encryption options after API key field
+  const apiKeyGroup = document.getElementById('settings-api-key').closest('.form-group');
+  const existingEncryption = apiKeyGroup.parentElement.querySelector('#encryption-options');
+  if (existingEncryption) existingEncryption.remove();
+  
+  const encryptionContainer = document.createElement('div');
+  encryptionContainer.id = 'encryption-options';
+  encryptionContainer.innerHTML = encryptionHtml;
+  apiKeyGroup.parentElement.insertBefore(encryptionContainer, apiKeyGroup.nextSibling);
+  
+  // Toggle passphrase field visibility
+  document.getElementById('settings-encryption').addEventListener('change', (e) => {
+    document.getElementById('passphrase-group').style.display = e.target.checked ? 'block' : 'none';
+  });
 }
 
 function saveSettings() {
   const url = document.getElementById('settings-api-url').value.trim();
   const key = document.getElementById('settings-api-key').value.trim();
-
-  API.saveSettings(url, key);
-  showToast('success', 'Settings saved');
+  const useEncryption = document.getElementById('settings-encryption')?.checked || false;
+  const passphrase = document.getElementById('settings-passphrase')?.value.trim() || '';
+  
+  // Validate encryption settings
+  if (useEncryption && !passphrase) {
+    showToast('warning', 'Please enter a passphrase to enable encryption');
+    return;
+  }
+  
+  if (useEncryption && passphrase.length < 8) {
+    showToast('warning', 'Passphrase must be at least 8 characters');
+    return;
+  }
+  
+  API.saveSettings(url, key, { useEncryption, passphrase });
+  showToast('success', 'Settings saved' + (useEncryption ? ' (encrypted)' : ''));
   checkHealth();
 }
 
