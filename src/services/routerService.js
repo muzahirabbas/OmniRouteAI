@@ -168,13 +168,14 @@ export async function route(prompt, opts = {}) {
   // getActiveProviders() returns providers ordered by priority-tier weighted random
   const activeProviders = await getActiveProviders();
 
-  // If a specific provider is requested, put it at the top of the search list
-  let searchList = [...activeProviders];
+  // If a specific provider is requested, strictly use ONLY that one (Playground/Direct mode)
+  let searchList;
   if (providerOverride) {
     const target = activeProviders.find(p => p.name === providerOverride);
-    if (target) {
-      searchList = [target, ...activeProviders.filter(p => p.name !== providerOverride)];
-    }
+    searchList = target ? [target] : [];
+  } else {
+    // Standard mode: prioritized weighted random shuffle
+    searchList = [...activeProviders];
   }
 
   for (const provider of searchList) {
