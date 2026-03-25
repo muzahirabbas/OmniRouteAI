@@ -160,12 +160,10 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
     case 'antigravity':
     case 'antigravity-bridge':
-      // Phase 14: Use the authenticated OpenCode bridge by default for ALL Antigravity calls
-      // This prevents the native agent from opening Electron GUI windows.
+      // Phase 15: Use the registered Antigravity model slug for headless access
       return [
         'run',
-        '--agent', 'antigravity',
-        ...(model ? ['--model', model] : []),
+        '--model', (model && model !== 'default') ? `google/antigravity-${model}` : 'google/antigravity-claude-sonnet-4-6',
         q,
       ];
 
