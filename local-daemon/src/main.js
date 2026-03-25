@@ -68,7 +68,10 @@ async function startDaemon() {
 
   // ─── CORS (localhost only) ───────────────────────────────────────
   app.addHook('onSend', async (request, reply) => {
-    reply.header('Access-Control-Allow-Origin',  'http://localhost:3000');
+    const origin = request.headers.origin;
+    if (origin === 'http://localhost:3000' || origin === 'null' || !origin) {
+      reply.header('Access-Control-Allow-Origin', origin || '*');
+    }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     reply.header('Access-Control-Allow-Headers', 'Content-Type, X-Local-Token');
   });
