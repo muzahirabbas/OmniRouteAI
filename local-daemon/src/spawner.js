@@ -20,7 +20,7 @@ import { log } from './logger.js';
  *   Collects all stdout, returns on process exit.
  */
 
-const DEFAULT_TIMEOUT = 60000; // 60 seconds
+const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
 
 /**
  * Spawn a CLI command and collect or stream output.

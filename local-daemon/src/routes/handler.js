@@ -47,7 +47,7 @@ export function createToolRoute(toolName, providerName) {
 
     const cliArgs = buildArgs(toolName, prompt.trim(), model, extraArgs);
     const command = toolConfig.command;
-    const timeout = toolConfig.timeout || 60000;
+    const timeout = toolConfig.timeout || 300000; // Default to 5 minutes for slow CLI tools
     const env     = toolConfig.env || {};
 
     // ── STREAMING ─────────────────────────────────────────────────────
@@ -128,6 +128,8 @@ export function createToolRoute(toolName, providerName) {
       model:    model || 'default',
       tokens:   result.tokens,
       success:  true,
+      // Include stderr even on success if output is empty to help debug headless CLI hangs/silent failures
+      ...(result.output ? {} : { stderr: result.stderr }),
     };
   };
 }

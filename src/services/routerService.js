@@ -368,6 +368,15 @@ export async function routeAndExecute(prompt, opts = {}) {
 
       await recordProviderResult(provider.name, true);
 
+      // TRACE LOGGING: Capture raw provider result for debugging "null result" or empty output issues
+      console.log(JSON.stringify({
+        level:    'debug',
+        msg:      'Provider response trace',
+        provider: provider.name,
+        output:   normalized.output,
+        raw:      normalized.raw,
+      }));
+
       const tokens = normalized.tokens || {};
       if (!tokens.input || tokens.input === 0) {
         tokens.input = estimatedInputTokens;
