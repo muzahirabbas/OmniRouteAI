@@ -39,7 +39,7 @@ const DEFAULT_CONFIG = {
     },
     qwen: {
       enabled:  true,
-      command:  'qwen-code',
+      command:  'qwen',
       args:     [],
       timeout:  60000,
       env:      {},

@@ -181,7 +181,7 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'qwen':
-      // qwen-code run "prompt"
+      // qwen run "prompt"
       return ['run', prompt];
 
     case 'antigravity':
