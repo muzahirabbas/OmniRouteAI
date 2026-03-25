@@ -819,18 +819,35 @@ async function sendMessage() {
     if (model && model !== 'auto') payload.model = model;
     if (provider && provider !== 'auto') payload.provider = provider;
 
-    const base = API.getBaseUrl();
-    const apiKey = await API.getApiKey();
-    const headers = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    let res, data;
 
-    const res = await fetch(`${base}/v1/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload)
-    });
+    if (provider && provider.endsWith('_local')) {
+      // Intercept local providers: Route directly to the user's local daemon bypassing the cloud backend
+      try {
+        const daemonProvider = provider.replace(/_cli_local$|_local$/, ''); // e.g. ollama_local -> ollama
+        data = await API.daemonRequest(`/${daemonProvider}`, {
+          method: 'POST',
+          body: JSON.stringify({ prompt, model: model !== 'auto' ? model : undefined })
+        });
+        res = { ok: true, status: 200 };
+      } catch (err) {
+        res = { ok: false, status: 502 };
+        data = { error: err.message };
+      }
+    } else {
+      // Cloud providers: route through the backend
+      const base = API.getBaseUrl();
+      const apiKey = await API.getApiKey();
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-    const data = await res.json();
+      res = await fetch(`${base}/v1/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      data = await res.json();
+    }
 
     botMsg.classList.remove('thinking');
     if (!res.ok || data.error) {
