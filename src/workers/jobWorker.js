@@ -93,7 +93,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const healthServer = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/') {
-    res.status = 200;
+    res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ status: 'healthy', service: 'bullmq-worker' }));
   } else {

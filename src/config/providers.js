@@ -3,7 +3,7 @@
  * This acts as a fallback if Firestore is empty and as the source for seeding.
  */
 import { getDb } from './firestore.js';
-import { get, set } from './redis.js';
+import { get, set, setex } from './redis.js';
 
 export const STATIC_PROVIDERS = [
   {
@@ -391,7 +391,7 @@ export async function getProviders() {
     providers.sort((a, b) => a.priority - b.priority || b.weight - a.weight);
 
     // Cache in Redis for 60 seconds
-    await set(cacheKey, JSON.stringify(providers), 'EX', 60);
+    await setex(cacheKey, 60, JSON.stringify(providers));
 
     return providers;
   } catch (err) {
