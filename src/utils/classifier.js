@@ -8,7 +8,7 @@
  */
 
 import { getDb } from '../config/firestore.js';
-import { get, setex } from '../config/redis.js';
+import { get, setex, del } from '../config/redis.js';
 
 // Default keywords (fallback if Firestore is unavailable)
 const DEFAULT_CODING_KEYWORDS = [

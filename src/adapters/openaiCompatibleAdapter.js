@@ -140,10 +140,10 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
 
       // Build normalized token counts — prefer stream-provided usage
       const tokens = usageFromStream
-        ? extractTokens({ usage: usageFromStream }, fullOutput, prompt)
+        ? await extractTokens({ usage: usageFromStream }, fullOutput, prompt)
         : {
-            input:  estimateTokens(prompt),
-            output: estimateTokens(fullOutput),
+            input:  await estimateTokens(prompt),
+            output: await estimateTokens(fullOutput),
           };
 
       return {
@@ -162,9 +162,9 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
    * Normalize a non-streaming OpenAI-compatible response.
    * Returns: { output: string, tokens: { input, output }, raw: object }
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     const output = rawResponse.choices?.[0]?.message?.content || '';
-    const tokens = extractTokens(rawResponse, output);
+    const tokens = await extractTokens(rawResponse, output);
     return { output, tokens, raw: rawResponse };
   }
 

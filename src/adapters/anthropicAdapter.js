@@ -159,8 +159,8 @@ export class AnthropicAdapter extends BaseAdapter {
       return {
         output: fullOutput,
         tokens: {
-          input:  inputTokens  || estimateTokens(prompt),
-          output: outputTokens || estimateTokens(fullOutput),
+          input:  inputTokens  || await estimateTokens(prompt),
+          output: outputTokens || await estimateTokens(fullOutput),
         },
         raw: { streaming: true, provider: 'anthropic', model },
       };
@@ -175,15 +175,15 @@ export class AnthropicAdapter extends BaseAdapter {
    * Normalize Anthropic non-streaming response.
    * Format: { content: [{type, text}], usage: {input_tokens, output_tokens} }
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     const output = rawResponse.content
       ?.filter((c) => c.type === 'text')
       .map((c) => c.text)
       .join('') || '';
 
     const tokens = {
-      input:  rawResponse.usage?.input_tokens  || estimateTokens(''),
-      output: rawResponse.usage?.output_tokens || estimateTokens(output),
+      input:  rawResponse.usage?.input_tokens  || await estimateTokens(''),
+      output: rawResponse.usage?.output_tokens || await estimateTokens(output),
     };
 
     return { output, tokens, raw: rawResponse };

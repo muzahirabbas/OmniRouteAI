@@ -174,8 +174,8 @@ export class LocalHttpAdapter extends BaseAdapter {
       return {
         output: fullOutput,
         tokens: {
-          input:  estimateTokens(prompt),
-          output: estimateTokens(fullOutput),
+          input:  await estimateTokens(prompt),
+          output: await estimateTokens(fullOutput),
         },
         raw: { streaming: true, provider: this.providerName },
       };
@@ -190,12 +190,12 @@ export class LocalHttpAdapter extends BaseAdapter {
    * Normalize a non-streaming response.
    * Expected format: { output: string, tokens?: { input, output } }
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     // Defensive check for null/undefined response
     if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
 
     const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || rawResponse.choices?.[0]?.text || '';
-    const tokens = extractTokens(rawResponse, output);
+    const tokens = await extractTokens(rawResponse, output);
 
     // Prefer explicit token fields from the local server if present
     if (rawResponse.tokens?.input !== undefined) {

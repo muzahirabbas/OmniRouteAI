@@ -296,7 +296,7 @@ export async function routeAndExecute(prompt, opts = {}) {
   let lastError;
 
   // Pre-estimate input tokens BEFORE first request — for quota accounting
-  const estimatedInputTokens = estimateTokens(prompt);
+  const estimatedInputTokens = await estimateTokens(prompt);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let routeResult;
@@ -360,7 +360,7 @@ export async function routeAndExecute(prompt, opts = {}) {
         throw new ProviderError(provider.name, 'Empty response from provider', 502);
       }
 
-      const normalized = adapter.normalizeResponse(rawResponse);
+      const normalized = await adapter.normalizeResponse(rawResponse);
       await recordProviderResult(provider.name, true);
 
       const tokens = normalized.tokens || {};

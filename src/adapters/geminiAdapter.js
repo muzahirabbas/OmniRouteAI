@@ -117,7 +117,7 @@ export class GeminiAdapter extends BaseAdapter {
       }
 
       // Gemini includes usageMetadata in final chunk
-      const tokens = extractTokens(lastRaw, fullOutput, prompt);
+      const tokens = await extractTokens(lastRaw, fullOutput, prompt);
 
       return {
         output: fullOutput,
@@ -134,9 +134,9 @@ export class GeminiAdapter extends BaseAdapter {
   /**
    * Normalize Gemini response.
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     const output = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const tokens = extractTokens(rawResponse, output);
+    const tokens = await extractTokens(rawResponse, output);
 
     return { output, tokens, raw: rawResponse };
   }

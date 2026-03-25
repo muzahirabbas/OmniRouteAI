@@ -58,14 +58,14 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
     return {
       output: text || '',
-      tokens: extractTokens(null, text || '', prompt),
+      tokens: await extractTokens(null, text || '', prompt),
     };
   }
 
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     // HF format: [{ generated_text: "..." }]
     const output = Array.isArray(rawResponse) ? rawResponse[0]?.generated_text : rawResponse.generated_text;
-    const tokens = extractTokens(null, output || '');
+    const tokens = await extractTokens(null, output || '');
     return { output: output || '', tokens, raw: rawResponse };
   }
 

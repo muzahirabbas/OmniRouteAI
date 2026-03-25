@@ -52,6 +52,7 @@ function navigateTo(page) {
     case 'keys': refreshKeys(); break;
     case 'logs': refreshLogs(); break;
     case 'stats': refreshStatsPage(); break;
+    case 'playground': /* playground is self-contained, no refresh needed */ break;
   }
 }
 
@@ -453,7 +454,7 @@ function loadSettingsForm() {
   });
 }
 
-function saveSettings() {
+async function saveSettings() {
   const url = document.getElementById('settings-api-url').value.trim();
   const key = document.getElementById('settings-api-key').value.trim();
   const useEncryption = document.getElementById('settings-encryption')?.checked || false;
@@ -470,7 +471,7 @@ function saveSettings() {
     return;
   }
   
-  API.saveSettings(url, key, { useEncryption, passphrase });
+  await API.saveSettings(url, key, { useEncryption, passphrase });
   showToast('success', 'Settings saved' + (useEncryption ? ' (encrypted)' : ''));
   checkHealth();
 }
@@ -538,8 +539,6 @@ function getStatusBadge(status) {
 async function sendMessage() {
   const inputEl = document.getElementById('chat-input');
   const chatWindow = document.getElementById('chat-window');
-  const provider = document.getElementById('playground-provider').value;
-  const model = document.getElementById('playground-model').value || 'auto';
   const prompt = inputEl.value.trim();
 
   if (!prompt) return;
@@ -572,7 +571,7 @@ async function sendMessage() {
     if (provider && provider !== 'auto') payload.provider = provider;
 
     const base = API.getBaseUrl();
-    const apiKey = API.getApiKey();
+    const apiKey = await API.getApiKey();
     const headers = { 'Content-Type': 'application/json' };
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 

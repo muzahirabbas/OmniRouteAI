@@ -47,7 +47,7 @@ export class CohereAdapter extends BaseAdapter {
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
     // Cohere streaming: fallback to non-streaming and emit as single chunk
     const result = await this.sendRequest(prompt, model, apiKey, options);
-    const normalized = this.normalizeResponse(result);
+    const normalized = await this.normalizeResponse(result);
 
     if (options.onChunk && normalized.output) {
       options.onChunk({ content: normalized.output, provider: this.providerName, model });
@@ -60,7 +60,7 @@ export class CohereAdapter extends BaseAdapter {
     };
   }
 
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     // Cohere V2 format: { message: { content: [{type, text}] }, usage: { tokens: { input_tokens, output_tokens } } }
     const output = rawResponse.message?.content?.[0]?.text || '';
     const tokens = {

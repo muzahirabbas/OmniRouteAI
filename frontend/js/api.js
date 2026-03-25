@@ -206,7 +206,7 @@ const API = {
    */
   async request(path, options = {}) {
     const base = this.getBaseUrl();
-    const apiKey = this.getApiKey();
+    const apiKey = await this.getApiKey();
 
     const headers = {
       ...options.headers,

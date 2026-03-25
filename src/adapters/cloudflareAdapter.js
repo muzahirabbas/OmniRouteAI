@@ -130,7 +130,7 @@ export class CloudflareAdapter extends BaseAdapter {
 
       return {
         output: fullOutput,
-        tokens: extractTokens(null, fullOutput, prompt),
+        tokens: await extractTokens(null, fullOutput, prompt),
       };
     } catch (err) {
       this.clearTimeout(controller);
@@ -142,10 +142,10 @@ export class CloudflareAdapter extends BaseAdapter {
   /**
    * Normalize Cloudflare Workers AI response.
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     // Cloudflare format: { result: { response: "text" }, success: true }
     const output = rawResponse.result?.response || '';
-    const tokens = extractTokens(rawResponse, output);
+    const tokens = await extractTokens(rawResponse, output);
 
     return { output, tokens, raw: rawResponse };
   }

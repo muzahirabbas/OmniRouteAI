@@ -76,9 +76,9 @@ export class BaseAdapter {
    * MUST be implemented by subclasses.
    *
    * @param {object} rawResponse
-   * @returns {{ output: string, tokens: { input: number, output: number }, raw: object }}
+   * @returns {Promise<{ output: string, tokens: { input: number, output: number }, raw: object }>}
    */
-  normalizeResponse(rawResponse) {
+  async normalizeResponse(rawResponse) {
     throw new Error(`normalizeResponse() not implemented for ${this.providerName}`);
   }
 
