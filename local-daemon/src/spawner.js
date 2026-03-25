@@ -63,6 +63,15 @@ export async function spawnCLI(opts) {
     let stdoutChunks = [];
     let stderrChunks = [];
 
+    console.log(JSON.stringify({
+      level:   'info',
+      msg:     'Spawning CLI',
+      command,
+      args,
+      cwd: process.cwd(),
+      // path: process.env.PATH?.split(';')[0] + '...', // Log first path as hint
+    }));
+
     const child = spawn(command, args, {
       shell:  true,
       env:    { ...process.env, ...env },

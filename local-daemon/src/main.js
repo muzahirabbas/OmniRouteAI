@@ -143,6 +143,17 @@ async function startDaemon() {
     return { logs: recent, total: lines.length, logPath };
   });
 
+  // ─── Environment Diagnostics ─────────────────────────────────────
+  app.get('/v1/env', async () => {
+    return {
+      cwd:  process.cwd(),
+      port: config.port,
+      path: process.env.PATH,
+      platform: process.platform,
+      nodeVersion: process.version,
+    };
+  });
+
   // ─── Register all tool routes ────────────────────────────────────
   await app.register(claudeRoutes);
   await app.register(geminiRoutes);
