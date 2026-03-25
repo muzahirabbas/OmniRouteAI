@@ -101,6 +101,38 @@ const DEFAULT_CONFIG = {
       env:      {},
       authCmd:  'gh auth login --web -h github.com',
     },
+    zai: {
+      enabled:  true,
+      command:  'zai',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  'zai config',
+    },
+    cline: {
+      enabled:  true,
+      command:  'cline',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  'cline config', // Verify this
+    },
+    kimi: {
+      enabled:  true,
+      command:  'kimi',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  'kimi /help',
+    },
+    ollama_local: {
+      enabled:  true,
+      command:  'ollama',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  null,
+    },
     custom: {
       enabled:  true,
       command:  null,   // Must be set by user

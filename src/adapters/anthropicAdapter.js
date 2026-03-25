@@ -91,7 +91,7 @@ export class AnthropicAdapter extends BaseAdapter {
    * Captures real token counts from events when available.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const controller = this.createTimeout(60000);
+    const controller = this.createTimeout();
     let fullOutput   = '';
     let inputTokens  = 0;
     let outputTokens = 0;

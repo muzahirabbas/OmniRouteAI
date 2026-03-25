@@ -8,7 +8,7 @@
  * - Return normalized format: { output: string, tokens: { input, output }, raw: object }
  */
 
-const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 20000; // 20s
+const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 60000; // 60s
 
 export class BaseAdapter {
   constructor(providerName) {

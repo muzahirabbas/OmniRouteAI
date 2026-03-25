@@ -24,6 +24,10 @@ export function getExecutable(tool, defaultCmd) {
     claude:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
     grok:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\grok.cmd',
     kiro:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kiro-cli.cmd',
+    zai:                'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\zai.cmd',
+    cline:              'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\cline.cmd',
+    kimi:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kimi.cmd',
+    ollama:             'http://localhost:11434',
   };
   return paths[tool] || defaultCmd;
 }
@@ -180,6 +184,17 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
     case 'grok':
       return ['--prompt', q, '--non-interactive', ...(model ? ['--model', model] : [])];
+
+    case 'zai':
+      return ['-p', q, '--no-color', '--non-interactive', ...(model ? ['--model', model] : [])];
+
+    case 'cline':
+      // Cline autonomous mode (-y / --yolo)
+      return [q, '-y'];
+
+    case 'kimi':
+      // Kimi CLI takes the prompt directly
+      return [q];
 
     case 'copilot':
       return [

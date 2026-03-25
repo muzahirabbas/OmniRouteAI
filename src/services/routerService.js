@@ -178,6 +178,25 @@ async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.CohereAdapter();
       break;
     }
+    case 'ollama-cloud': {
+      const mod = await import('../adapters/ollamaCloudAdapter.js');
+      adapter = new mod.OllamaCloudAdapter();
+      break;
+    }
+    case 'ollama_local_bridge': {
+      const mod = await import('../adapters/ollamaLocalBridgeAdapter.js');
+      adapter = new mod.OllamaLocalBridgeAdapter();
+      break;
+    }
+    case 'zai_cli_local':
+    case 'cline_cli_local':
+    case 'kimi_cli_local': {
+      const mod = await import('../adapters/localHttpAdapter.js');
+      const toolName = providerName.split('_')[0]; // zai, cline, or kimi
+      const daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';
+      adapter = new mod.LocalHttpAdapter(providerName, `${daemonUrl}/${toolName}`);
+      break;
+    }
     default: {
       // Support local_http provider type generically
       if (providerConfig?.type === 'local_http') {

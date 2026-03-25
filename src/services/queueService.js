@@ -50,8 +50,8 @@ export async function waitForResult(jobId, timeout = 30000) {
   const startTime = Date.now();
   const pollInterval = 100; // ms
   
-  // Maximum poll duration: timeout + 50% buffer, capped at 300s (5 minutes)
-  const maxPollDuration = Math.min(timeout * 1.5, 300000);
+  // Maximum poll duration: timeout + 50% buffer, capped at 600s (10 minutes)
+  const maxPollDuration = Math.min(timeout * 2.0, 600000);
   
   // Track consecutive failures to detect stuck jobs
   let consecutiveNullResponses = 0;

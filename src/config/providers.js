@@ -78,6 +78,15 @@ export const STATIC_PROVIDERS = [
     rpmLimit: 100
   },
   {
+    name: 'ollama-cloud',
+    priority: 3,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://ollama.com/api',
+    models: ['llama3.3', 'qwen2.5-coder', 'phi4', 'deepseek-r1'],
+    rpmLimit: 50
+  },
+  {
     name: 'openrouter',
     priority: 4,
     weight: 5,
@@ -300,15 +309,51 @@ export const STATIC_PROVIDERS = [
     rpmLimit: 999999
   },
   {
-    name: 'qodo_cli_local',
+    name: 'zai_cli_local',
     type: 'local_http',
     priority: 0,
     weight: 20,
     status: 'active',
     endpoint: process.env.LOCAL_DAEMON_URL
-      ? `${process.env.LOCAL_DAEMON_URL}/qodo`
-      : 'http://localhost:5059/qodo',
+      ? `${process.env.LOCAL_DAEMON_URL}/zai`
+      : 'http://localhost:5059/zai',
     models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'cline_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/cline`
+      : 'http://localhost:5059/cline',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'kimi_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kimi`
+      : 'http://localhost:5059/kimi',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'ollama_local_bridge',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/ollama`
+      : 'http://localhost:5059/ollama',
+    models: ['llama3.3', 'qwen2.5-coder', 'deepseek-r1', 'default'],
     rpmLimit: 999999
   },
   {

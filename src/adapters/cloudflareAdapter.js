@@ -66,7 +66,7 @@ export class CloudflareAdapter extends BaseAdapter {
     }
 
     const url = `${this.baseUrl}/${model}`;
-    const controller = this.createTimeout(60000);
+    const controller = this.createTimeout();
     let fullOutput = '';
 
     try {

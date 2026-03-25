@@ -28,19 +28,19 @@ export class GeminiAdapter extends BaseAdapter {
   }
 
   async sendRequest(prompt, model, apiKey, options = {}) {
-    const url        = `${this.baseUrl}/${model}:generateContent?key=${apiKey}`;
+    const url = `${this.baseUrl}/${model}:generateContent?key=${apiKey}`;
     const controller = this.createTimeout();
 
     try {
       const response = await fetch(url, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Request-ID': options.requestId || '',
           'X-OmniRoute-Request-ID': options.requestId || '',
         },
-        body:    JSON.stringify(this.buildBody(prompt, options)),
-        signal:  controller.signal,
+        body: JSON.stringify(this.buildBody(prompt, options)),
+        signal: controller.signal,
       });
 
       this.clearTimeout(controller);
@@ -62,21 +62,21 @@ export class GeminiAdapter extends BaseAdapter {
    * Send a streaming request to Gemini.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const url        = `${this.baseUrl}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
-    const controller = this.createTimeout(60000);
-    let fullOutput   = '';
-    let lastRaw      = null; // capture last parsed chunk for usageMetadata
+    const url = `${this.baseUrl}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+    const controller = this.createTimeout();
+    let fullOutput = '';
+    let lastRaw = null; // capture last parsed chunk for usageMetadata
 
     try {
       const response = await fetch(url, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Request-ID': options.requestId || '',
           'X-OmniRoute-Request-ID': options.requestId || '',
         },
-        body:    JSON.stringify(this.buildBody(prompt, options)),
-        signal:  controller.signal,
+        body: JSON.stringify(this.buildBody(prompt, options)),
+        signal: controller.signal,
       });
 
       this.clearTimeout(controller);
@@ -86,9 +86,9 @@ export class GeminiAdapter extends BaseAdapter {
         throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
       }
 
-      const reader  = response.body.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer    = '';
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();

@@ -82,7 +82,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
    * No buffering — chunks are forwarded to options.onChunk immediately.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const controller = this.createTimeout(60000);
+    const controller = this.createTimeout();
     let fullOutput   = '';
 
     try {

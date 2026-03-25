@@ -1,6 +1,6 @@
 {
   "name": "omniroute-local-daemon",
-  "version": "1.0.0",
+  "version": "1.1.8",
   "description": "OmniRouteAI Local CLI Daemon — exposes AI CLI tools via HTTP on localhost:5059",
   "main": "src/main.js",
   "type": "module",
