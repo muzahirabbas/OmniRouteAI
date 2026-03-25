@@ -62,6 +62,7 @@ export async function buildServer(opts = {}) {
         error: 'Unauthorized',
         message: 'Invalid API key',
       });
+      return;
     }
   });
 

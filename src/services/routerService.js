@@ -361,15 +361,16 @@ export async function routeAndExecute(prompt, opts = {}) {
       }
 
       const normalized = await adapter.normalizeResponse(rawResponse);
+      
+      if (!normalized) {
+        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502);
+      }
+
       await recordProviderResult(provider.name, true);
 
       const tokens = normalized.tokens || {};
       if (!tokens.input || tokens.input === 0) {
         tokens.input = estimatedInputTokens;
-      }
-
-      if (!normalized) {
-        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502);
       }
 
       return {
