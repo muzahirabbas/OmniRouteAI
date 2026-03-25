@@ -61,13 +61,30 @@ export async function waitForResult(jobId, timeout = 30000) {
     }
 
     if (state === 'failed') {
-      throw new Error(job.failedReason || 'Job failed');
+      const reason = job.failedReason || 'Job failed';
+      const err = new Error(reason);
+
+      // Reconstruct known error types for correct HTTP status mapping in API
+      if (reason.includes('All providers and keys exhausted')) {
+        err.name = 'AllProvidersExhaustedError';
+        err.statusCode = 503;
+      } else if (reason.includes('timed out')) {
+        err.name = 'TimeoutError';
+        err.statusCode = 504;
+      } else if (reason.includes('HTTP')) {
+        err.name = 'ProviderError';
+        err.statusCode = 502;
+      }
+
+      throw err;
     }
 
     await sleep(pollInterval);
   }
 
-  throw new Error(`Job ${jobId} timed out after ${timeout}ms`);
+  const timeoutErr = new Error(`Job ${jobId} timed out after ${timeout}ms`);
+  timeoutErr.statusCode = 504;
+  throw timeoutErr;
 }
 
 function sleep(ms) {

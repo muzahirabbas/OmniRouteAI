@@ -60,7 +60,10 @@ export async function set(key, value) {
 }
 
 export async function setex(key, ttl, value) {
-  return primaryClient.setex(key, ttl, value);
+  if (restRedis) {
+    return restRedis.set(key, value, { ex: ttl });
+  }
+  return bullmqRedis.setex(key, ttl, value);
 }
 
 export async function del(key) {

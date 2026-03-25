@@ -509,8 +509,11 @@ async function sendMessage() {
   chatWindow.appendChild(botMsg);
 
   try {
-    const provider = document.getElementById('playground-provider').value;
-    const model    = document.getElementById('playground-model').value?.trim();
+    const providerSelector = document.getElementById('playground-provider');
+    const modelInput       = document.getElementById('playground-model');
+    
+    const provider = providerSelector ? providerSelector.value : 'auto';
+    const model    = modelInput ? modelInput.value.trim() : 'auto';
 
     const payload = { prompt };
     if (model && model !== 'auto') payload.model = model;
