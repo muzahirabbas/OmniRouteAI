@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { getConfigDir } from './config.js';
 
@@ -10,7 +10,7 @@ import { getConfigDir } from './config.js';
  * Each line is a JSON object:
  * { "timestamp": "...", "level": "info", "msg": "...", ...fields }
  *
- * Rotates at ~10MB by closing and opening a new file (simple rotation).
+ * Rotates at ~10MB by renaming to daemon.log.old and starting fresh.
  */
 
 const LOG_FILE   = () => join(getConfigDir(), 'daemon.log');
@@ -36,6 +36,13 @@ function rotate() {
     _stream.end();
     _stream = null;
     _bytesWritten = 0;
+    // Rename old log to .old (overwrites any previous .old)
+    try {
+      const logFile = LOG_FILE();
+      if (existsSync(logFile)) {
+        renameSync(logFile, logFile + '.old');
+      }
+    } catch { /* ignore rename errors */ }
   }
 }
 

@@ -118,9 +118,9 @@ export async function spawnCLI(opts) {
 
       if (stream && onDone) {
         onDone(result);
-      } else {
-        resolve(result);
       }
+      // Always resolve — even in stream mode — to prevent promise/memory leak
+      resolve(result);
     });
 
     // ── PROCESS ERROR ─────────────────────────────────────────────
@@ -146,9 +146,9 @@ export async function spawnCLI(opts) {
 
       if (stream && onError) {
         onError(new Error(message));
-      } else {
-        resolve(result); // Always resolve (never reject) for clean HTTP handling
       }
+      // Always resolve — never reject — for clean HTTP handling
+      resolve(result);
     });
   });
 }
@@ -164,11 +164,15 @@ export async function spawnCLI(opts) {
  * @returns {string[]}
  */
 export function buildArgs(tool, prompt, model, extraArgs = {}) {
+  // CRITICAL: All prompts MUST be double-quoted to prevent Windows cmd.exe
+  // from splitting multi-word prompts into separate arguments (shell: true).
+  const q = `"${prompt}"`;
+
   switch (tool) {
     case 'claude':
       // claude -p "prompt" [--model model]
       return [
-        '-p', `"${prompt}"`,
+        '-p', q,
         ...(model ? ['--model', model] : []),
         '--dangerously-skip-permissions',
         '--output-format', 'text',
@@ -177,57 +181,57 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
     case 'gemini':
       // gemini -p "prompt" [--model model]
       return [
-        '-p', `"${prompt}"`,
+        '-p', q,
         ...(model ? ['--model', model] : []),
       ];
 
     case 'qwen':
       // qwen run "prompt"
-      return ['run', `"${prompt}"`];
+      return ['run', q];
 
     case 'antigravity':
       // antigravity chat "prompt" [--model model]
       return [
-        'chat', `"${prompt}"`,
+        'chat', q,
         ...(model ? ['--model', model] : []),
       ];
 
     case 'kilo':
       // kilo run "prompt"
-      return ['run', prompt];
+      return ['run', q];
 
     case 'opencode':
       // opencode run "prompt"
-      return ['run', prompt];
+      return ['run', q];
 
     case 'qodo':
       // qodo chat "prompt"
-      return ['chat', prompt, ...(model ? ['--model', model] : [])];
+      return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'codex':
       // codex "prompt"
-      return [prompt, ...(model ? ['--model', model] : [])];
+      return [q, ...(model ? ['--model', model] : [])];
 
     case 'kiro':
       // kiro-cli chat "prompt"
-      return ['chat', prompt, ...(model ? ['--model', model] : [])];
+      return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'grok':
       // grok --prompt "prompt"
-      return ['--prompt', `"${prompt}"`, ...(model ? ['--model', model] : [])];
+      return ['--prompt', q, ...(model ? ['--model', model] : [])];
 
     case 'copilot':
       // copilot -p "prompt"
       return [
-        '-p', `"${prompt}"`,
+        '-p', q,
         ...(model ? ['--model', model] : []),
       ];
 
     case 'custom':
-      return [prompt];
+      return [q];
 
     default:
-      return [prompt];
+      return [q];
   }
 }
 
@@ -243,3 +247,4 @@ function estimateTokens(input, output) {
     output: Math.ceil((output || '').length / 4),
   };
 }
+

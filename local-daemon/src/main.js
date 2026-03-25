@@ -49,7 +49,7 @@ async function startDaemon() {
     const isValid     = await validateToken(tokenHeader);
 
     if (!isValid) {
-      reply.code(401).send({
+      return reply.code(401).send({
         error:   'Unauthorized',
         message: 'Missing or invalid X-Local-Token header',
         hint:    `Token is stored at: ${getTokenFilePath()}`,
@@ -93,13 +93,18 @@ async function startDaemon() {
       'POST /antigravity',
       'POST /kilo',
       'POST /opencode',
+      'POST /qodo',
+      'POST /codex',
+      'POST /kiro',
+      'POST /grok',
+      'POST /copilot',
       'POST /custom',
-      'GET /auth/status',
-      'GET /auth/status/:tool',
+      'GET  /auth/status',
+      'GET  /auth/status/:tool',
       'POST /auth/login/:tool',
-      'GET /health',
-      'GET /config',
-      'GET /logs',
+      'GET  /health',
+      'GET  /config',
+      'GET  /logs',
     ],
   }));
 
