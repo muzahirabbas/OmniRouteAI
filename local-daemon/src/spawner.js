@@ -178,8 +178,9 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
   switch (tool) {
     case 'claude':
-      // claude -p "prompt" [--model model]
+      // Use absolute path to ensure daemon finds it
       return [
+        'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
         '-p', q,
         ...(model ? ['--model', model] : []),
         '--dangerously-skip-permissions',
@@ -206,9 +207,6 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
     case 'gemini':
       return ['C:/Users/Zaari/AppData/Roaming/npm/gemini.cmd', 'chat', '-p', q];
-
-    case 'claude':
-      return ['C:/Users/Zaari/AppData/Roaming/npm/claude.cmd', '-p', q, '--dangerously-skip-permissions'];
 
     case 'qodo':
       return ['chat', q, ...(model ? ['--model', model] : [])];
