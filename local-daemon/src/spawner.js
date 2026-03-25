@@ -18,7 +18,7 @@ export function getExecutable(tool, defaultCmd) {
   const paths = {
     kilo:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kilo.cmd',
     opencode:           'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
-    antigravity:        'C:\\Users\\Zaari\\AppData\\Local\\Programs\\Antigravity\\bin\\antigravity.cmd',
+    antigravity:        'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
     'antigravity-bridge': 'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
     gemini:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
     claude:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
@@ -159,15 +159,9 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'antigravity':
-      return [
-        'agent',
-        '--non-interactive',
-        '--mode', 'act',
-        q,
-      ];
-
     case 'antigravity-bridge':
-      // Phase 12: Antigravity-Claude Bridge via OpenCode Plugin
+      // Phase 14: Use the authenticated OpenCode bridge by default for ALL Antigravity calls
+      // This prevents the native agent from opening Electron GUI windows.
       return [
         'run',
         '--agent', 'antigravity',

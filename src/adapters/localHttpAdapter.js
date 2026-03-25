@@ -194,7 +194,7 @@ export class LocalHttpAdapter extends BaseAdapter {
     // Defensive check for null/undefined response
     if (!rawResponse) return { output: '', tokens: { input: 0, output: 0 }, raw: {} };
 
-    const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || rawResponse.choices?.[0]?.text || '';
+    const output = rawResponse.output || rawResponse.choices?.[0]?.message?.content || rawResponse.choices?.[0]?.text || rawResponse.stderr || '';
     const tokens = await extractTokens(rawResponse, output);
 
     // Prefer explicit token fields from the local server if present
