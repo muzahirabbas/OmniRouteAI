@@ -10,7 +10,6 @@ import { qwenRoutes }        from './routes/qwen.js';
 import { antigravityRoutes } from './routes/antigravity.js';
 import { kiloRoutes }        from './routes/kilo.js';
 import { opencodeRoutes }    from './routes/opencode.js';
-import { qodoRoutes }        from './routes/qodo.js';
 import { codexRoutes }       from './routes/codex.js';
 import { kiroRoutes }        from './routes/kiro.js';
 import { grokRoutes }        from './routes/grok.js';
@@ -161,7 +160,6 @@ async function startDaemon() {
   await app.register(antigravityRoutes);
   await app.register(kiloRoutes);
   await app.register(opencodeRoutes);
-  await app.register(qodoRoutes);
   await app.register(codexRoutes);
   await app.register(kiroRoutes);
   await app.register(grokRoutes);

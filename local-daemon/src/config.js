@@ -69,14 +69,6 @@ const DEFAULT_CONFIG = {
       env:      {},
       authCmd:  'opencode auth login',
     },
-    qodo: {
-      enabled:  true,
-      command:  'qodo',
-      args:     [],
-      timeout:  300000,
-      env:      {},
-      authCmd:  'qodo login',
-    },
     codex: {
       enabled:  true,
       command:  'codex',

@@ -22,6 +22,8 @@ export function getExecutable(tool, defaultCmd) {
     'antigravity-bridge': 'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
     gemini:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
     claude:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
+    grok:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\grok.cmd',
+    kiro:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kiro-cli.cmd',
   };
   return paths[tool] || defaultCmd;
 }
@@ -62,16 +64,13 @@ export async function spawnCLI(opts) {
       cwd: process.cwd(),
     }));
 
-    // Use a single command string for Windows stability with batch files
-    const fullCommandString = `"${command}" ${args.join(' ')}`;
-
-    const child = spawn(fullCommandString, {
+    // Phase 16: Use multi-argument spawn with shell: true for robust Windows batch support
+    const child = spawn(command, args, {
       shell:  true,
       cwd:    process.cwd(),
       env:    { ...process.env, ...env },
       signal: abortController.signal,
       stdio:  ['ignore', 'pipe', 'pipe'],
-      windowsVerbatimArguments: true,
     });
 
     child.stdout.on('data', (chunk) => {
@@ -176,17 +175,11 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
     case 'gemini':
       return ['chat', '-p', q];
 
-    case 'qodo':
-      return ['chat', q, ...(model ? ['--model', model] : [])];
-
-    case 'codex':
-      return ['exec', q, '--full-auto', '--sandbox', 'danger-full-access'];
-
     case 'kiro':
-      return ['chat', q, ...(model ? ['--model', model] : [])];
+      return ['chat', q, '--non-interactive', ...(model ? ['--model', model] : [])];
 
     case 'grok':
-      return ['--prompt', q, ...(model ? ['--model', model] : [])];
+      return ['--prompt', q, '--non-interactive', ...(model ? ['--model', model] : [])];
 
     case 'copilot':
       return [
