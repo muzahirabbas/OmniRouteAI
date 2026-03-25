@@ -1,4 +1,4 @@
-import { spawnCLI, buildArgs } from '../spawner.js';
+import { buildArgs, spawnCLI, getExecutable } from '../spawner.js';
 import { getToolConfig } from '../config.js';
 import { log } from '../logger.js';
 
@@ -46,8 +46,10 @@ export function createToolRoute(toolName, providerName) {
     }
 
     const cliArgs = buildArgs(toolName, prompt.trim(), model, extraArgs);
-    const command = toolConfig.command;
-    const timeout = toolConfig.timeout || 300000; // Default to 5 minutes for slow CLI tools
+    
+    // Phase 8: Hardened absolute path resolution
+    const command = getExecutable(toolName, toolConfig.command);
+    const timeout = toolConfig.timeout || 300000; // Default to 5 minutes
     const env     = toolConfig.env || {};
 
     // ── STREAMING ─────────────────────────────────────────────────────

@@ -9,33 +9,31 @@ import { log } from './logger.js';
  * - Stream stdout chunks directly to an HTTP reply (if streaming)
  * - Capture stderr separately (never mixed with stdout)
  * - Enforce timeouts via AbortController
- * - Return normalized { output, raw, tokens, exitCode, error }
- *
- * STREAMING MODE (stream=true):
- *   Each stdout chunk is immediately written to `reply.raw`
- *   Format: `data: <chunk>\n\n` (SSE compatible)
- *   Caller manages reply.raw lifecycle (writeHead / end)
- *
- * NON-STREAMING MODE (stream=false):
- *   Collects all stdout, returns on process exit.
+ * - Return normalized { output, raw, tokens, exitCode, success, error? }
  */
 
 const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
 
 /**
- * Spawn a CLI command and collect or stream output.
+ * Get the absolute executable path for a tool to bypass environment issues.
  *
- * @param {object} opts
- * @param {string}   opts.tool       - Tool name for logging (e.g. 'claude')
- * @param {string}   opts.command    - CLI binary (e.g. 'claude', 'gemini')
- * @param {string[]} opts.args       - CLI arguments array
- * @param {object}   [opts.env]      - Extra env vars to inject
- * @param {number}   [opts.timeout]  - Timeout in ms (default 60s)
- * @param {boolean}  [opts.stream]   - If true, stream stdout chunks
- * @param {Function} [opts.onChunk]  - Callback per stdout chunk (stream mode)
- * @param {Function} [opts.onDone]   - Callback on process exit (stream mode)
- * @param {Function} [opts.onError]  - Callback on error (stream mode)
- * @returns {Promise<{output, raw, tokens, exitCode, success, error?}>}
+ * @param {string} tool - Tool name
+ * @param {string} defaultCmd - Default command from config
+ * @returns {string} - Absolute path or defaultCommand
+ */
+export function getExecutable(tool, defaultCmd) {
+  const paths = {
+    kilo:        'C:/Users/Zaari/AppData/Roaming/npm/kilo.cmd',
+    opencode:    'C:/Users/Zaari/AppData/Roaming/npm/opencode.cmd',
+    antigravity: 'C:/Users/Zaari/AppData/Local/Programs/Antigravity/bin/antigravity.cmd',
+    gemini:      'C:/Users/Zaari/AppData/Roaming/npm/gemini.cmd',
+    claude:      'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
+  };
+  return paths[tool] || defaultCmd;
+}
+
+/**
+ * Spawn a CLI command and collect or stream output.
  */
 export async function spawnCLI(opts) {
   const {
@@ -53,7 +51,6 @@ export async function spawnCLI(opts) {
   const startTime = Date.now();
   const cmdString = `${command} ${args.join(' ')}`;
 
-  // AbortController for timeout enforcement
   const abortController = new AbortController();
   const timer = setTimeout(() => {
     abortController.abort();
@@ -69,32 +66,24 @@ export async function spawnCLI(opts) {
       command,
       args,
       cwd: process.cwd(),
-      // path: process.env.PATH?.split(';')[0] + '...', // Log first path as hint
     }));
 
     const child = spawn(command, args, {
       shell:  true,
       env:    { ...process.env, ...env },
       signal: abortController.signal,
-      // Do NOT use stdio: 'pipe' for streaming — use default
     });
 
-    // ── STDOUT ────────────────────────────────────────────────────
     child.stdout.on('data', (chunk) => {
       const text = chunk.toString('utf8');
       stdoutChunks.push(text);
-
-      if (stream && onChunk) {
-        onChunk(text);
-      }
+      if (stream && onChunk) onChunk(text);
     });
 
-    // ── STDERR ────────────────────────────────────────────────────
     child.stderr.on('data', (chunk) => {
       stderrChunks.push(chunk.toString('utf8'));
     });
 
-    // ── PROCESS CLOSE ─────────────────────────────────────────────
     child.on('close', (exitCode) => {
       clearTimeout(timer);
       const duration = Date.now() - startTime;
@@ -125,18 +114,13 @@ export async function spawnCLI(opts) {
         result.error = stderr.trim() || `Process exited with code ${exitCode}`;
       }
 
-      if (stream && onDone) {
-        onDone(result);
-      }
-      // Always resolve — even in stream mode — to prevent promise/memory leak
+      if (stream && onDone) onDone(result);
       resolve(result);
     });
 
-    // ── PROCESS ERROR ─────────────────────────────────────────────
     child.on('error', (err) => {
       clearTimeout(timer);
       const duration = Date.now() - startTime;
-
       const isTimeout = err.name === 'AbortError' || err.code === 'ABORT_ERR';
       const message   = isTimeout
         ? `[${tool}] Request timed out after ${timeout}ms`
@@ -153,34 +137,21 @@ export async function spawnCLI(opts) {
         error:    message,
       };
 
-      if (stream && onError) {
-        onError(new Error(message));
-      }
-      // Always resolve — never reject — for clean HTTP handling
+      if (stream && onError) onError(new Error(message));
       resolve(result);
     });
   });
 }
 
 /**
- * Build CLI args for a prompt-based tool request.
- * Each tool has different CLI flag conventions.
- *
- * @param {string} tool    - tool name
- * @param {string} prompt  - user prompt
- * @param {string} [model] - optional model override
- * @param {object} [extraArgs] - tool-specific extra args from request body
- * @returns {string[]}
+ * Build CLI arguments for various tools.
  */
 export function buildArgs(tool, prompt, model, extraArgs = {}) {
-  // CRITICAL: Double-quote prompt for Windows shell stability (shell: true).
   const q = `"${prompt}"`;
 
   switch (tool) {
     case 'claude':
-      // Use absolute path to ensure daemon finds it
       return [
-        'C:/Users/Zaari/AppData/Roaming/npm/claude.cmd',
         '-p', q,
         ...(model ? ['--model', model] : []),
         '--dangerously-skip-permissions',
@@ -188,10 +159,7 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'antigravity':
-      // Phase 7: Native Antigravity Agent CLI (as requested)
-      // Uses the actual Google account and skills headlessly
       return [
-        'C:/Users/Zaari/AppData/Local/Programs/Antigravity/bin/antigravity.cmd',
         'agent',
         '--non-interactive',
         '--mode', 'act',
@@ -199,23 +167,21 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'kilo':
-      return ['C:/Users/Zaari/AppData/Roaming/npm/kilo.cmd', 'run', q, '--auto'];
+      return ['run', q, '--auto'];
 
     case 'opencode':
-      return ['C:/Users/Zaari/AppData/Roaming/npm/opencode.cmd', 'run', q];
+      return ['run', q];
 
     case 'gemini':
-      return ['C:/Users/Zaari/AppData/Roaming/npm/gemini.cmd', 'chat', '-p', q];
+      return ['chat', '-p', q];
 
     case 'qodo':
       return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'codex':
-      // Use "exec" for non-interactive plan execution
       return ['exec', q, '--full-auto', '--sandbox', 'danger-full-access'];
 
     case 'kiro':
-      // kiro-cli became kiro usually
       return ['chat', q, ...(model ? ['--model', model] : [])];
 
     case 'grok':
@@ -237,9 +203,6 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
 
 /**
  * Estimate tokens from prompt + output for accounting.
- * @param {string} input
- * @param {string} output
- * @returns {{ input: number, output: number }}
  */
 function estimateTokens(input, output) {
   return {
@@ -247,4 +210,3 @@ function estimateTokens(input, output) {
     output: Math.ceil((output || '').length / 4),
   };
 }
-
