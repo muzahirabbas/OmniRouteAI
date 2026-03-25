@@ -172,8 +172,12 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       ];
 
     case 'kilo':
-      // kilo run "prompt" --no-interactive prevents it from hanging waiting for user input
-      return ['run', q, '--no-interactive'];
+      // kilo run "prompt" is the correct headless invocation
+      // Note: needs a model configured with API key (e.g. kilo -m openai/gpt-4o-mini)
+      return [
+        'run', q,
+        ...(model && model !== 'default' ? ['--model', model] : []),
+      ];
 
     case 'opencode':
       return ['run', q];
@@ -202,8 +206,11 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
       return [q, '-y'];
 
     case 'kimi':
-      // kimi exe takes prompt directly as positional arg
-      return [q];
+      // kimi CLI only supports TUI/ACP modes — no headless text completion.
+      // Use the web subcommand approach (it starts a local web server on random port).
+      // The only way to get text output is via --print flag with stdin piping.
+      // For now, kimi is not supported in headless daemon mode.
+      return ['info'];
 
     case 'codex':
       // codex exec "prompt" --full-auto --sandbox danger-full-access works headlessly
