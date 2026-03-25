@@ -156,7 +156,7 @@ const API = {
    * @param {object} options - { useEncryption, passphrase }
    */
   async saveSettings(url, apiKey, options = {}) {
-    const { useEncryption = false, passphrase } = options;
+    const { useEncryption = false, passphrase, daemonUrl, daemonToken } = options;
     
     if (url) {
       let finalUrl = url.trim().replace(/\/$/, '');
@@ -179,6 +179,13 @@ const API = {
         localStorage.removeItem('omniroute_api_key_encrypted');
         localStorage.removeItem('omniroute_use_encryption');
       }
+    }
+
+    if (daemonUrl) {
+      localStorage.setItem('daemonUrl', daemonUrl.trim().replace(/\/$/, ''));
+    }
+    if (daemonToken) {
+      localStorage.setItem('daemonToken', daemonToken.trim());
     }
   },
 
