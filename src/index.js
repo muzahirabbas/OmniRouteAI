@@ -10,6 +10,23 @@ async function start() {
 
     await app.listen({ port: PORT, host: HOST });
     app.log.info(`OmniRouteAI server listening on ${HOST}:${PORT}`);
+
+    // ─── Graceful Shutdown ───────────────────────────────────────────
+    const shutdown = async (signal) => {
+      app.log.info(`Received ${signal}, shutting down gracefully...`);
+      try {
+        await app.close();
+        app.log.info('Server closed successfully');
+        process.exit(0);
+      } catch (err) {
+        app.log.error(`Error during shutdown: ${err.message}`);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT',  () => shutdown('SIGINT'));
+
   } catch (err) {
     console.error(JSON.stringify({
       level: 'fatal',

@@ -87,12 +87,14 @@ console.log(JSON.stringify({
 
 // ─── Railway Health Check Server ──────────────────────────────────────
 // Railway requires containers to bind to $PORT to pass health checks.
+// If PORT is explicitly set, we use it. If not, we use 8081 for the worker.
 const PORT = parseInt(process.env.PORT, 10) || 8081;
 const HOST = process.env.HOST || '0.0.0.0';
 
 const healthServer = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.status = 200;
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ status: 'healthy', service: 'bullmq-worker' }));
   } else {
     res.writeHead(404);
@@ -106,5 +108,28 @@ healthServer.listen(PORT, HOST, () => {
     msg:   `Worker health-check server listening on ${HOST}:${PORT}`,
   }));
 });
+
+// ─── Graceful Shutdown ───────────────────────────────────────────
+const shutdown = async (signal) => {
+  console.log(JSON.stringify({
+    level: 'info',
+    msg:   `Received ${signal}, shutting down gracefully...`,
+  }));
+
+  try {
+    // 1. Close health server
+    healthServer.close();
+    // 2. Stop accepting new jobs and wait for current ones (up to 30s)
+    await worker.close();
+    console.log(JSON.stringify({ level: 'info', msg: 'Worker closed successfully' }));
+    process.exit(0);
+  } catch (err) {
+    console.error(JSON.stringify({ level: 'error', msg: 'Error during shutdown', error: err.message }));
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
 
 export default worker;
