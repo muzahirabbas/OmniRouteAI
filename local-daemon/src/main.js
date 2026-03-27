@@ -55,14 +55,30 @@ async function startDaemon() {
     bodyLimit: 10 * 1024 * 1024, // 10MB body limit
   });
 
+  // ─── CORS (Official Plugin) ──────────────────────────────────────────
+  const corsMod = await import('@fastify/cors');
+  await app.register(corsMod.default, {
+    origin: true, // Allow any origin — crucial for deployed/local dashboard parity
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin', 'Content-Type', 'Accept', 'X-Local-Token', 
+      'Authorization', 'ngrok-skip-browser-warning', 'x-requested-with'
+    ],
+    exposedHeaders: ['ngrok-skip-browser-warning'],
+    maxAge: 86400,
+    credentials: true,
+  });
+
+  // ─── Special: Ensure ngrok headers follow through for all responses
+  app.addHook('onSend', async (request, reply) => {
+    reply.header('ngrok-skip-browser-warning', 'true');
+  });
+
   // ─── Security: Token auth hook ───────────────────────────────────
   // Skip token check only for /health (so OmniRouteAI can probe without token setup)
   app.addHook('onRequest', async (request, reply) => {
-    // 1. Always allow preflight requests to pass auth (browser doesn't send custom headers in OPTIONS)
     if (request.method === 'OPTIONS') return;
-    
-    // 2. Allow public endpoints
-    if (request.url === '/health' || request.url === '/') return;
+    if (request.url === '/health' || request.url === '/' || request.url === '/logs') return;
 
     const tokenHeader = request.headers['x-local-token'];
     const isValid     = await validateToken(tokenHeader);
@@ -80,26 +96,6 @@ async function startDaemon() {
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
     try { done(null, JSON.parse(body)); }
     catch (err) { done(new Error('Invalid JSON'), undefined); }
-  });
-
-  // ─── CORS (allow any origin for deployed/local dashboards) ─────────────
-  const setCorsHeaders = (request, reply) => {
-    reply.header('Access-Control-Allow-Origin', '*');
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Local-Token, Authorization, ngrok-skip-browser-warning');
-    reply.header('Access-Control-Max-Age', '86400');
-    reply.header('ngrok-skip-browser-warning', 'true');
-  };
-
-  // Set headers on all real responses
-  app.addHook('onSend', async (request, reply) => {
-    setCorsHeaders(request, reply);
-  });
-
-  // For OPTIONS preflight: we must set headers BEFORE send (onSend is too late for 204)
-  app.options('*', async (request, reply) => {
-    setCorsHeaders(request, reply);
-    reply.code(204).send();
   });
 
   // ─── Health check (no auth required) ────────────────────────────
