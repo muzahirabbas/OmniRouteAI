@@ -1,16 +1,18 @@
-import { spawnCLI } from '../spawner.js';
-import { getToolConfig, loadConfig } from '../config.js';
+import { spawn } from 'node:child_process';
 import { log } from '../logger.js';
+import { getTools, getToolConfig, loadConfig } from '../config.js';
+import { loadTokens, saveTokens } from '../oauth/tokenStorage.js';
+import { startDeviceFlow, pollDeviceFlow } from '../oauth/deviceFlow.js';
 import { harvestTokens } from '../oauth/harvester.js';
+import { spawnCLI } from '../spawner.js';
 
 /**
  * Auth management routes.
  *
- * GET  /auth/status        — check login status for all tools
- * GET  /auth/status/:tool  — check login status for specific tool
+ * GET  /auth/status        — check login status for all tools (CLI + OAuth)
+ * GET  /auth/oauth-status  — check active OAuth sessions (Daemon-managed)
  * POST /auth/login/:tool   — trigger auth login flow for a tool
- * POST /auth/harvest       — scan local machine for existing CLI/IDE sessions
- * GET  /auth/sessions      — list harvested sessions
+ * POST /auth/harvest       — manual trigger for token scan
  */
 export async function authRoutes(app) {
 
@@ -18,9 +20,6 @@ export async function authRoutes(app) {
   app.post('/auth/harvest', async (request, reply) => {
     log.info('Triggering manual token harvest scan');
     const results = await harvestTokens();
-    
-    // In a production app, we'd save these to a secure database or tokens.json
-    // For now, return them so the client/server can see what was found
     return {
       success: true,
       sessions: results,
@@ -28,10 +27,57 @@ export async function authRoutes(app) {
     };
   });
 
+  // ─── GET /auth/oauth-status ──────────────────────────────────────────
+  app.get('/auth/oauth-status', async () => {
+    const tokens = await loadTokens();
+    const tools = await getTools();
+    
+    const status = {};
+    for (const [id, config] of Object.entries(tools || {})) {
+      const tokenData = tokens[id];
+      status[id] = {
+        name:     config.name,
+        active:   !!tokenData,
+        source:   tokenData?.source || 'none',
+        expires:  tokenData?.expiresAt || null,
+        method:   tokenData?.source ? 'Harvested' : (['copilot', 'qwen'].includes(id) ? 'Device Flow' : 'CLI')
+      };
+    }
+    return { providers: status };
+  });
+
+  // ─── POST /auth/:tool/login (Trigger OAuth/Device Flow) ─────────────
+  app.post('/auth/:tool/login', async (request, reply) => {
+    const { tool } = request.params;
+    log.info(`Initiating OAuth login flow for ${tool}...`);
+    const flow = await startDeviceFlow(tool);
+    if (!flow) return reply.code(500).send({ error: `Failed to start login flow for ${tool}` });
+    return flow;
+  });
+
+  // ─── GET /auth/:tool/poll (Check Login Success) ─────────────────────
+  app.get('/auth/:tool/poll', async (request) => {
+    const { tool } = request.params;
+    return await pollDeviceFlow(tool);
+  });
+
+  // ─── DELETE /auth/:tool (Revoke Session) ────────────────────────────
+  app.delete('/auth/:tool', async (request) => {
+    const { tool } = request.params;
+    const tokens = await loadTokens();
+    if (tokens[tool]) {
+      delete tokens[tool];
+      await saveTokens(tokens);
+      log.info(`Revoked active session for ${tool}`);
+    }
+    return { success: true };
+  });
+
   // ─── GET /auth/status ─────────────────────────────────────────────
   app.get('/auth/status', async (request, reply) => {
     const config  = await loadConfig();
     const tools   = Object.keys(config.tools || {});
+    const tokens  = await loadTokens();
     const results = {};
 
     for (const toolName of tools) {
@@ -41,59 +87,46 @@ export async function authRoutes(app) {
         continue;
       }
 
+      // 1. Check if we have an active daemon-managed OAuth session
+      if (tokens[toolName]) {
+        results[toolName] = { 
+          status: 'authenticated', 
+          authenticated: true, 
+          method: 'oauth',
+          source: tokens[toolName].source 
+        };
+        continue;
+      }
+
+      // 2. Fallback to CLI status probe
       results[toolName] = await checkAuthStatus(toolName, toolConfig);
     }
 
     return { tools: results, timestamp: new Date().toISOString() };
   });
 
-  // ─── GET /auth/status/:tool ───────────────────────────────────────
-  app.get('/auth/status/:tool', async (request, reply) => {
-    const { tool } = request.params;
-    const toolConfig = await getToolConfig(tool);
-
-    if (!toolConfig) {
-      return reply.code(404).send({ error: `Unknown tool: ${tool}` });
-    }
-    if (!toolConfig.enabled || !toolConfig.command) {
-      return reply.code(503).send({ status: 'disabled', tool });
-    }
-
-    const status = await checkAuthStatus(tool, toolConfig);
-    return { tool, ...status };
-  });
-
-  // ─── POST /auth/login/:tool ───────────────────────────────────────
+  // ─── POST /auth/login/:tool (CLI Fallback) ─────────────────────────
   app.post('/auth/login/:tool', async (request, reply) => {
     const { tool } = request.params;
     const toolConfig = await getToolConfig(tool);
 
-    if (!toolConfig) {
-      return reply.code(404).send({ error: `Unknown tool: ${tool}` });
-    }
-    if (!toolConfig.enabled || !toolConfig.command) {
-      return reply.code(503).send({ error: `Tool ${tool} is disabled` });
-    }
-    if (!toolConfig.authCmd) {
-      return reply.code(400).send({
-        error:   `Tool '${tool}' has no authCmd configured`,
-        hint:    `Set tools.${tool}.authCmd in ~/.omniroute/local-cli/config.json`,
-      });
+    if (!toolConfig) return reply.code(404).send({ error: `Unknown tool: ${tool}` });
+    
+    // If it's a known OAuth tool, redirect to device flow route if they use this legacy endpoint
+    if (['copilot', 'qwen'].includes(tool)) {
+      const flow = await startDeviceFlow(tool);
+      if (flow) return { method: 'device-flow', ...flow };
     }
 
-    log.info(`Triggering auth login for tool: ${tool}`);
-
-    // Split authCmd into command + args
-    const parts   = toolConfig.authCmd.trim().split(/\s+/);
-    const command = parts[0];
-    const args    = parts.slice(1);
-
+    const cmd = toolConfig.authCmd || `${tool} auth login`;
+    const parts = cmd.trim().split(/\s+/);
+    
     const result = await spawnCLI({
       tool,
-      command,
-      args,
+      command: parts[0],
+      args:    parts.slice(1),
       env:     toolConfig.env || {},
-      timeout: 120000, // 2 min for interactive auth
+      timeout: 120000, 
       stream:  false,
     });
 
@@ -101,32 +134,15 @@ export async function authRoutes(app) {
       tool,
       success:  result.success,
       output:   result.output,
-      exitCode: result.exitCode,
-      message:  result.success
-        ? `Auth login flow completed for ${tool}`
-        : `Auth login failed for ${tool}: ${result.error}`,
+      message:  result.success ? `Auth flow finished for ${tool}` : `Auth failed: ${result.error}`,
     };
   });
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-
 /**
- * Check auth status for a tool by running a lightweight probe command.
- * Strategy: 
- * 1. Check if binary exists via `--version` or `--help`
- * 2. If tool has authCmd, try checking auth status
- * 3. For tools without authCmd, attempt a minimal functional test
- * 
- * If exit code = 0 → command exists and is functional.
- *
- * @param {string} toolName
- * @param {object} toolConfig
- * @returns {Promise<{status, authenticated, version?}>}
+ * Probes CLI binary for traditional login status.
  */
 async function checkAuthStatus(toolName, toolConfig) {
-  // First check: does the binary exist?
-  // Try --version first, then --help as fallback
   const versionResult = await spawnCLI({
     tool:    toolName,
     command: toolConfig.command,
@@ -136,41 +152,17 @@ async function checkAuthStatus(toolName, toolConfig) {
     stream:  false,
   });
 
-  let binaryAvailable = false;
-  let versionOutput = null;
-
-  if (versionResult.success && versionResult.exitCode === 0 && versionResult.output) {
-    binaryAvailable = true;
-    versionOutput = versionResult.output?.split('\n')[0] || null;
-  } else {
-    // Fallback: try --help (some tools don't have --version)
-    const helpResult = await spawnCLI({
-      tool:    toolName,
-      command: toolConfig.command,
-      args:    ['--help'],
-      env:     toolConfig.env || {},
-      timeout: 5000,
-      stream:  false,
-    });
-
-    if (helpResult.success && helpResult.exitCode === 0) {
-      binaryAvailable = true;
-      versionOutput = 'help available';
-    }
+  if (!versionResult.success && versionResult.exitCode !== 0) {
+    return { status: 'not_installed', authenticated: false };
   }
 
-  if (!binaryAvailable) {
-    return {
-      status:        'not_installed',
-      authenticated: false,
-      error:         `'${toolConfig.command}' binary not found in PATH or not executable`,
-    };
-  }
+  const versionOutput = versionResult.output?.split('\n')[0] || 'active';
 
-  // If tool has an authCmd, try checking auth status
   if (toolConfig.authCmd) {
-    const parts      = toolConfig.authCmd.trim().split(/\s+/);
-    const statusArgs = [...parts.slice(1), 'status'].filter(Boolean);
+    const parts = toolConfig.authCmd.trim().split(/\s+/);
+    const verb  = parts[1];
+    const isSafe = parts.length === 2 && !verb?.startsWith('-');
+    const statusArgs = isSafe ? [verb, 'status'] : ['--version'];
 
     const authResult = await spawnCLI({
       tool:    toolName,
@@ -181,68 +173,21 @@ async function checkAuthStatus(toolName, toolConfig) {
       stream:  false,
     });
 
-    // Enhanced: Check for common auth failure patterns in stderr
-    const authFailed = !authResult.success || 
+    const authFailed = !authResult.success ||
       (authResult.stderr && /unauthenticated|not logged in|login required|invalid token/i.test(authResult.stderr));
 
     return {
       status:        authFailed ? 'unauthenticated' : 'authenticated',
       authenticated: !authFailed,
       version:       versionOutput,
-      details:       authResult.output?.slice(0, 200) || null,
+      method:        'cli'
     };
   }
 
-  // No authCmd — assume available if binary works
-  // Enhanced: For some tools, we can do a minimal functional test
-  const functionalTest = await performFunctionalTest(toolName, toolConfig);
-  
   return {
-    status:        functionalTest.success ? 'available' : 'limited',
-    authenticated: functionalTest.success,
+    status:        'available',
+    authenticated: true,
     version:       versionOutput,
-    functional:    functionalTest.success,
+    method:        'binary'
   };
-}
-
-/**
- * Perform a minimal functional test for tools without authCmd.
- * This verifies the tool can actually make API calls.
- * 
- * @param {string} toolName
- * @param {object} toolConfig
- * @returns {Promise<{success: boolean, error?: string}>}
- */
-async function performFunctionalTest(toolName, toolConfig) {
-  // Tools that support a simple ping or help command
-  const testCommands = {
-    claude: ['--help'],
-    gemini: ['--help'],
-    qwen: ['--version'],
-    copilot: ['--version'],
-  };
-
-  const testArgs = testCommands[toolName];
-  if (!testArgs) {
-    // No specific test available — assume functional if binary exists
-    return { success: true };
-  }
-
-  const result = await spawnCLI({
-    tool:    toolName,
-    command: toolConfig.command,
-    args:    testArgs,
-    env:     toolConfig.env || {},
-    timeout: 5000,
-    stream:  false,
-  });
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.stderr || 'Functional test failed',
-    };
-  }
-
-  return { success: true };
 }

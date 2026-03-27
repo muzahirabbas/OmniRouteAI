@@ -45,8 +45,8 @@ const worker = new Worker(
       msg:      'Job completed',
       jobId:    job.id,
       requestId,
-      provider: result.provider,
-      model:    result.model,
+      provider: result?.provider,
+      model:    result?.model,
     }));
 
     if (!result) {
@@ -55,6 +55,7 @@ const worker = new Worker(
         msg:   'routeAndExecute returned null/undefined',
         jobId: job.id,
       }));
+      throw new Error('No result returned from routeAndExecute — provider may have failed');
     }
 
     return result;

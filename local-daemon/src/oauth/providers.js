@@ -17,11 +17,21 @@ export const OAUTH_PROVIDERS = {
     tokenUrl: "https://oauth2.googleapis.com/token"
   },
   qwen: {
-    clientId: "f0304373b74a44d2b584a3fb70ca9e56",
-    tokenUrl: "https://chat.qwen.ai/api/v1/oauth2/token"
+    clientId:   "f0304373b74a44d2b584a3fb70ca9e56",
+    tokenUrl:   "https://chat.qwen.ai/api/v1/oauth2/token",
+    refreshUrl: "https://chat.qwen.ai/api/v1/oauth2/token"
   },
   codex: {
     clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
     tokenUrl: "https://auth.openai.com/oauth/token"
+  },
+  copilot: {
+    clientId:   "01ab8ac9400c4e42a127",
+    tokenUrl:   "https://github.com/login/oauth/access_token",
+    refreshUrl: "https://github.com/login/oauth/access_token"
+  },
+  zai: {
+    clientId: "zai-cli-native",
+    tokenUrl: "https://api.z.ai/auth/token"
   }
 };

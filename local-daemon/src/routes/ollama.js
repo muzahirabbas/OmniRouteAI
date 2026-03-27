@@ -42,14 +42,14 @@ export async function ollamaRoutes(app) {
     }
   });
 
-  // ─── Chat bridge: POST /ollama ────────────────────────────────────
+  // ─── Chat bridge: POST /ollama ──────────────────────────────────────
   app.post('/ollama', async (request, reply) => {
     const toolConfig = await getToolConfig('ollama_local');
     if (!toolConfig?.enabled) {
       return reply.code(503).send({ error: 'Ollama local bridge is disabled' });
     }
 
-    const { prompt, model, stream } = request.body;
+    const { prompt, model, stream = false } = request.body;
     const ollamaUrl = `${OLLAMA_BASE}/api/chat`;
     const start = Date.now();
 
@@ -58,9 +58,9 @@ export async function ollamaRoutes(app) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: model || 'llama3',
+          model:    model || 'llama3',
           messages: [{ role: 'user', content: prompt }],
-          stream: false,
+          stream:   !!stream,
         }),
       });
 
@@ -70,6 +70,60 @@ export async function ollamaRoutes(app) {
         return reply.code(502).send({ error: `Ollama error: ${errText}`, provider: 'ollama_local' });
       }
 
+      // ── Streaming: Ollama sends NDJSON lines ───────────────────────────────
+      if (stream) {
+        reply.raw.writeHead(200, {
+          'Content-Type':  'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection':    'keep-alive',
+          'X-Tool':        'ollama',
+        });
+
+        const reader  = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer    = '';
+        let inputTokens = 0, outputTokens = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep incomplete last line
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const chunk = JSON.parse(line);
+              const text  = chunk.message?.content || '';
+              if (text) {
+                reply.raw.write(`data: ${JSON.stringify({ content: text, provider: 'ollama_local' })}\n\n`);
+              }
+              if (chunk.done) {
+                inputTokens  = chunk.prompt_eval_count  || 0;
+                outputTokens = chunk.eval_count          || 0;
+              }
+            } catch { /* skip non-JSON lines */ }
+          }
+        }
+
+        const duration = Date.now() - start;
+        log.request({ tool: 'ollama', command: 'POST /ollama (stream)', prompt, duration, exitCode: 0, success: true });
+
+        reply.raw.write(`data: ${JSON.stringify({
+          done:     true,
+          provider: 'ollama_local',
+          model:    model || 'llama3',
+          tokens:   { input: inputTokens, output: outputTokens },
+          success:  true,
+        })}\n\n`);
+        reply.raw.write('data: [DONE]\n\n');
+        reply.raw.end();
+        return;
+      }
+
+      // ── Non-streaming ──────────────────────────────────────────────────
       const data = await response.json();
       const duration = Date.now() - start;
 

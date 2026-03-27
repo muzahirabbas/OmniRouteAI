@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getConfigDir } from './config.js';
 
@@ -16,7 +16,10 @@ import { getConfigDir } from './config.js';
 const LOG_FILE   = () => join(getConfigDir(), 'daemon.log');
 const MAX_SIZE   = 10 * 1024 * 1024; // 10MB
 let _stream      = null;
-let _bytesWritten = 0;
+let _bytesWritten = (() => {
+  // Initialize from actual file size so rotation threshold is accurate across restarts
+  try { return statSync(LOG_FILE()).size; } catch { return 0; }
+})();
 
 function getStream() {
   const dir = getConfigDir();
@@ -54,7 +57,7 @@ function write(level, msg, fields = {}) {
     ...fields,
   }) + '\n';
 
-  _bytesWritten += entry.length;
+  _bytesWritten += Buffer.byteLength(entry, 'utf8');
   if (_bytesWritten > MAX_SIZE) rotate();
 
   getStream().write(entry);

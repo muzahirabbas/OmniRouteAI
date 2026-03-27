@@ -41,6 +41,9 @@
       <a href="#" class="nav-link" data-page="settings">
         <span class="nav-icon">⚙️</span>Settings
       </a>
+      <a href="#" class="nav-link" data-page="local-auth">
+        <span class="nav-icon">🔐</span>Local Auth
+      </a>
     </nav>
     <div class="sidebar-footer">
       <div class="health-indicator" id="health-indicator">
@@ -541,12 +544,81 @@
         <pre class="code-block" id="connection-status">Not tested yet</pre>
       </div>
     </section>
+
+    <!-- Page: Local Auth -->
+    <section class="page" id="page-local-auth">
+      <div class="page-header">
+        <h2>Local CLI Auth Management</h2>
+        <div class="header-actions">
+           <button class="btn btn-secondary" onclick="harvestLocalTokens()">🔄 Re-Scan Files</button>
+           <button class="btn btn-ghost" onclick="refreshLocalAuth()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Harvested Sessions</h3>
+        <p class="form-hint">The daemon automatically monitors your local config files (Claude Code, Cursor, GitHub gh, etc.) to borrow active sessions.</p>
+        <div class="table-container" style="margin-top: 1rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Expiries In</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="local-auth-body">
+              <tr><td colspan="5" class="empty-state">Loading status...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Direct OAuth / MITM Settings</h3>
+        <div class="form-group">
+          <label class="form-label">Active MITM Proxy</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+             <span class="badge" id="mitm-status">Inactive</span>
+             <small class="form-hint">Enabling <code>MITM_PROXY=true</code> in daemon env allows capturing tokens from keychain-managed tools like Grok.</small>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Modal: Edit Provider -->
+  <!-- Modal: OAuth Device Flow -->
+  <div class="modal-overlay" id="modal-device-flow">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Connect Local Tool</h3>
+        <button class="modal-close" onclick="closeModal('device-flow')">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center; padding: 2rem;">
+        <p style="margin-bottom: 1.5rem;">Please authorize the daemon to access your account. Enter the following code on the provider's website:</p>
+        
+        <div id="df-code-display" style="font-size: 2.5rem; font-weight: 700; letter-spacing: 0.2em; color: var(--color-primary); margin-bottom: 1.5rem; font-family: monospace;">
+          XXXX-XXXX
+        </div>
+
+        <a id="df-url-link" href="#" target="_blank" class="btn btn-primary" style="margin-bottom: 1rem;">Open Provider Website</a>
+        
+        <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+           <div class="spinner"></div>
+           <span id="df-status-text" class="text-muted">Waiting for approval...</span>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 1rem; border-top: 1px solid var(--border-color); text-align: right;">
+        <button class="btn btn-ghost" onclick="closeModal('device-flow')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-edit-provider">
     <div class="modal">
       <div class="modal-header">

@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process';
 import { log } from './logger.js';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 /**
  * CLI Spawner — the core of the local daemon.
  */
 
 const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
+
+// Resolve the npm global bin directory dynamically
+const NPM_BIN = process.env.APPDATA
+  ? join(process.env.APPDATA, 'npm')           // Windows
+  : join(homedir(), '.npm-global', 'bin');      // Unix fallback
 
 /**
  * Get the absolute executable path for a tool to bypass environment issues.
@@ -15,19 +22,25 @@ const DEFAULT_TIMEOUT = 300000; // 5 minutes default timeout for slow CLI tools
  * @returns {string} - Absolute path or defaultCommand
  */
 export function getExecutable(tool, defaultCmd) {
+  const ext = process.platform === 'win32' ? '.cmd' : '';
+  const bin = (name) => join(NPM_BIN, `${name}${ext}`);
+
   const paths = {
-    kilo:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kilo.cmd',
-    opencode:           'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
-    antigravity:        'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
-    'antigravity-bridge': 'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\opencode.cmd',
-    gemini:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\gemini.cmd',
-    claude:             'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\claude.cmd',
-    grok:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\grok.cmd',
-    kiro:               'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\kiro-cli.cmd',
-    zai:                'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\zai.cmd',
-    cline:              'C:\\Users\\Zaari\\AppData\\Roaming\\npm\\cline.cmd',
-    kimi:               'C:\\Users\\Zaari\\.local\\bin\\kimi.exe',  // kimi is not in npm, lives in .local/bin
-    ollama:             'http://127.0.0.1:11434',
+    kilo:               bin('kilo'),
+    opencode:           bin('opencode'),
+    antigravity:        bin('opencode'),
+    'antigravity-bridge': bin('opencode'),
+    gemini:             bin('gemini'),
+    claude:             bin('claude'),
+    grok:               bin('grok'),
+    kiro:               bin('kiro-cli'),
+    zai:                bin('zai'),
+    cline:              bin('cline'),
+    // kimi lives in ~/.local/bin on Unix; on Windows use LOCALAPPDATA or PATH fallback
+    kimi: process.platform === 'win32'
+      ? join(process.env.LOCALAPPDATA || homedir(), 'Programs', 'kimi', 'kimi.exe')
+      : join(homedir(), '.local', 'bin', 'kimi'),
+    ollama: 'http://127.0.0.1:11434',  // handled directly via HTTP, not spawn
   };
   return paths[tool] || defaultCmd;
 }
@@ -68,11 +81,20 @@ export async function spawnCLI(opts) {
       cwd: process.cwd(),
     }));
 
-    // Phase 16: Use multi-argument spawn with shell: true for robust Windows batch support
+    // MITM Proxy Injection for token capture
+    const childEnv = { ...process.env, ...env };
+    if (process.env.MITM_PROXY === 'true') {
+      childEnv.HTTPS_PROXY = 'http://127.0.0.1:5060';
+      childEnv.HTTP_PROXY  = 'http://127.0.0.1:5060';
+      // Disable TLS verification for the child process so it trusts our MITM proxy
+      childEnv.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
+      log.info(`Injecting MITM proxy for ${tool} spawn`);
+    }
+
     const child = spawn(command, args, {
       shell:  true,
       cwd:    process.cwd(),
-      env:    { ...process.env, ...env },
+      env:    childEnv,
       signal: abortController.signal,
       stdio:  ['ignore', 'pipe', 'pipe'],
     });
@@ -167,7 +189,7 @@ export function buildArgs(tool, prompt, model, extraArgs = {}) {
     case 'antigravity-bridge':
       return [
         'run',
-        '--model', (model && model !== 'default') ? `google/antigravity-${model}` : 'google/antigravity-claude-sonnet-4-6',
+        '--model', (model && model !== 'default') ? model : 'anthropic/claude-sonnet-4-5',
         q,
       ];
 

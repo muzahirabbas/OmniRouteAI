@@ -196,6 +196,14 @@ export async function getToolConfig(toolName) {
   return config.tools?.[toolName] || null;
 }
 
+/**
+ * Get all configured tools.
+ */
+export async function getTools() {
+  const config = await loadConfig();
+  return config.tools || {};
+}
+
 export function getConfigPath() { return CONFIG_PATH; }
 export function getConfigDir()  { return CONFIG_DIR;  }
 

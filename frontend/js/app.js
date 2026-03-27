@@ -60,6 +60,7 @@ function navigateTo(page) {
     case 'logs': refreshLogs(); break;
     case 'stats': refreshStatsPage(); break;
     case 'ollama': initOllamaPage(); break;
+    case 'local-auth': refreshLocalAuth(); break;
     case 'playground': /* playground is self-contained, no refresh needed */ break;
   }
 }
@@ -952,6 +953,121 @@ async function sendMessage() {
 function clearChat() {
   const chatWindow = document.getElementById('chat-window');
   chatWindow.innerHTML = '<div class="chat-message bot">Window cleared. How can I help you?</div>';
+}
+
+// ─── Local Auth Page ────────────────────────────────────────────────
+window._deviceFlowPolling = null;
+
+async function refreshLocalAuth() {
+  const tbody = document.getElementById('local-auth-body');
+  try {
+    const data = await API.daemonRequest('/auth/oauth-status');
+    const providers = data.providers || {};
+    
+    // Also check MITM status
+    const envData = await API.daemonRequest('/v1/env');
+    const mitmEl = document.getElementById('mitm-status');
+    if (mitmEl) {
+      const isMitm = envData.path?.includes('5060') || envData.cwd?.includes('MITM'); // heuristic
+      mitmEl.textContent = isMitm ? 'Active' : 'Inactive';
+      mitmEl.className = `badge ${isMitm ? 'badge-success' : 'badge-ghost'}`;
+    }
+
+    if (Object.keys(providers).length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No local tools configured in daemon.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = Object.entries(providers).map(([id, p]) => {
+      const isOAuth = ['copilot', 'qwen', 'zai'].includes(id);
+      const expiry = p.expires ? new Date(p.expires).toLocaleString() : 'Never';
+      
+      return `
+        <tr>
+          <td><strong>${p.name || id}</strong></td>
+          <td>${p.method}</td>
+          <td>
+            <span class="badge ${p.active ? 'badge-success' : 'badge-ghost'}">
+              ${p.active ? 'Connected' : 'Disconnected'}
+            </span>
+          </td>
+          <td class="text-muted" style="font-size: 0.82rem;">${p.active ? expiry : '—'}</td>
+          <td>
+            ${p.active 
+              ? `<button class="btn btn-sm btn-danger" onclick="logoutLocalTool('${id}')">Logout</button>`
+              : (isOAuth 
+                  ? `<button class="btn btn-sm btn-primary" onclick="startDeviceLogin('${id}')">Connect</button>`
+                  : `<button class="btn btn-sm btn-secondary" onclick="loginTerminal('${id}')">CLI Auth</button>`)
+            }
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Connection failed: ${err.message}</td></tr>`;
+  }
+}
+
+async function harvestLocalTokens() {
+  try {
+    showToast('info', 'Scanning local filesystem for AI sessions...');
+    const res = await API.daemonRequest('/auth/harvest', { method: 'POST' });
+    showToast('success', `Harvest complete! Found ${res.sessions?.length || 0} active sessions.`);
+    refreshLocalAuth();
+  } catch (err) {
+    showToast('error', `Harvest failed: ${err.message}`);
+  }
+}
+
+async function startDeviceLogin(tool) {
+  try {
+    const flow = await API.daemonRequest(`/auth/${tool}/login`, { method: 'POST' });
+    
+    // Display modal
+    document.getElementById('df-code-display').textContent = flow.user_code;
+    document.getElementById('df-url-link').href = flow.verification_uri;
+    document.getElementById('df-status-text').textContent = 'Waiting for approval...';
+    document.getElementById('modal-device-flow').classList.add('active');
+    
+    // Start polling
+    if (window._deviceFlowPolling) clearInterval(window._deviceFlowPolling);
+    window._deviceFlowPolling = setInterval(() => pollDeviceLogin(tool), 3000);
+  } catch (err) {
+    showToast('error', `Login failed: ${err.message}`);
+  }
+}
+
+async function pollDeviceLogin(tool) {
+  try {
+    const res = await API.daemonRequest(`/auth/${tool}/poll`);
+    if (res.status === 'success') {
+      clearInterval(window._deviceFlowPolling);
+      closeModal('device-flow');
+      showToast('success', `Successfully connected to ${tool}!`);
+      refreshLocalAuth();
+    } else if (res.status === 'expired') {
+      clearInterval(window._deviceFlowPolling);
+      document.getElementById('df-status-text').textContent = 'Code expired. Please try again.';
+      document.getElementById('df-status-text').className = 'text-error';
+    }
+  } catch (err) {
+    // Silent fail on polling errors (usually timeout)
+  }
+}
+
+async function logoutLocalTool(tool) {
+  if (!confirm(`Are you sure you want to disconnect ${tool}?`)) return;
+  try {
+    await API.daemonRequest(`/auth/${tool}`, { method: 'DELETE' });
+    showToast('success', `${tool} disconnected.`);
+    refreshLocalAuth();
+  } catch (err) {
+    showToast('error', `Logout failed: ${err.message}`);
+  }
+}
+
+function loginTerminal(tool) {
+  showToast('info', `Please run '${tool} auth login' in your terminal.`);
 }
 
 // Global enter handler for chat

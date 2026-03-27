@@ -14,7 +14,8 @@
     "build:all": "npm run build:win && npm run build:linux && npm run build:mac"
   },
   "dependencies": {
-    "fastify": "^4.28.1"
+    "chokidar": "^5.0.0",
+    "fastify": "^5.8.4"
   },
   "devDependencies": {
     "esbuild": "^0.27.4",

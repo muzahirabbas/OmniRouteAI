@@ -109,7 +109,7 @@ export class LocalHttpAdapter extends BaseAdapter {
    * Falls back to plain text SSE if `data.output` is present in chunk.
    */
   async sendStreamRequest(prompt, model, _apiKey, options = {}) {
-    const controller = this.createTimeout(60000);
+    const controller = this.createTimeout(300000); // Match daemon CLI timeout (5 min)
     let fullOutput   = '';
 
     try {
@@ -159,8 +159,10 @@ export class LocalHttpAdapter extends BaseAdapter {
             const deltaContent = parsed.choices?.[0]?.delta?.content;
             // Simple { output: "..." } format
             const simpleOutput = parsed.output;
+            // OmniRoute local daemon SSE format: { content: "..." }
+            const daemonContent = parsed.content;
 
-            const content = deltaContent ?? simpleOutput;
+            const content = deltaContent ?? simpleOutput ?? daemonContent;
             if (content) {
               fullOutput += content;
               if (options.onChunk) {

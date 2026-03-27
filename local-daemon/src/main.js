@@ -2,7 +2,8 @@ import Fastify from 'fastify';
 import { loadConfig } from './config.js';
 import { loadToken, validateToken, getTokenFilePath } from './token.js';
 import { log, getLogPath } from './logger.js';
-import { harvestTokens } from './oauth/harvester.js';
+import { harvestTokens, watchTokenFiles } from './oauth/harvester.js';
+import { startMitmProxy, stopMitmProxy } from './oauth/mitmProxy.js';
 
 // ─── Route plugins ────────────────────────────────────────────────────
 import { claudeRoutes }      from './routes/claude.js';
@@ -41,6 +42,13 @@ async function startDaemon() {
 
   // Auto-harvest tokens on startup
   harvestTokens().catch(err => log.error(`Startup harvest failed: ${err.message}`));
+  // Start the file watcher for real-time harvesting
+  watchTokenFiles();
+
+  // Start MITM Proxy if enabled for token sniffing
+  if (process.env.MITM_PROXY === 'true') {
+    startMitmProxy(5060).catch(err => log.error(`MITM Proxy start failed: ${err.message}`));
+  }
 
   const app = Fastify({
     logger: false, // We use our own JSON logger
@@ -124,8 +132,10 @@ async function startDaemon() {
       'POST /copilot',
       'POST /custom',
       'GET  /auth/status',
-      'GET  /auth/status/:tool',
-      'POST /auth/login/:tool',
+      'GET  /auth/oauth-status',
+      'POST /auth/:tool/login',
+      'GET  /auth/:tool/poll',
+      'DELETE /auth/:tool',
       'GET  /health',
       'GET  /config',
       'GET  /logs',
@@ -221,6 +231,7 @@ async function startDaemon() {
   const shutdown = async (signal) => {
     log.info(`Received ${signal}, shutting down gracefully`);
     await app.close();
+    stopMitmProxy();
     process.exit(0);
   };
 
