@@ -979,9 +979,25 @@ async function refreshLocalAuth() {
     }
 
     tbody.innerHTML = Object.entries(providers).map(([id, p]) => {
-      const isOAuth = ['copilot', 'qwen', 'zai'].includes(id);
       const expiry = p.expires ? new Date(p.expires).toLocaleString() : 'Never';
       
+      let actionBtn = '';
+      if (p.active) {
+        actionBtn = `<button class="btn btn-sm btn-danger" onclick="logoutLocalTool('${id}')">Logout</button>`;
+      } else {
+        if (p.method === 'oauth') {
+          actionBtn = `<button class="btn btn-sm btn-primary" onclick="handleWebLogin('${id}')">OAuth Login</button>`;
+        } else if (p.method === 'device-flow') {
+          actionBtn = `<button class="btn btn-sm btn-primary" onclick="handleWebLogin('${id}')">Connect</button>`;
+        } else if (p.method === 'sqlite-import') {
+          actionBtn = `<button class="btn btn-sm btn-secondary" onclick="handleWebLogin('${id}')">Import from Cursor</button>`;
+        } else if (p.method === 'harvested') {
+          actionBtn = `<button class="btn btn-sm btn-ghost" disabled>Passive Scan Only</button>`;
+        } else {
+          actionBtn = `<button class="btn btn-sm btn-secondary" onclick="loginTerminal('${id}')">CLI Auth</button>`;
+        }
+      }
+
       return `
         <tr>
           <td><strong>${p.name || id}</strong></td>
@@ -992,14 +1008,7 @@ async function refreshLocalAuth() {
             </span>
           </td>
           <td class="text-muted" style="font-size: 0.82rem;">${p.active ? expiry : '—'}</td>
-          <td>
-            ${p.active 
-              ? `<button class="btn btn-sm btn-danger" onclick="logoutLocalTool('${id}')">Logout</button>`
-              : (isOAuth 
-                  ? `<button class="btn btn-sm btn-primary" onclick="startDeviceLogin('${id}')">Connect</button>`
-                  : `<button class="btn btn-sm btn-secondary" onclick="loginTerminal('${id}')">CLI Auth</button>`)
-            }
-          </td>
+          <td>${actionBtn}</td>
         </tr>
       `;
     }).join('');
@@ -1019,22 +1028,49 @@ async function harvestLocalTokens() {
   }
 }
 
-async function startDeviceLogin(tool) {
+async function handleWebLogin(tool) {
   try {
     const flow = await API.daemonRequest(`/auth/${tool}/login`, { method: 'POST' });
     
-    // Display modal
-    document.getElementById('df-code-display').textContent = flow.user_code;
-    document.getElementById('df-url-link').href = flow.verification_uri;
-    document.getElementById('df-status-text').textContent = 'Waiting for approval...';
-    document.getElementById('modal-device-flow').classList.add('active');
-    
-    // Start polling
-    if (window._deviceFlowPolling) clearInterval(window._deviceFlowPolling);
-    window._deviceFlowPolling = setInterval(() => pollDeviceLogin(tool), 3000);
+    if (flow.method === 'oauth') {
+      showToast('info', 'Opening OAuth login in your browser...');
+      
+      // Auto-poll to see if it finishes (we don't get a webhook back reliably on frontend, backend handles callback)
+      if (window._deviceFlowPolling) clearInterval(window._deviceFlowPolling);
+      window._deviceFlowPolling = setInterval(async () => {
+         const d = await API.daemonRequest('/auth/oauth-status');
+         if (d.providers[tool]?.active) {
+            clearInterval(window._deviceFlowPolling);
+            showToast('success', `${tool} successfully authenticated via OAuth!`);
+            refreshLocalAuth();
+         }
+      }, 3000);
+      
+    } else if (flow.method === 'device-flow') {
+      document.getElementById('df-code-display').textContent = flow.userCode;
+      document.getElementById('df-url-link').href = flow.verificationUrl;
+      document.getElementById('df-status-text').textContent = 'Waiting for approval...';
+      document.getElementById('modal-device-flow').classList.add('active');
+      
+      if (window._deviceFlowPolling) clearInterval(window._deviceFlowPolling);
+      window._deviceFlowPolling = setInterval(() => pollDeviceLogin(tool), flow.interval || 3000);
+      
+    } else if (flow.method === 'sqlite-import') {
+      if (flow.success) {
+         showToast('success', `Imported token successfully from Cursor!`);
+         refreshLocalAuth();
+      }
+    } else {
+      showToast('success', `Auth initiated via fallback: ${flow.message || 'Check terminal'}`);
+    }
   } catch (err) {
     showToast('error', `Login failed: ${err.message}`);
   }
+}
+
+async function startDeviceLogin(tool) {
+  // Kept for backward compat backwards calls, routes to the unified handler
+  return handleWebLogin(tool);
 }
 
 async function pollDeviceLogin(tool) {
