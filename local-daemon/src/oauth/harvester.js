@@ -31,6 +31,7 @@ export async function harvestTokens() {
     grok:     harvestGrok(),
     kiro:     harvestKiro(),
     cursor:   harvestCursor(),
+    iflow:    harvestIFlow(),
   };
 
   const results = {};
@@ -72,6 +73,7 @@ export function watchTokenFiles() {
     join(APPDATA, 'gh'),
     join(APPDATA, 'Code', 'User', 'globalStorage'),    // VS Code (Cline)
     join(LOCALAPPDATA, 'cursor-nightly', 'User', 'globalStorage'), // Cursor
+    join(HOME, '.iflow'),
   ].filter(p => !!p);
 
   const watcher = chokidar.watch(dirs, {
@@ -318,5 +320,17 @@ async function harvestCursor() {
       if (token) return { accessToken: String(token).replace(/^\"|\"$/g, ''), source: 'cursor-ide' };
     } catch {}
   }
+  return null;
+}
+
+// iFlow: ~/.iflow/auth.json
+async function harvestIFlow() {
+  const p = join(HOME, '.iflow', 'auth.json');
+  if (!existsSync(p)) return null;
+  try {
+    const data = JSON.parse(await readFile(p, 'utf8'));
+    const token = data.access_token || data.token || data.accessToken;
+    if (token) return { accessToken: token, refreshToken: data.refresh_token, source: 'iflow-cli' };
+  } catch {}
   return null;
 }

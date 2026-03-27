@@ -403,6 +403,30 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/copilot',
     models: ['default'],
     rpmLimit: 999999
+  },
+  {
+    name: 'iflow_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 15,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/iflow`
+      : 'http://localhost:5059/iflow',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'cursor_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/cursor`
+      : 'http://localhost:5059/cursor',
+    models: ['default'],
+    rpmLimit: 999999
   }
 ];
 

@@ -125,6 +125,22 @@ const DEFAULT_CONFIG = {
       env:      {},
       authCmd:  'kimi /help',
     },
+    iflow: {
+      enabled:  true,
+      command:  'iflow',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  'iflow auth',
+    },
+    cursor: {
+      enabled:  true,
+      command:  'cursor',
+      args:     [],
+      timeout:  300000,
+      env:      {},
+      authCmd:  null,
+    },
     ollama_local: {
       enabled:  true,
       command:  'ollama',
