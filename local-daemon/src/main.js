@@ -84,11 +84,11 @@ async function startDaemon() {
 
   // ─── CORS (allow any origin for deployed/local dashboards) ─────────────
   const setCorsHeaders = (request, reply) => {
-    const origin = request.headers.origin;
-    reply.header('Access-Control-Allow-Origin', origin || '*');
+    reply.header('Access-Control-Allow-Origin', '*');
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Local-Token, Authorization');
-    reply.header('Access-Control-Max-Age', '3600');
+    reply.header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Local-Token, Authorization, ngrok-skip-browser-warning');
+    reply.header('Access-Control-Max-Age', '86400');
+    reply.header('ngrok-skip-browser-warning', 'true');
   };
 
   // Set headers on all real responses

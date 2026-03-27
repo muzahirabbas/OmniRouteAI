@@ -359,6 +359,7 @@ const API = {
 
     const headers = {
       ...options.headers,
+      'ngrok-skip-browser-warning': 'true',
     };
 
     if (options.body && typeof options.body === 'string') {
