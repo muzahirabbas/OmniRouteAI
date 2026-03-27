@@ -81,7 +81,7 @@ async function startDaemon() {
     
     // Evaluate base path without query parameters
     const path = request.url.split('?')[0];
-    if (path === '/health' || path === '/' || path === '/logs') return;
+    if (path === '/health' || path === '/' || path === '/logs' || path === '/auth/callback') return;
 
     const tokenHeader = request.headers['x-local-token'];
     const isValid     = await validateToken(tokenHeader);

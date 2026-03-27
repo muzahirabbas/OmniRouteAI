@@ -23,7 +23,7 @@ export async function authRoutes(app) {
     
     // Define method mapping based on 9router research classification
     const METHOD_MAP = {
-      'claude': 'oauth', 'gemini': 'oauth', 'antigravity': 'oauth', 'codex': 'oauth', 'cline': 'oauth', 'iflow': 'oauth',
+      'claude': 'oauth', 'gemini': 'oauth', 'antigravity': 'oauth', 'cline': 'oauth', 'iflow': 'oauth',
       'copilot': 'device-flow', 'qwen': 'device-flow', 'kiro': 'device-flow', 'kilo': 'device-flow', 'kimi': 'device-flow',
       'cursor': 'sqlite-import',
       'zai': 'harvested', 'opencode': 'harvested',
@@ -75,17 +75,6 @@ export async function authRoutes(app) {
       try {
         // Use provided callback URI from frontend, or default to daemon
         const redirectUri = body.redirectUri || 'http://127.0.0.1:5059/auth/callback';
-        const flow = await openOAuthBrowser(tool, redirectUri);
-        return { method: 'oauth', ...flow };
-      } catch (err) {
-        return reply.code(500).send({ error: err.message });
-      }
-    }
-
-    // Codex has special port
-    if (tool === 'codex') {
-      try {
-        const redirectUri = 'http://127.0.0.1:1455/auth/callback';
         const flow = await openOAuthBrowser(tool, redirectUri);
         return { method: 'oauth', ...flow };
       } catch (err) {

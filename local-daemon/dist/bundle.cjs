@@ -39105,7 +39105,7 @@ async function pollDeviceFlow(tool) {
         })
       });
       const data = await res.json();
-      if (data.error === "authorization_pending") return { status: "pending" };
+      if (data.error === "authorization_pending" || data.error === "slow_down") return { status: "pending" };
       if (data.error) throw new Error(data.error_description || data.error);
       const copilotRes = await fetch(GITHUB_CONFIG.copilotTokenUrl, {
         headers: {
@@ -39130,7 +39130,7 @@ async function pollDeviceFlow(tool) {
         })
       });
       const data = await res.json();
-      if (data.error === "authorization_pending") return { status: "pending" };
+      if (data.error === "authorization_pending" || data.error === "slow_down") return { status: "pending" };
       if (data.error) throw new Error(data.error_description || data.error);
       tokens = { accessToken: data.access_token, refreshToken: data.refresh_token, source: "qwen-device" };
     } else if (tool === "kiro") {
@@ -39176,7 +39176,7 @@ async function pollDeviceFlow(tool) {
         })
       });
       const data = await res.json();
-      if (data.error === "authorization_pending") return { status: "pending" };
+      if (data.error === "authorization_pending" || data.error === "slow_down") return { status: "pending" };
       if (data.error) throw new Error(data.error_description || data.error);
       tokens = { accessToken: data.access_token, refreshToken: data.refresh_token, source: "kimi-device" };
     }
@@ -39459,7 +39459,6 @@ async function authRoutes(app) {
       "claude": "oauth",
       "gemini": "oauth",
       "antigravity": "oauth",
-      "codex": "oauth",
       "cline": "oauth",
       "iflow": "oauth",
       "copilot": "device-flow",
@@ -39507,15 +39506,6 @@ async function authRoutes(app) {
     if (["claude", "gemini", "antigravity", "iflow", "cline"].includes(tool)) {
       try {
         const redirectUri = body.redirectUri || "http://127.0.0.1:5059/auth/callback";
-        const flow = await openOAuthBrowser(tool, redirectUri);
-        return { method: "oauth", ...flow };
-      } catch (err) {
-        return reply.code(500).send({ error: err.message });
-      }
-    }
-    if (tool === "codex") {
-      try {
-        const redirectUri = "http://127.0.0.1:1455/auth/callback";
         const flow = await openOAuthBrowser(tool, redirectUri);
         return { method: "oauth", ...flow };
       } catch (err) {
@@ -39598,7 +39588,8 @@ async function startDaemon() {
   });
   app.addHook("onRequest", async (request, reply) => {
     if (request.method === "OPTIONS") return;
-    if (request.url === "/health" || request.url === "/" || request.url === "/logs") return;
+    const path2 = request.url.split("?")[0];
+    if (path2 === "/health" || path2 === "/" || path2 === "/logs" || path2 === "/auth/callback") return;
     const tokenHeader = request.headers["x-local-token"];
     const isValid = await validateToken(tokenHeader);
     if (!isValid) {

@@ -202,7 +202,7 @@ export async function pollDeviceFlow(tool) {
         }),
       });
       const data = await res.json();
-      if (data.error === 'authorization_pending') return { status: 'pending' };
+      if (data.error === 'authorization_pending' || data.error === 'slow_down') return { status: 'pending' };
       if (data.error) throw new Error(data.error_description || data.error);
       
       // We got GitHub token. Must fetch Copilot proxy token now
@@ -231,7 +231,7 @@ export async function pollDeviceFlow(tool) {
         }),
       });
       const data = await res.json();
-      if (data.error === 'authorization_pending') return { status: 'pending' };
+      if (data.error === 'authorization_pending' || data.error === 'slow_down') return { status: 'pending' };
       if (data.error) throw new Error(data.error_description || data.error);
       tokens = { accessToken: data.access_token, refreshToken: data.refresh_token, source: 'qwen-device' };
 
@@ -275,7 +275,7 @@ export async function pollDeviceFlow(tool) {
           }),
         });
         const data = await res.json();
-        if (data.error === 'authorization_pending') return { status: 'pending' };
+        if (data.error === 'authorization_pending' || data.error === 'slow_down') return { status: 'pending' };
         if (data.error) throw new Error(data.error_description || data.error);
         tokens = { accessToken: data.access_token, refreshToken: data.refresh_token, source: 'kimi-device' };
     }
