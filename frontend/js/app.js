@@ -86,11 +86,12 @@ async function checkHealth() {
 
 // ─── Overview Page ───────────────────────────────────────────────────
 
-async function refreshOverview() {
+async function refreshOverview(force = false) {
   try {
+    const opts = { forceRefresh: force };
     const [health, overview] = await Promise.all([
-      API.getHealth(),
-      API.getOverview(),
+      API.getHealth(opts),
+      API.getOverview(opts),
     ]);
 
     document.getElementById('stat-total-requests').textContent =
@@ -126,11 +127,11 @@ async function refreshOverview() {
 
 // ─── Providers Page ──────────────────────────────────────────────────
 
-async function refreshProviders() {
+async function refreshProviders(force = false) {
   const container = document.getElementById('providers-list');
 
   try {
-    const data = await API.getProviders();
+    const data = await API.getProviders({ forceRefresh: force });
     const providers = data.providers || [];
     
     // Dynamically update all select dropdowns that list providers
@@ -337,12 +338,12 @@ async function saveProviderConfig() {
 
 // ─── API Keys Page ───────────────────────────────────────────────────
 
-async function refreshKeys() {
+async function refreshKeys(force = false) {
   const provider = document.getElementById('key-view-provider').value;
   const tbody = document.getElementById('keys-body');
 
   try {
-    const data = await API.getKeys(provider);
+    const data = await API.getKeys(provider, { forceRefresh: force });
     if (!data.keys?.length) {
       tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No keys registered for ${provider}</td></tr>`;
       return;
@@ -417,7 +418,7 @@ async function toggleKey(provider, key, disabled) {
 
 // ─── Logs Page ───────────────────────────────────────────────────────
 
-async function refreshLogs() {
+async function refreshLogs(force = false) {
   const provider = document.getElementById('log-filter-provider').value;
   const status = document.getElementById('log-filter-status').value;
   const limit = document.getElementById('log-limit').value;
@@ -427,7 +428,7 @@ async function refreshLogs() {
   const effectiveStatus = status === 'all' || status === '' ? '' : status;
 
   try {
-    const data = await API.getLogs({ provider, status: effectiveStatus, limit });
+    const data = await API.getLogs({ provider, status: effectiveStatus, limit, forceRefresh: force });
     if (!data.logs?.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No logs found</td></tr>';
       return;
@@ -478,11 +479,12 @@ function flattenObject(obj, prefix = '') {
   return result;
 }
 
-async function refreshStatsPage() {
+async function refreshStatsPage(force = false) {
   try {
+    const opts = { forceRefresh: force };
     const [current, history] = await Promise.all([
-      API.getStats(),
-      API.getStatsHistory(14),
+      API.getStats(opts),
+      API.getStatsHistory(14, opts),
     ]);
 
     // Today's stats
@@ -646,7 +648,7 @@ function initOllamaPage() {
   window._ollamaLogTimer = _ollamaLogTimer;
 }
 
-async function refreshOllamaHealth() {
+async function refreshOllamaHealth(force = false) {
   const daemonChip = document.getElementById('ollama-chip-daemon');
   const serverChip = document.getElementById('ollama-chip-server');
   const hint = document.getElementById('ollama-hint');
@@ -656,7 +658,7 @@ async function refreshOllamaHealth() {
   setChipStatus(serverChip, 'checking', 'Ollama (11434)');
 
   try {
-    const data = await API.daemonRequest('/ollama/health');
+    const data = await API.daemonRequest('/ollama/health', { forceRefresh: force });
     // Daemon responded
     setChipStatus(daemonChip, 'running', 'Daemon Bridge');
 
@@ -683,12 +685,12 @@ function setChipStatus(chip, status, label) {
   text.textContent = label;
 }
 
-async function loadOllamaModels() {
+async function loadOllamaModels(force = false) {
   const select = document.getElementById('ollama-model-select');
   select.innerHTML = '<option value="">Loading...</option>';
 
   try {
-    const data = await API.daemonRequest('/ollama/models');
+    const data = await API.daemonRequest('/ollama/models', { forceRefresh: force });
     if (data.models?.length) {
       select.innerHTML = data.models.map(m =>
         `<option value="${m.name}">${m.name}</option>`
@@ -762,12 +764,12 @@ async function sendOllamaMessage() {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-async function refreshOllamaLogs() {
+async function refreshOllamaLogs(force = false) {
   const logEl = document.getElementById('ollama-logs');
   const filterOllama = document.getElementById('ollama-log-filter')?.checked ?? true;
 
   try {
-    const data = await API.daemonRequest('/logs?limit=200');
+    const data = await API.daemonRequest('/logs?limit=200', { forceRefresh: force });
     let entries = data.logs || [];
 
     if (filterOllama) {
@@ -1016,10 +1018,12 @@ function clearChat() {
 // ─── Local Auth Page ────────────────────────────────────────────────
 window._deviceFlowPolling = null;
 
-async function refreshLocalAuth() {
+async function refreshLocalAuth(force = false) {
+  const container = document.getElementById('local-auth-list');
   const tbody = document.getElementById('local-auth-body');
+
   try {
-    const data = await API.daemonRequest('/auth/oauth-status');
+    const data = await API.daemonRequest('/auth/oauth-status', { forceRefresh: force });
     const providers = data.providers || {};
     
     // Also check MITM status

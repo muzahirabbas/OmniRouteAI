@@ -62,7 +62,7 @@
     <section class="page active" id="page-overview">
       <div class="page-header">
         <h2>Dashboard Overview</h2>
-        <button class="btn btn-ghost" onclick="refreshOverview()">↻ Refresh</button>
+        <button class="btn btn-ghost" onclick="refreshOverview(true)">↻ Refresh</button>
       </div>
 
       <div class="stats-grid" id="overview-stats">
@@ -111,7 +111,7 @@
         <h2>Providers</h2>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="seedProviders()">🌱 Seed Defaults</button>
-          <button class="btn btn-ghost" onclick="refreshProviders()">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="refreshProviders(true)">↻ Refresh</button>
         </div>
       </div>
       <div id="providers-list" class="providers-grid">
@@ -262,7 +262,7 @@
         <h2>Request Logs</h2>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="flushLogs()">📤 Flush Buffer</button>
-          <button class="btn btn-ghost" onclick="refreshLogs()">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="refreshLogs(true)">↻ Refresh</button>
         </div>
       </div>
       <div class="card">
@@ -355,7 +355,7 @@
         <h2>Usage Statistics</h2>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="aggregateStats()">📦 Aggregate Now</button>
-          <button class="btn btn-ghost" onclick="refreshStatsPage()">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="refreshStatsPage(true)">↻ Refresh</button>
         </div>
       </div>
 
@@ -490,7 +490,7 @@
       <div class="page-header">
         <h2>🦙 Ollama Playground</h2>
         <div class="header-actions">
-          <button class="btn btn-ghost" onclick="refreshOllamaHealth()">↻ Refresh Status</button>
+          <button class="btn btn-ghost" onclick="refreshOllamaHealth(true)">↻ Refresh Status</button>
         </div>
       </div>
 
@@ -523,7 +523,7 @@
                 <option value="">Loading models...</option>
               </select>
             </div>
-            <button class="btn btn-ghost" style="width: 100%;" onclick="loadOllamaModels()">↻ Refresh Models</button>
+            <button class="btn btn-ghost" style="width: 100%;" onclick="loadOllamaModels(true)">↻ Refresh Models</button>
           </div>
         </div>
         <div class="playground-main">
@@ -547,7 +547,7 @@
             <label style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
               <input type="checkbox" id="ollama-log-filter" checked> Ollama only
             </label>
-            <button class="btn btn-sm btn-ghost" onclick="refreshOllamaLogs()">↻ Refresh</button>
+            <button class="btn btn-sm btn-ghost" onclick="refreshOllamaLogs(true)">↻ Refresh</button>
           </div>
         </div>
         <pre class="code-block" id="ollama-logs" style="max-height: 250px; font-size: 0.78rem;">Loading...</pre>
@@ -611,7 +611,7 @@
         <h2>Local CLI Auth Management</h2>
         <div class="header-actions">
            <button class="btn btn-secondary" onclick="harvestLocalTokens()">🔄 Re-Scan Files</button>
-           <button class="btn btn-ghost" onclick="refreshLocalAuth()">↻ Refresh</button>
+           <button class="btn btn-ghost" onclick="refreshLocalAuth(true)">↻ Refresh</button>
         </div>
       </div>
 
