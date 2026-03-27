@@ -75,10 +75,13 @@ async function startDaemon() {
   });
 
   // ─── Security: Token auth hook ───────────────────────────────────
-  // Skip token check only for /health (so OmniRouteAI can probe without token setup)
+  // Skip token check only for public read endpoints (so OmniRouteAI can probe without token setup)
   app.addHook('onRequest', async (request, reply) => {
     if (request.method === 'OPTIONS') return;
-    if (request.url === '/health' || request.url === '/' || request.url === '/logs') return;
+    
+    // Evaluate base path without query parameters
+    const path = request.url.split('?')[0];
+    if (path === '/health' || path === '/' || path === '/logs') return;
 
     const tokenHeader = request.headers['x-local-token'];
     const isValid     = await validateToken(tokenHeader);
