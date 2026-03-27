@@ -217,6 +217,7 @@ const API = {
 
     const headers = {
       ...options.headers,
+      'ngrok-skip-browser-warning': 'true',
     };
 
     // Only set Content-Type to JSON if we are actually sending a body
@@ -387,6 +388,9 @@ const API = {
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         throw new Error('Cannot connect to local daemon. Is it running on port 5059?');
+      }
+      if (err.message.includes('502') || err.message.includes('Bad Gateway')) {
+        throw new Error('Local daemon bridge (ngrok) returned a 502 Bad Gateway. 💡 Try running "ngrok http 5059 --host-header=rewrite" and restart the daemon.');
       }
       throw err;
     }
