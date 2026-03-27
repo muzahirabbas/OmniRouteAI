@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial page load
   navigateTo('overview');
+  
+  // Refresh providers once early to populate dropdowns across all tabs
+  refreshProviders();
 
   // Health check on load
   checkHealth();
@@ -128,12 +131,17 @@ async function refreshProviders() {
 
   try {
     const data = await API.getProviders();
-    if (!data.providers?.length) {
+    const providers = data.providers || [];
+    
+    // Dynamically update all select dropdowns that list providers
+    syncProviderDropdowns(providers);
+
+    if (!providers.length) {
       container.innerHTML = '<div class="empty-state">No providers. Click "Seed Defaults" to add default providers.</div>';
       return;
     }
 
-    container.innerHTML = data.providers.map((p) => `
+    container.innerHTML = providers.map((p) => `
       <div class="provider-card">
         <div class="provider-header">
           <span class="provider-name">${p.name}</span>
@@ -177,6 +185,56 @@ async function refreshProviders() {
   } catch (err) {
     container.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
   }
+}
+
+/**
+ * Update all 4 selection dropdowns to match the current provider set.
+ */
+function syncProviderDropdowns(providers) {
+  const selects = [
+    'key-provider-select',
+    'key-view-provider',
+    'log-filter-provider',
+    'playground-provider'
+  ];
+
+  providers.sort((a, b) => a.name.localeCompare(b.name));
+
+  const cloudProviders = providers.filter(p => p.type !== 'local_http');
+  const localProviders = providers.filter(p => p.type === 'local_http');
+
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const currentValue = el.value;
+    let html = '';
+
+    // Specialized "Auto" or "All" options for specific select boxes
+    if (id === 'log-filter-provider') html += '<option value="">All Providers</option>';
+    if (id === 'playground-provider') html += '<option value="auto">Auto Router (All Providers)</option>';
+
+    if (cloudProviders.length) {
+      html += '<option disabled>── Cloud Providers ──</option>';
+      cloudProviders.forEach(p => {
+        html += `<option value="${p.name}">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</option>`;
+      });
+    }
+
+    if (localProviders.length) {
+      html += '<option disabled>── Local CLI Daemons ──</option>';
+      localProviders.forEach(p => {
+        html += `<option value="${p.name}">${p.name.split('_')[0].charAt(0).toUpperCase() + p.name.split('_')[0].slice(1)} CLI (Local)</option>`;
+      });
+    }
+
+    el.innerHTML = html;
+    
+    // Restore selection if it still exists
+    if ([...el.options].some(o => o.value === currentValue)) {
+      el.value = currentValue;
+    }
+  });
 }
 
 async function toggleProvider(name, disabled) {
