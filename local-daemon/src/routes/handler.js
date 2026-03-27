@@ -1,6 +1,7 @@
 import { buildArgs, spawnCLI, getExecutable } from '../spawner.js';
 import { getToolConfig } from '../config.js';
 import { log } from '../logger.js';
+import { tryDirectFetch } from '../oauth/directFetch.js';
 
 /**
  * Factory: creates a standardized Fastify route handler for a given CLI tool.
@@ -30,19 +31,55 @@ export function createToolRoute(toolName, providerName) {
     if (!toolConfig.enabled) {
       return reply.code(503).send({ error: `Tool '${toolName}' is disabled in config` });
     }
-    if (!toolConfig.command) {
-      return reply.code(503).send({ error: `Tool '${toolName}' has no command configured` });
-    }
 
     const {
       prompt,
       model,
       args: extraArgs = {},
       stream = false,
+      system_prompt,
     } = request.body;
 
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return reply.code(400).send({ error: 'prompt is required and must be a non-empty string' });
+    }
+
+    // ── DIRECT OAUTH FETCH ATTEMPT ─────────────────────────────────────
+    // If we have an OAuth session, try calling the API directly first.
+    // This is faster and supports native streaming.
+    if (toolName === 'claude' || toolName === 'gemini') {
+      const directResult = await tryDirectFetch(toolName, { prompt, model, stream, system_prompt }, (chunk) => {
+        if (stream) {
+          reply.raw.write(`data: ${JSON.stringify({ content: chunk, provider: providerName })}\n\n`);
+        }
+      });
+
+      if (directResult) {
+        if (stream) {
+          reply.raw.write(`data: ${JSON.stringify({
+            done: true,
+            provider: providerName,
+            model: model || 'default',
+            success: true
+          })}\n\n`);
+          reply.raw.write('data: [DONE]\n\n');
+          reply.raw.end();
+          return;
+        }
+        return {
+          output: directResult.output,
+          provider: providerName,
+          model: model || 'default',
+          tokens: directResult.tokens || { input: 0, output: 0 },
+          success: true,
+          method: 'direct-oauth'
+        };
+      }
+    }
+
+    // ── CLI FALLBACK ──────────────────────────────────────────────────
+    if (!toolConfig.command) {
+      return reply.code(503).send({ error: `Tool '${toolName}' has no command configured and OAuth direct fetch failed.` });
     }
 
     const cliArgs = buildArgs(toolName, prompt.trim(), model, extraArgs);

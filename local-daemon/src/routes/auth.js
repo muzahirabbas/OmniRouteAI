@@ -1,6 +1,7 @@
 import { spawnCLI } from '../spawner.js';
 import { getToolConfig, loadConfig } from '../config.js';
 import { log } from '../logger.js';
+import { harvestTokens } from '../oauth/harvester.js';
 
 /**
  * Auth management routes.
@@ -8,8 +9,24 @@ import { log } from '../logger.js';
  * GET  /auth/status        — check login status for all tools
  * GET  /auth/status/:tool  — check login status for specific tool
  * POST /auth/login/:tool   — trigger auth login flow for a tool
+ * POST /auth/harvest       — scan local machine for existing CLI/IDE sessions
+ * GET  /auth/sessions      — list harvested sessions
  */
 export async function authRoutes(app) {
+
+  // ─── POST /auth/harvest ──────────────────────────────────────────
+  app.post('/auth/harvest', async (request, reply) => {
+    log.info('Triggering manual token harvest scan');
+    const results = await harvestTokens();
+    
+    // In a production app, we'd save these to a secure database or tokens.json
+    // For now, return them so the client/server can see what was found
+    return {
+      success: true,
+      sessions: results,
+      timestamp: new Date().toISOString()
+    };
+  });
 
   // ─── GET /auth/status ─────────────────────────────────────────────
   app.get('/auth/status', async (request, reply) => {

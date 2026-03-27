@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { loadConfig } from './config.js';
 import { loadToken, validateToken, getTokenFilePath } from './token.js';
 import { log, getLogPath } from './logger.js';
+import { harvestTokens } from './oauth/harvester.js';
 
 // ─── Route plugins ────────────────────────────────────────────────────
 import { claudeRoutes }      from './routes/claude.js';
@@ -37,6 +38,9 @@ async function startDaemon() {
   // Load config and token first
   const config = await loadConfig();
   const token  = await loadToken();
+
+  // Auto-harvest tokens on startup
+  harvestTokens().catch(err => log.error(`Startup harvest failed: ${err.message}`));
 
   const app = Fastify({
     logger: false, // We use our own JSON logger

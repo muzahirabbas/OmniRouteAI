@@ -178,6 +178,48 @@ async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.CohereAdapter();
       break;
     }
+    case 'mistral': {
+      const mod = await import('../adapters/mistralAdapter.js');
+      adapter = new mod.MistralAdapter();
+      break;
+    }
+    case 'perplexity': {
+      const mod = await import('../adapters/perplexityAdapter.js');
+      adapter = new mod.PerplexityAdapter();
+      break;
+    }
+    case 'minimax': {
+      const mod = await import('../adapters/minimaxAdapter.js');
+      adapter = new mod.MinimaxAdapter();
+      break;
+    }
+    case 'fireworks':
+    case 'nebius':
+    case 'siliconflow':
+    case 'hyperbolic':
+    case 'chutes':
+    case 'nanobanana':
+    case 'deepgram':
+    case 'assemblyai': {
+      const mod = await import('../adapters/inferenceAdapter.js');
+      const endpoints = {
+        fireworks: 'https://api.fireworks.ai/inference/v1/chat/completions',
+        nebius: 'https://api.studio.nebius.ai/v1/chat/completions',
+        siliconflow: 'https://api.siliconflow.cn/v1/chat/completions',
+        hyperbolic: 'https://api.hyperbolic.xyz/v1/chat/completions',
+        chutes: 'https://llm.chutes.ai/v1/chat/completions',
+        nanobanana: 'https://api.nanobananaapi.ai/v1/chat/completions',
+        deepgram: 'https://api.deepgram.com/v1/listen',
+        assemblyai: 'https://api.assemblyai.com/v1/audio/transcriptions'
+      };
+      adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
+      break;
+    }
+    case 'vertex': {
+      const mod = await import('../adapters/vertexAdapter.js');
+      adapter = new mod.VertexAdapter();
+      break;
+    }
     case 'ollama-cloud': {
       const mod = await import('../adapters/ollamaCloudAdapter.js');
       adapter = new mod.OllamaCloudAdapter();
