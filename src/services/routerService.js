@@ -98,7 +98,8 @@ async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.CloudflareAdapter();
       break;
     }
-    case 'openai': {
+    case 'openai':
+    case 'glm': {
       const mod = await import('../adapters/openaiAdapter.js');
       adapter = new mod.OpenAIAdapter();
       break;

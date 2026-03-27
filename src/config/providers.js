@@ -232,6 +232,123 @@ export const STATIC_PROVIDERS = [
     models: ['command-r-08-2024', 'command-r-plus-08-2024'],
     rpmLimit: 40
   },
+  {
+    name: 'mistral',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.mistral.ai/v1/chat/completions',
+    models: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
+    rpmLimit: 30
+  },
+  {
+    name: 'perplexity',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.perplexity.ai/chat/completions',
+    models: ['sonar-deep-research', 'sonar-pro', 'sonar'],
+    rpmLimit: 50
+  },
+  {
+    name: 'minimax',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.minimax.chat/v1/text_chat',
+    models: ['abab7-chat', 'abab6.5-chat'],
+    rpmLimit: 20
+  },
+  {
+    name: 'fireworks',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions',
+    models: ['f1-preview', 'llama-v3p1-405b-instruct'],
+    rpmLimit: 30
+  },
+  {
+    name: 'nebius',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.studio.nebius.ai/v1/chat/completions',
+    models: ['meta-llama/Meta-Llama-3.1-405B-Instruct'],
+    rpmLimit: 50
+  },
+  {
+    name: 'siliconflow',
+    priority: 2,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.siliconflow.cn/v1/chat/completions',
+    models: ['deepseek-v3', 'deepseek-r1'],
+    rpmLimit: 100
+  },
+  {
+    name: 'hyperbolic',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.hyperbolic.xyz/v1/chat/completions',
+    models: ['deepseek-v3', 'llama-3.1-405b'],
+    rpmLimit: 50
+  },
+  {
+    name: 'chutes',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://llm.chutes.ai/v1/chat/completions',
+    models: ['llama-3.1-405b-instruct'],
+    rpmLimit: 30
+  },
+  {
+    name: 'nanobanana',
+    priority: 4,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.nanobananaapi.ai/v1/chat/completions',
+    models: ['default'],
+    rpmLimit: 50
+  },
+  {
+    name: 'deepgram',
+    priority: 5,
+    weight: 1,
+    status: 'active',
+    endpoint: 'https://api.deepgram.com/v1/listen',
+    models: ['default'],
+    rpmLimit: 100
+  },
+  {
+    name: 'assemblyai',
+    priority: 5,
+    weight: 1,
+    status: 'active',
+    endpoint: 'https://api.assemblyai.com/v1/audio/transcriptions',
+    models: ['default'],
+    rpmLimit: 100
+  },
+  {
+    name: 'vertex',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://us-central1-aiplatform.googleapis.com/v1/projects/',
+    models: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+    rpmLimit: 20
+  },
+  {
+    name: 'glm',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models: ['glm-4-plus', 'glm-4-flash', 'glm-4v-plus'],
+    rpmLimit: 30
+  },
   // ─── Local CLI Daemon providers (type: local_http) ───────────────
   // Served by OmniRouteAI-Local daemon on http://localhost:5059
   // Enable via Firestore by setting status: 'active'
