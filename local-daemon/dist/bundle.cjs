@@ -38005,7 +38005,7 @@ async function harvestCodex() {
   if (!(0, import_node_fs7.existsSync)(p)) return null;
   try {
     const data = JSON.parse(await (0, import_promises7.readFile)(p, "utf8"));
-    const key = data.apiKey || data.openAiApiKey || data.token;
+    const key = data.apiKey || data.openAiApiKey || data.token || data.tokens?.access_token || data.tokens?.token;
     if (key) return { accessToken: key, source: "codex-cli" };
   } catch {
   }
@@ -38979,7 +38979,8 @@ async function startDeviceFlow(tool) {
         deviceCode: data.device_code,
         userCode: data.user_code,
         verificationUrl: data.verification_uri,
-        interval: (data.interval || 5) * 1e3,
+        interval: Math.max(data.interval || 5, 5) * 1e3,
+        // Safe minimum 5s
         expiresAt: Date.now() + data.expires_in * 1e3
       };
       activeDeviceFlows.set(tool, session);
@@ -39279,7 +39280,7 @@ async function openOAuthBrowser(tool, redirectUri) {
     const params = new URLSearchParams({
       loginMethod: "phone",
       type: "phone",
-      redirect: redirectUri,
+      redirect_uri: redirectUri,
       state,
       client_id: IFLOW_CONFIG.clientId
     });

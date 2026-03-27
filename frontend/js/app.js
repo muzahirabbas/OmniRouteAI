@@ -1115,7 +1115,7 @@ async function handleWebLogin(tool) {
       document.getElementById('modal-device-flow').classList.add('active');
       
       if (window._deviceFlowPolling) clearInterval(window._deviceFlowPolling);
-      window._deviceFlowPolling = setInterval(() => pollDeviceLogin(tool), flow.interval || 3000);
+      window._deviceFlowPolling = setInterval(() => pollDeviceLogin(tool), flow.interval || 5000);
       
     } else if (flow.method === 'sqlite-import') {
       if (flow.success) {

@@ -98,7 +98,7 @@ export async function openOAuthBrowser(tool, redirectUri) {
     const params = new URLSearchParams({
       loginMethod: "phone",
       type: "phone",
-      redirect: redirectUri,
+      redirect_uri: redirectUri,
       state: state,
       client_id: IFLOW_CONFIG.clientId,
     });

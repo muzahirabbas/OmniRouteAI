@@ -1,14 +1,8 @@
 @echo off
 TITLE OmniRouteAI - Local Daemon ^& Ngrok 
 
-echo [1/2] Compiling the Fastify Background Server...
-if not exist dist\OmniRouteAI-Local.exe (
-    echo Building the daemon executable first...
-    call npm run build:win
-)
-
-echo [2/2] Starting the OmniRouteAI Local Daemon in the background...
-start /B dist\OmniRouteAI-Local.exe
+echo Starting the OmniRouteAI Local Daemon in the background...
+start /B node src/main.js
 
 echo.
 echo =========================================================

@@ -268,7 +268,10 @@ async function harvestCodex() {
   if (!existsSync(p)) return null;
   try {
     const data = JSON.parse(await readFile(p, 'utf8'));
-    const key = data.apiKey || data.openAiApiKey || data.token;
+    // Support both root-level tokens and nested tokens object (new CLI format)
+    const key = data.apiKey || data.openAiApiKey || data.token || 
+                data.tokens?.access_token || data.tokens?.token;
+    
     if (key) return { accessToken: key, source: 'codex-cli' };
   } catch {}
   return null;

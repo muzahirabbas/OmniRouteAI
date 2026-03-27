@@ -66,7 +66,7 @@ export async function startDeviceFlow(tool) {
         deviceCode: data.device_code,
         userCode: data.user_code,
         verificationUrl: data.verification_uri,
-        interval: (data.interval || 5) * 1000,
+        interval: Math.max(data.interval || 5, 5) * 1000, // Safe minimum 5s
         expiresAt: Date.now() + (data.expires_in * 1000),
       };
       activeDeviceFlows.set(tool, session);

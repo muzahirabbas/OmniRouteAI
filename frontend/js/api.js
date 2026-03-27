@@ -104,6 +104,24 @@ async function decryptData(encryptedDataBase64, passphrase) {
 
 // ─── API Client ────────────────────────────────────────────────────────
 
+// Fast session cache to prevent redundant UI reloading when switching tabs
+const AppCache = {
+  data: new Map(),
+  get(key) {
+    const entry = this.data.get(key);
+    if (entry && (Date.now() - entry.time < 300000)) { // 5-minute TTL
+      return JSON.parse(JSON.stringify(entry.payload));
+    }
+    return null;
+  },
+  set(key, payload) {
+    this.data.set(key, { time: Date.now(), payload: JSON.parse(JSON.stringify(payload)) });
+  },
+  clear() {
+    this.data.clear();
+  }
+};
+
 const API = {
   /**
    * Get the configured backend URL.
@@ -147,6 +165,13 @@ const API = {
     }
     
     return plainKey || '';
+  },
+
+  /**
+   * Clear all active caches to force refresh
+   */
+  clearCache() {
+    AppCache.clear();
   },
 
   /**
@@ -230,6 +255,16 @@ const API = {
 
     const url = `${base}${path}`;
 
+    const isGet = (!options.method || options.method === 'GET');
+    const cacheKey = isGet ? `${base}${path}?${JSON.stringify(options.body || '')}` : null;
+
+    if (!isGet) {
+       AppCache.clear(); // Any mutation invalidates all cached views
+    } else if (!options.forceRefresh && cacheKey) {
+       const cached = AppCache.get(cacheKey);
+       if (cached) return cached;
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -241,7 +276,9 @@ const API = {
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
-      return await response.json();
+      const payload = await response.json();
+      if (isGet && cacheKey) AppCache.set(cacheKey, payload);
+      return payload;
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         throw new Error('Cannot connect to backend. Check your API URL in Settings.');
@@ -252,18 +289,18 @@ const API = {
 
   // ─── Health & Overview ─────────────────────────────────────────────
 
-  async getHealth() {
-    return this.request('/api/admin/health');
+  async getHealth(opts = {}) {
+    return this.request('/api/admin/health', opts);
   },
 
-  async getOverview() {
-    return this.request('/api/admin/overview');
+  async getOverview(opts = {}) {
+    return this.request('/api/admin/overview', opts);
   },
 
   // ─── Providers ─────────────────────────────────────────────────────
 
-  async getProviders() {
-    return this.request('/api/admin/providers');
+  async getProviders(opts = {}) {
+    return this.request('/api/admin/providers', opts);
   },
 
   async updateProvider(name, data) {
@@ -286,8 +323,8 @@ const API = {
 
   // ─── API Keys ──────────────────────────────────────────────────────
 
-  async getKeys(provider) {
-    return this.request(`/api/admin/keys/${provider}`);
+  async getKeys(provider, opts = {}) {
+    return this.request(`/api/admin/keys/${provider}`, opts);
   },
 
   async addKey(provider, key) {
@@ -318,7 +355,7 @@ const API = {
     if (opts.provider) params.set('provider', opts.provider);
     if (opts.status) params.set('status', opts.status);
 
-    return this.request(`/api/admin/logs?${params.toString()}`);
+    return this.request(`/api/admin/logs?${params.toString()}`, opts);
   },
 
   async flushLogs() {
@@ -327,12 +364,12 @@ const API = {
 
   // ─── Stats ─────────────────────────────────────────────────────────
 
-  async getStats() {
-    return this.request('/api/admin/stats');
+  async getStats(opts = {}) {
+    return this.request('/api/admin/stats', opts);
   },
 
-  async getStatsHistory(days = 7) {
-    return this.request(`/api/admin/stats/history?days=${days}`);
+  async getStatsHistory(days = 7, opts = {}) {
+    return this.request(`/api/admin/stats/history?days=${days}`, opts);
   },
 
   async aggregateStats() {
@@ -372,6 +409,16 @@ const API = {
 
     const url = `${base}${path}`;
 
+    const isGet = (!options.method || options.method === 'GET');
+    const cacheKey = isGet ? `${base}${path}?${JSON.stringify(options.body || '')}` : null;
+
+    if (!isGet) {
+       AppCache.clear();
+    } else if (!options.forceRefresh && cacheKey) {
+       const cached = AppCache.get(cacheKey);
+       if (cached) return cached;
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -383,7 +430,9 @@ const API = {
         throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
 
-      return await response.json();
+      const payload = await response.json();
+      if (isGet && cacheKey) AppCache.set(cacheKey, payload);
+      return payload;
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         throw new Error('Cannot connect to local daemon. Is it running on port 5059?');
