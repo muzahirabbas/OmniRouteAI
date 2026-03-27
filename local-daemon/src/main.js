@@ -208,7 +208,7 @@ async function startDaemon() {
 
   // ─── Start server ────────────────────────────────────────────────
   const port = config.port || 5059;
-  const host = config.host || '127.0.0.1'; // ALWAYS localhost only
+  const host = '0.0.0.0'; // Bind to all interfaces to avoid IPv4/v6 host mismatch on Windows
 
   try {
     await app.listen({ port, host });
