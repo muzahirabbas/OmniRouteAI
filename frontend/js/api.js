@@ -217,7 +217,6 @@ const API = {
 
     const headers = {
       ...options.headers,
-      'ngrok-skip-browser-warning': 'true',
     };
 
     // Only set Content-Type to JSON if we are actually sending a body
