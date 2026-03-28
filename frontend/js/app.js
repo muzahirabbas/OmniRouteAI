@@ -133,6 +133,7 @@ async function refreshProviders(force = false) {
   try {
     const data = await API.getProviders({ forceRefresh: force });
     const providers = data.providers || [];
+    window.allProviders = providers;
     
     // Dynamically update all select dropdowns that list providers
     syncProviderDropdowns(providers);
@@ -245,6 +246,50 @@ async function toggleProvider(name, disabled) {
     refreshProviders();
   } catch (err) {
     showToast('error', err.message);
+  }
+}
+
+/**
+ * Populate the playground model selector based on the selected provider.
+ */
+function updatePlaygroundModels(providerName) {
+  const modelSelect = document.getElementById('playground-model-select');
+  const inputGroup = document.getElementById('playground-model-input-group');
+  if (!modelSelect) return;
+
+  // Clear current options
+  modelSelect.innerHTML = '<option value="auto">Auto/Default</option>';
+
+  if (providerName !== 'auto' && window.allProviders) {
+    const provider = window.allProviders.find(p => p.name === providerName);
+    if (provider && provider.models && provider.models.length) {
+      provider.models.sort().forEach(m => {
+        modelSelect.innerHTML += `<option value="${m}">${m}</option>`;
+      });
+    }
+  }
+
+  // Always add custom option
+  modelSelect.innerHTML += '<option value="custom">Custom...</option>';
+
+  // Reset to auto and hide input group
+  modelSelect.value = 'auto';
+  if (inputGroup) inputGroup.style.display = 'none';
+}
+
+/**
+ * Handle model select changes (show/hide custom input).
+ */
+function handlePlaygroundModelChange() {
+  const modelSelect = document.getElementById('playground-model-select');
+  const inputGroup = document.getElementById('playground-model-input-group');
+  if (!modelSelect || !inputGroup) return;
+
+  if (modelSelect.value === 'custom') {
+    inputGroup.style.display = 'block';
+    document.getElementById('playground-model').focus();
+  } else {
+    inputGroup.style.display = 'none';
   }
 }
 
@@ -985,10 +1030,19 @@ async function sendMessage() {
 
   try {
     const providerSelector = document.getElementById('playground-provider');
-    const modelInput       = document.getElementById('playground-model');
+    const modelSelector    = document.getElementById('playground-model-select');
+    const customModelInput = document.getElementById('playground-model');
     
     const provider = providerSelector ? providerSelector.value : 'auto';
-    const model    = modelInput ? modelInput.value.trim() : 'auto';
+    let model = 'auto';
+
+    if (modelSelector) {
+        if (modelSelector.value === 'custom') {
+            model = customModelInput ? customModelInput.value.trim() : 'auto';
+        } else {
+            model = modelSelector.value;
+        }
+    }
 
     const payload = { prompt };
     if (model && model !== 'auto') payload.model = model;

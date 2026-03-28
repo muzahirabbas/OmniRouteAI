@@ -284,14 +284,22 @@
              <h3>Configuration</h3>
              <div class="form-group">
                 <label class="form-label">Target Provider</label>
-                <select id="playground-provider" class="input">
+                <select id="playground-provider" class="input" onchange="updatePlaygroundModels(this.value)">
                    <option value="auto">Auto Router (All Providers)</option>
                    <!-- Dynamically populated -->
                 </select>
              </div>
              <div class="form-group">
-                <label class="form-label">Model Override</label>
-                <input type="text" id="playground-model" class="input" placeholder="auto">
+                <label class="form-label">Model</label>
+                <select id="playground-model-select" class="input" onchange="handlePlaygroundModelChange()">
+                   <option value="auto">Auto/Default</option>
+                   <option value="custom">Custom...</option>
+                </select>
+             </div>
+             <div class="form-group" id="playground-model-input-group" style="display: none;">
+                <label class="form-label">Custom Model String</label>
+                <input type="text" id="playground-model" class="input" placeholder="e.g. gpt-4-turbo">
+                <small class="form-hint">Type any specific model name supported by the provider.</small>
              </div>
              <button class="btn btn-ghost" style="width: 100%;" onclick="clearChat()">Clear Window</button>
           </div>
