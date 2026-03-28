@@ -99,6 +99,12 @@ export async function waitForResult(jobId, timeout = 30000) {
       reason = reason || 'Job failed';
       const err = new Error(reason);
 
+      // Extract provider if the string matches the [providerName] format thrown by ProviderError
+      const providerMatch = reason.match(/^\[(.*?)\]/);
+      if (providerMatch) {
+        err.provider = providerMatch[1];
+      }
+
       // Reconstruct known error types for correct HTTP status mapping in API
       if (reason.includes('All providers and keys exhausted')) {
         err.name = 'AllProvidersExhaustedError';

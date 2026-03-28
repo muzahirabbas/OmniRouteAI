@@ -209,7 +209,7 @@ export async function chatRoutes(app) {
 
       logRequest({
         request_id: requestId,
-        provider:   err.providerName || 'unknown',
+        provider:   err.provider || 'unknown',
         model:      err.model || model || 'unknown',
         key:        'unknown',
         latency,
