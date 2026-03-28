@@ -548,14 +548,41 @@ export async function adminRoutes(app) {
   // Seed static providers to Firestore
   app.post('/api/admin/seed-providers', async () => {
     const db = getDb();
+    const staticProviderNames = STATIC_PROVIDERS.map(p => p.name);
 
+    // 1. Fetch current providers from DB
+    const snapshot = await db.collection('providers').get();
+    const dbProviderNames = snapshot.docs.map(doc => doc.id);
+
+    // 2. Identify and delete stale providers (in DB but not in Static)
+    const toDelete = dbProviderNames.filter(name => !staticProviderNames.includes(name));
+    for (const name of toDelete) {
+      await db.collection('providers').doc(name).delete();
+      console.log(`Deleted stale provider: ${name}`);
+
+      // Optional: Cleanup associated API keys
+      const keysSnapshot = await db.collection('api_keys').where('provider', '==', name).get();
+      if (!keysSnapshot.empty) {
+        const batch = db.batch();
+        keysSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        console.log(`Cleaned up keys for provider: ${name}`);
+      }
+    }
+
+    // 3. Upsert current static providers
     for (const provider of STATIC_PROVIDERS) {
       await db.collection('providers').doc(provider.name).set(provider, { merge: true });
     }
 
+    // 4. Invalidate cache
     await del('providers:list');
 
-    return { success: true, seeded: STATIC_PROVIDERS.length };
+    return {
+      success: true,
+      seeded: STATIC_PROVIDERS.length,
+      deleted: toDelete.length
+    };
   });
 }
 

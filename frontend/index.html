@@ -127,56 +127,8 @@
       <div class="card">
         <div class="form-row">
           <select id="key-provider-select" class="input">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google</option>
-            <option value="xai">xAI</option>
-            <option value="alibaba">Alibaba</option>
-            <option value="ollama-cloud">Ollama (Cloud API)</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="groq">Groq</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="moonshot">Moonshot</option>
-            <option value="together">Together AI</option>
-            <option value="nvidia">NVIDIA</option>
-            <option value="cloudflare">Cloudflare</option>
-            <option value="inception">Inception Labs</option>
-            <option value="xiaomi">Xiaomi (MiMo)</option>
-            <option value="huggingface">Hugging Face</option>
-            <option value="sambanova">SambaNova</option>
-            <option value="cerebras">Cerebras</option>
-            <option value="cohere">Cohere</option>
-            <option value="mistral">Mistral</option>
-            <option value="perplexity">Perplexity</option>
-            <option value="minimax">Minimax</option>
-            <option value="fireworks">Fireworks</option>
-            <option value="nebius">Nebius</option>
-            <option value="siliconflow">SiliconFlow</option>
-            <option value="hyperbolic">Hyperbolic</option>
-            <option value="chutes">Chutes</option>
-            <option value="nanobanana">NanoBanana</option>
-            <option value="deepgram">Deepgram</option>
-            <option value="assemblyai">AssemblyAI</option>
-            <option value="vertex">Vertex AI</option>
-            <option value="glm">GLM (Zhipu)</option>
-            <option disabled>── Local CLI Daemons ──</option>
-            <option value="claude_cli_local">Claude CLI (Local)</option>
-            <option value="gemini_cli_local">Gemini CLI (Local)</option>
-            <option value="qwen_cli_local">Qwen Code CLI (Local)</option>
-            <option value="antigravity_cli_local">Antigravity CLI (Local)</option>
-            <option value="kilo_cli_local">Kilo AI CLI (Local)</option>
-            <option value="opencode_cli_local">OpenCode CLI (Local)</option>
-            <option value="codex_cli_local">Codex CLI (Local)</option>
-            <option value="iflow_cli_local">iFlow CLI (Local)</option>
-            <option value="cursor_cli_local">Cursor CLI (Local)</option>
-            <option value="kiro_cli_local">Kiro AI CLI (Local)</option>
-            <option value="grok_cli_local">Grok CLI (Local)</option>
-            <option value="zai_cli_local">Zai CLI (Local)</option>
-            <option value="cline_cli_local">Cline CLI (Local)</option>
-            <option value="kimi_cli_local">Kimi CLI (Local)</option>
-            <option value="ollama">Ollama (Direct Local)</option>
-            <option value="ollama_local_bridge">Ollama Bridge (Local)</option>
-            <option value="copilot_cli_local">GitHub Copilot CLI (Local)</option>
+            <option value="" disabled selected>Select provider...</option>
+            <!-- Dynamically populated -->
           </select>
           <input type="text" id="key-input" class="input" placeholder="Paste API key here...">
           <button class="btn btn-primary" onclick="addKey()">+ Add Key</button>
@@ -185,56 +137,8 @@
       <div class="card" style="margin-top: 1rem;">
         <div class="form-row" style="margin-bottom: 1rem;">
           <select id="key-view-provider" class="input" onchange="refreshKeys()">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google</option>
-            <option value="xai">xAI</option>
-            <option value="alibaba">Alibaba</option>
-            <option value="ollama-cloud">Ollama (Cloud API)</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="groq">Groq</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="moonshot">Moonshot</option>
-            <option value="together">Together AI</option>
-            <option value="nvidia">NVIDIA</option>
-            <option value="cloudflare">Cloudflare</option>
-            <option value="inception">Inception Labs</option>
-            <option value="xiaomi">Xiaomi (MiMo)</option>
-            <option value="huggingface">Hugging Face</option>
-            <option value="sambanova">SambaNova</option>
-            <option value="cerebras">Cerebras</option>
-            <option value="cohere">Cohere</option>
-            <option value="mistral">Mistral</option>
-            <option value="perplexity">Perplexity</option>
-            <option value="minimax">Minimax</option>
-            <option value="fireworks">Fireworks</option>
-            <option value="nebius">Nebius</option>
-            <option value="siliconflow">SiliconFlow</option>
-            <option value="hyperbolic">Hyperbolic</option>
-            <option value="chutes">Chutes</option>
-            <option value="nanobanana">NanoBanana</option>
-            <option value="deepgram">Deepgram</option>
-            <option value="assemblyai">AssemblyAI</option>
-            <option value="vertex">Vertex AI</option>
-            <option value="glm">GLM (Zhipu)</option>
-            <option disabled>── Local CLI Daemons ──</option>
-            <option value="claude_cli_local">Claude CLI (Local)</option>
-            <option value="gemini_cli_local">Gemini CLI (Local)</option>
-            <option value="qwen_cli_local">Qwen Code CLI (Local)</option>
-            <option value="antigravity_cli_local">Antigravity CLI (Local)</option>
-            <option value="kilo_cli_local">Kilo AI CLI (Local)</option>
-            <option value="opencode_cli_local">OpenCode CLI (Local)</option>
-            <option value="codex_cli_local">Codex CLI (Local)</option>
-            <option value="iflow_cli_local">iFlow CLI (Local)</option>
-            <option value="cursor_cli_local">Cursor CLI (Local)</option>
-            <option value="kiro_cli_local">Kiro AI CLI (Local)</option>
-            <option value="grok_cli_local">Grok CLI (Local)</option>
-            <option value="zai_cli_local">Zai CLI (Local)</option>
-            <option value="cline_cli_local">Cline CLI (Local)</option>
-            <option value="kimi_cli_local">Kimi CLI (Local)</option>
-            <option value="ollama">Ollama (Direct Local)</option>
-            <option value="ollama_local_bridge">Ollama Bridge (Local)</option>
-            <option value="copilot_cli_local">GitHub Copilot CLI (Local)</option>
+            <option value="" disabled selected>Filter by provider...</option>
+            <!-- Dynamically populated -->
           </select>
         </div>
         <div class="table-container">
@@ -270,56 +174,7 @@
         <div class="form-row" style="margin-bottom: 1rem;">
           <select id="log-filter-provider" class="input" onchange="refreshLogs()">
             <option value="">All Providers</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google</option>
-            <option value="xai">xAI</option>
-            <option value="alibaba">Alibaba</option>
-            <option value="ollama-cloud">Ollama (Cloud API)</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="groq">Groq</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="moonshot">Moonshot</option>
-            <option value="together">Together AI</option>
-            <option value="nvidia">NVIDIA</option>
-            <option value="cloudflare">Cloudflare</option>
-            <option value="inception">Inception Labs</option>
-            <option value="xiaomi">Xiaomi (MiMo)</option>
-            <option value="huggingface">Hugging Face</option>
-            <option value="sambanova">SambaNova</option>
-            <option value="cerebras">Cerebras</option>
-            <option value="cohere">Cohere</option>
-            <option value="mistral">Mistral</option>
-            <option value="perplexity">Perplexity</option>
-            <option value="minimax">Minimax</option>
-            <option value="fireworks">Fireworks</option>
-            <option value="nebius">Nebius</option>
-            <option value="siliconflow">SiliconFlow</option>
-            <option value="hyperbolic">Hyperbolic</option>
-            <option value="chutes">Chutes</option>
-            <option value="nanobanana">NanoBanana</option>
-            <option value="deepgram">Deepgram</option>
-            <option value="assemblyai">AssemblyAI</option>
-            <option value="vertex">Vertex AI</option>
-            <option value="glm">GLM (Zhipu)</option>
-            <option disabled>── Local CLI Daemons ──</option>
-            <option value="claude_cli_local">Claude CLI (Local)</option>
-            <option value="gemini_cli_local">Gemini CLI (Local)</option>
-            <option value="qwen_cli_local">Qwen Code CLI (Local)</option>
-            <option value="antigravity_cli_local">Antigravity CLI (Local)</option>
-            <option value="kilo_cli_local">Kilo AI CLI (Local)</option>
-            <option value="opencode_cli_local">OpenCode CLI (Local)</option>
-            <option value="codex_cli_local">Codex CLI (Local)</option>
-            <option value="iflow_cli_local">iFlow CLI (Local)</option>
-            <option value="cursor_cli_local">Cursor CLI (Local)</option>
-            <option value="kiro_cli_local">Kiro AI CLI (Local)</option>
-            <option value="grok_cli_local">Grok CLI (Local)</option>
-            <option value="zai_cli_local">Zai CLI (Local)</option>
-            <option value="cline_cli_local">Cline CLI (Local)</option>
-            <option value="kimi_cli_local">Kimi CLI (Local)</option>
-            <option value="ollama">Ollama (Direct Local)</option>
-            <option value="ollama_local_bridge">Ollama Bridge (Local)</option>
-            <option value="copilot_cli_local">GitHub Copilot CLI (Local)</option>
+            <!-- Dynamically populated -->
           </select>
           <select id="log-filter-status" class="input" onchange="refreshLogs()">
             <option value="">All Statuses</option>
@@ -431,57 +286,7 @@
                 <label class="form-label">Target Provider</label>
                 <select id="playground-provider" class="input">
                    <option value="auto">Auto Router (All Providers)</option>
-                   <option disabled>── Cloud Providers ──</option>
-                   <option value="openai">OpenAI</option>
-                   <option value="anthropic">Anthropic</option>
-                   <option value="google">Google Gemini</option>
-                   <option value="xai">xAI (Grok)</option>
-                   <option value="alibaba">Alibaba (Qwen)</option>
-                   <option value="ollama-cloud">Ollama (Cloud API)</option>
-                   <option value="openrouter">OpenRouter</option>
-                   <option value="groq">Groq</option>
-                   <option value="deepseek">DeepSeek</option>
-                   <option value="moonshot">Moonshot</option>
-                   <option value="together">Together AI</option>
-                   <option value="nvidia">NVIDIA</option>
-                   <option value="cloudflare">Cloudflare</option>
-                   <option value="inception">Inception Labs</option>
-                   <option value="xiaomi">Xiaomi (MiMo)</option>
-                   <option value="huggingface">Hugging Face</option>
-                   <option value="sambanova">SambaNova</option>
-                   <option value="cerebras">Cerebras</option>
-                   <option value="cohere">Cohere</option>
-                   <option value="mistral">Mistral</option>
-                   <option value="perplexity">Perplexity</option>
-                   <option value="minimax">Minimax</option>
-                   <option value="fireworks">Fireworks</option>
-                   <option value="nebius">Nebius</option>
-                   <option value="siliconflow">SiliconFlow</option>
-                   <option value="hyperbolic">Hyperbolic</option>
-                   <option value="chutes">Chutes</option>
-                   <option value="nanobanana">NanoBanana</option>
-                   <option value="deepgram">Deepgram</option>
-                   <option value="assemblyai">AssemblyAI</option>
-                   <option value="vertex">Vertex AI</option>
-                   <option value="glm">GLM (Zhipu)</option>
-                   <option disabled>── Local CLI Daemons ──</option>
-                   <option value="claude_cli_local">Claude CLI (Local)</option>
-                   <option value="gemini_cli_local">Gemini CLI (Local)</option>
-                   <option value="qwen_cli_local">Qwen Code CLI (Local)</option>
-                   <option value="antigravity_cli_local">Antigravity CLI (Local)</option>
-                   <option value="kilo_cli_local">Kilo AI CLI (Local)</option>
-                   <option value="opencode_cli_local">OpenCode CLI (Local)</option>
-                   <option value="codex_cli_local">Codex CLI (Local)</option>
-                   <option value="iflow_cli_local">iFlow CLI (Local)</option>
-                   <option value="cursor_cli_local">Cursor CLI (Local)</option>
-                   <option value="kiro_cli_local">Kiro AI CLI (Local)</option>
-                   <option value="grok_cli_local">Grok CLI (Local)</option>
-                   <option value="zai_cli_local">Zai CLI (Local)</option>
-                   <option value="cline_cli_local">Cline CLI (Local)</option>
-                   <option value="kimi_cli_local">Kimi CLI (Local)</option>
-                   <option value="ollama">Ollama (Direct Local)</option>
-                   <option value="ollama_local_bridge">Ollama Bridge (Local)</option>
-                   <option value="copilot_cli_local">GitHub Copilot CLI (Local)</option>
+                   <!-- Dynamically populated -->
                 </select>
              </div>
              <div class="form-group">
