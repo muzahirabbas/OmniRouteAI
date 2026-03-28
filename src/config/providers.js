@@ -46,7 +46,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.x.ai/v1/chat/completions',
     models: [
-      'grok-2-1212', 'grok-2-mini-1212', 'grok-beta'
+      'grok-4.20-reasoning', 'grok-4.1-fast-reasoning', 'grok-2'
     ],
     rpmLimit: 20
   },
@@ -57,12 +57,10 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
     models: [
-      'google/gemini-2.0-flash-001:free',
-      'google/gemini-2.0-pro-exp-02-05:free',
-      'nvidia/llama-3.1-nemotron-70b-instruct:free',
       'meta-llama/llama-3.3-70b-instruct:free',
-      'mistralai/pixtral-12b:free',
-      'microsoft/phi-3-medium-128k-instruct:free',
+      'mistralai/mistral-small-24b-instruct-2501:free',
+      'google/gemini-2.0-pro-exp-02-05:free',
+      'microsoft/phi-4:free',
       'openrouter/auto'
     ],
     rpmLimit: 100
@@ -118,7 +116,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions',
     models: [
-      'accounts/fireworks/models/f1-preview', 'accounts/fireworks/models/llama-v3p1-8b-instruct'
+      'f1-preview', 'accounts/fireworks/models/llama-v3p3-70b-instruct'
     ],
     rpmLimit: 30
   },
@@ -140,7 +138,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://llm.chutes.ai/v1/chat/completions',
     models: [
-      'meta-llama/Meta-Llama-3.1-8B-Instruct'
+      'llama-3.1-8b', 'meta-llama-3.1-8b-instruct'
     ],
     rpmLimit: 30
   },
@@ -162,7 +160,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.mimo.xiaomi.com/v1/chat/completions',
     models: [
-      'MiMo-V2-Pro', 'MiMo-V2-Omni', 'MiMo-V2-Flash'
+      'mimo-v2-pro', 'MiMo-V2-Flash', 'mimo-v2-omni'
     ],
     rpmLimit: 50
   },
@@ -173,7 +171,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://ollama.com/api',
     models: [
-      'llama3.2', 'phi4', 'qwen2.5'
+      'llama3.2:1b', 'qwen2.5:cloud', 'llama3.2:3b'
     ],
     rpmLimit: 50
   },
