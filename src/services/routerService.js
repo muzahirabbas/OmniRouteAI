@@ -479,6 +479,7 @@ export async function routeAndExecute(prompt, opts = {}) {
       // Ensure the error carries provider/model metadata for the background worker
       // even if it was thrown by a generic adapter or with incorrect model info
       if (err instanceof ProviderError) {
+        err.provider = provider.name;
         err.model = model;
         // Re-construct the message to ensure prefix includes the resolved model
         const originalMessage = err.message.includes('] ') ? err.message.split('] ')[1] : err.message;

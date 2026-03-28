@@ -151,11 +151,37 @@ export async function chatRoutes(app) {
           onError: (err) => {
             reply.raw.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
             reply.raw.end();
+
+            // Log streaming error
+            const latency = Date.now() - startTime;
+            logRequest({
+              request_id: requestId,
+              provider:   err.provider || providerOverride || 'unknown',
+              model:      err.model || model || 'unknown',
+              key:        'unknown',
+              latency,
+              tokens:     { input: 0, output: 0 },
+              status:     'error',
+              error:      err.message,
+            }).catch(() => {});
           },
         });
       } catch (err) {
         reply.raw.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
         reply.raw.end();
+        
+        // Log top-level streaming catch error
+        const latency = Date.now() - startTime;
+        logRequest({
+          request_id: requestId,
+          provider:   err.provider || providerOverride || 'unknown',
+          model:      err.model || model || 'unknown',
+          key:        'unknown',
+          latency,
+          tokens:     { input: 0, output: 0 },
+          status:     'error',
+          error:      err.message,
+        }).catch(() => {});
       }
 
       return; // Response already sent via raw stream
@@ -209,7 +235,7 @@ export async function chatRoutes(app) {
 
       logRequest({
         request_id: requestId,
-        provider:   err.provider || 'unknown',
+        provider:   err.provider || providerOverride || 'unknown',
         model:      err.model || model || 'unknown',
         key:        'unknown',
         latency,

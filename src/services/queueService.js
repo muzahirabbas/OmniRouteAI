@@ -100,7 +100,7 @@ export async function waitForResult(jobId, timeout = 30000) {
       const err = new Error(reason);
 
       // Extract provider and model if the string matches the [provider|model] format thrown by ProviderError
-      const metadataMatch = reason.match(/^\[(.*?)\|(.*?)\]/);
+      const metadataMatch = reason.match(/\[(.*?)\|(.*?)\]/);
       if (metadataMatch) {
         err.provider = metadataMatch[1];
         err.model    = metadataMatch[2];
