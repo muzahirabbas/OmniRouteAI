@@ -3,10 +3,11 @@
  */
 
 export class ProviderError extends Error {
-  constructor(provider, message, statusCode = 502, cause = null) {
-    super(`[${provider}] ${message}`);
+  constructor(provider, message, statusCode = 502, model = 'unknown', cause = null) {
+    super(`[${provider}|${model}] ${message}`);
     this.name = 'ProviderError';
     this.provider = provider;
+    this.model = model;
     this.statusCode = statusCode;
     this.cause = cause;
   }

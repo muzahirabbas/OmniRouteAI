@@ -1031,11 +1031,14 @@ async function sendMessage() {
        botMsg.textContent = `Error (${res.status}): ${data.message || data.error || 'Unknown error'}`;
     } else {
        botMsg.textContent = data.output || JSON.stringify(data);
-       // Add metadata
-       const meta = document.createElement('div');
-       meta.className = 'chat-meta';
-       meta.textContent = `Provider: ${data.provider || 'unknown'} · Model: ${data.model || 'auto'}`;
-       botMsg.appendChild(meta);
+    }
+
+    // Add metadata (always show if available, even on error)
+    if (data.provider || data.model) {
+      const meta = document.createElement('div');
+      meta.className = 'chat-meta';
+      meta.textContent = `Provider: ${data.provider || 'unknown'} · Model: ${data.model || 'auto'}`;
+      botMsg.appendChild(meta);
     }
   } catch (err) {
     botMsg.classList.remove('thinking');

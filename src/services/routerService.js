@@ -220,7 +220,7 @@ async function getAdapter(providerName, providerConfig = null) {
     }
     case 'deepgram':
     case 'assemblyai': {
-      throw new ProviderError(providerName, `Provider '${providerName}' does not support text chat completions (it is a Speech-to-Text API)`, 400);
+      throw new ProviderError(providerName, `Provider '${providerName}' does not support text chat completions (it is a Speech-to-Text API)`, 400, 'N/A');
     }
     case 'vertex': {
       const mod = await import('../adapters/vertexAdapter.js');
@@ -264,7 +264,7 @@ async function getAdapter(providerName, providerConfig = null) {
         adapterCache[cacheKey] = adapter;
         return adapter;
       }
-      throw new ProviderError(providerName, `No adapter found for provider: ${providerName}`);
+      throw new ProviderError(providerName, `No adapter found for provider: ${providerName}`, 502, 'N/A');
     }
   }
 
@@ -435,13 +435,13 @@ export async function routeAndExecute(prompt, opts = {}) {
       });
 
       if (!rawResponse) {
-        throw new ProviderError(provider.name, 'Empty response from provider', 502);
+        throw new ProviderError(provider.name, 'Empty response from provider', 502, model);
       }
 
       const normalized = await adapter.normalizeResponse(rawResponse);
       
       if (!normalized) {
-        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502);
+        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502, model);
       }
 
       await recordProviderResult(provider.name, true);
@@ -476,7 +476,12 @@ export async function routeAndExecute(prompt, opts = {}) {
       };
 
     } catch (err) {
-      lastError = err;
+      // Ensure the error carries provider/model metadata for the background worker
+      if (!(err instanceof ProviderError) && provider) {
+        lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
+      } else {
+        lastError = err;
+      }
 
       // Record key failure (may auto-disable key if threshold exceeded)
       await recordKeyFailure(provider.name, apiKey).catch(() => {});

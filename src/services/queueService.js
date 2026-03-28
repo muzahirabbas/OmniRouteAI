@@ -99,10 +99,11 @@ export async function waitForResult(jobId, timeout = 30000) {
       reason = reason || 'Job failed';
       const err = new Error(reason);
 
-      // Extract provider if the string matches the [providerName] format thrown by ProviderError
-      const providerMatch = reason.match(/^\[(.*?)\]/);
-      if (providerMatch) {
-        err.provider = providerMatch[1];
+      // Extract provider and model if the string matches the [provider|model] format thrown by ProviderError
+      const metadataMatch = reason.match(/^\[(.*?)\|(.*?)\]/);
+      if (metadataMatch) {
+        err.provider = metadataMatch[1];
+        err.model    = metadataMatch[2];
       }
 
       // Reconstruct known error types for correct HTTP status mapping in API

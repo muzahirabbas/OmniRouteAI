@@ -222,6 +222,8 @@ export async function chatRoutes(app) {
       reply.code(statusCode).send({
         error:      err.name || 'InternalError',
         message:    err.message,
+        provider:   err.provider || 'unknown',
+        model:      err.model || model || 'unknown',
         request_id: requestId,
       });
     }
