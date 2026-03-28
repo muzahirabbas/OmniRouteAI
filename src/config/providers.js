@@ -103,7 +103,7 @@ export const STATIC_PROVIDERS = [
     priority: 3,
     weight: 5,
     status: 'active',
-    endpoint: 'https://api.moonshot.cn/v1/chat/completions',
+    endpoint: 'https://api.moonshot.ai/v1/chat/completions',
     models: [
       'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'
     ],
