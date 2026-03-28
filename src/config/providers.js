@@ -13,9 +13,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.openai.com/v1/chat/completions',
     models: [
-      'gpt-5.4', 'gpt-5.4-pro', 'gpt-5.2', 'gpt-5.1', 'gpt-5-mini', 'gpt-5-nano',
-      'o3-mini', 'gpt-4.5-turbo', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
-      'gpt-4o-mini', 'o1', 'o1-mini'
+      'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'
     ],
     rpmLimit: 50
   },
@@ -26,20 +24,18 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.anthropic.com/v1/messages',
     models: [
-      'claude-opus-4.5', 'claude-sonnet-4.5', 'claude-4.6-opus-20260205', 'claude-4.6-sonnet-20260217',
-      'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus-20240229'
+      'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'
     ],
     rpmLimit: 50
   },
   {
     name: 'google',
-    priority: 2,
-    weight: 8,
+    priority: 1,
+    weight: 10,
     status: 'active',
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/',
     models: [
-      'gemini-3.1-flash-lite', 'gemini-3-flash', 'gemini-3-pro-preview', 'gemini-2.5-pro',
-      'gemini-2.5-flash', 'gemini-2.0-flash-001', 'gemma-3-12b-it', 'gemma-2-27b-it', 'gemma-3n-e2b-it'
+      'gemini-2.0-flash-001', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemma-2-27b-it'
     ],
     rpmLimit: 15
   },
@@ -50,53 +46,24 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.x.ai/v1/chat/completions',
     models: [
-      'grok-4-0709', 'grok-4-1-fast', 'grok-code-fast-1', 'grok-3', 'grok-2', 'grok-2-mini', 'grok-1.5'
+      'grok-2-1212', 'grok-2-mini-1212', 'grok-beta'
     ],
     rpmLimit: 20
   },
   {
-    name: 'alibaba',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-    models: [
-      'qwen3-235b-a22b', 'qwen3-30b-a3b', 'qwen2.5-turbo', 'qwen2.5-plus', 'qwen2.5-omni-7b',
-      'qwen-coder-32b-instruct', 'qwen-max-2025-01-25', 'qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen2.5-coder'
-    ],
-    rpmLimit: 30
-  },
-  {
-    name: 'ollama',
-    priority: 5,
-    weight: 1,
-    status: 'active',
-    endpoint: 'http://localhost:11434/v1/chat/completions',
-    models: [
-      'llama3.3', 'llama3.2', 'qwen2.5-coder', 'phi4', 'gemma2', 'mistral', 'deepseek-coder', 'starcoder2'
-    ],
-    rpmLimit: 100
-  },
-  {
-    name: 'ollama-cloud',
-    priority: 3,
-    weight: 10,
-    status: 'active',
-    endpoint: 'https://ollama.com/api',
-    models: ['llama3.3', 'qwen2.5-coder', 'phi4', 'deepseek-r1'],
-    rpmLimit: 50
-  },
-  {
     name: 'openrouter',
-    priority: 4,
-    weight: 5,
+    priority: 1,
+    weight: 15,
     status: 'active',
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
     models: [
-      'openai/gpt-5.4', 'anthropic/claude-opus-4.5', 'anthropic/claude-4.6-opus-20260205',
-      'google/gemini-2.5-flash', 'google/gemini-3-flash', 'xai/grok-4-0709', 'openrouter/deepseek-v3',
-      'openrouter/meta-llama-3.3-70b-instruct', 'openrouter/qwen3-30b-a3b', 'google/gemma-3-27b-it',
-      'deepseek/deepseek-chat', 'groq/llama-3.3-70b-versatile', 'moonshotai/kimi-k2.5', 'mistralai/mistral-large'
+      'google/gemini-2.0-flash-001:free',
+      'google/gemini-2.0-pro-exp-02-05:free',
+      'nvidia/llama-3.1-nemotron-70b-instruct:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'mistralai/pixtral-12b:free',
+      'microsoft/phi-3-medium-128k-instruct:free',
+      'openrouter/auto'
     ],
     rpmLimit: 100
   },
@@ -118,7 +85,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.deepseek.com/v1/chat/completions',
     models: [
-      'deepseek-v3', 'deepseek-r1', 'deepseek-chat', 'deepseek-reasoning-r1', 'deepseek-coder'
+      'deepseek-chat', 'deepseek-reasoner'
     ],
     rpmLimit: 20
   },
@@ -129,7 +96,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.moonshot.cn/v1/chat/completions',
     models: [
-      'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k', 'kimi-k2', 'kimi-k2.5'
+      'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'
     ],
     rpmLimit: 20
   },
@@ -140,124 +107,9 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.together.xyz/v1/chat/completions',
     models: [
-      'meta-llama/Llama-3.3-70B-Instruct-Turbo', 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-      'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', 'mistralai/Mixtral-8x7B-Instruct-v0.1'
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo', 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'
     ],
     rpmLimit: 50
-  },
-  {
-    name: 'nvidia',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions',
-    models: [
-      'meta/llama-3.2-11b-vision-instruct', 'meta/llama-3.2-3b-instruct', 'meta/llama3-8b-instruct',
-      'mistralai/mistral-7b-instruct-v0.3', 'google/gemma-3-12b-it', 'google/gemma-3-27b-it',
-      'google/gemma-2-9b-it', 'phi-4-mini-instruct', 'phi-3.5-mini-instruct',
-      'granite-3.3-8b-instruct', 'granite-34b-code-instruct', 'granite-3.0-8b-instruct',
-      'granite-3.0-3b-a800m-instruct', 'nemotron-mini-4b-instruct', 'jamba-1.5-mini-instruct',
-      'breeze-7b-instruct', 'solar-10.7b-instruct'
-    ],
-    rpmLimit: 50
-  },
-  {
-    name: 'cloudflare',
-    priority: 4,
-    weight: 2,
-    status: 'active',
-    models: [
-      '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct',
-      '@cf/mistral/mistral-7b-instruct-v0.1', '@cf/google/gemma-7b-it',
-      '@cf/qwen/qwen1.5-7b-chat-awq', '@cf/tinyllama/tinyllama-1.1b-chat-v1.0',
-      '@cf/microsoft/phi-2', '@cf/deepseek/deepseek-math-7b-instruct',
-      'llama3-8b', 'mistral-7b', 'phi-2'
-    ],
-    rpmLimit: 100
-  },
-  {
-    name: 'inception',
-    priority: 2,
-    weight: 8,
-    status: 'active',
-    endpoint: 'https://api.inceptionlabs.ai/v1/chat/completions',
-    models: ['inception/mercury-2', 'inception/mercury-coder'],
-    rpmLimit: 60
-  },
-  {
-    name: 'xiaomi',
-    priority: 3,
-    weight: 10,
-    status: 'active',
-    endpoint: 'https://api.mimo.xiaomi.com/v1/chat/completions',
-    models: ['mi-mimo-v2-pro', 'mi-mimo-v2-omni', 'mi-mimo-v2-flash'],
-    rpmLimit: 50
-  },
-  {
-    name: 'huggingface',
-    priority: 4,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://api-inference.huggingface.co/models/',
-    models: [
-      'meta-llama/Llama-3.1-8B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3',
-      'google/gemma-2-9b', 'HuggingFaceH4/zephyr-7b-beta'
-    ],
-    rpmLimit: 20
-  },
-  {
-    name: 'sambanova',
-    priority: 1,
-    weight: 15,
-    status: 'active',
-    endpoint: 'https://api.sambanova.ai/v1/chat/completions',
-    models: ['Meta-Llama-3.3-70B-Instruct', 'DeepSeek-V3', 'Qwen3-235B'],
-    rpmLimit: 100
-  },
-  {
-    name: 'cerebras',
-    priority: 1,
-    weight: 20,
-    status: 'active',
-    endpoint: 'https://api.cerebras.ai/v1/chat/completions',
-    models: ['llama3.1-8b', 'llama3.1-70b'],
-    rpmLimit: 100
-  },
-  {
-    name: 'cohere',
-    priority: 2,
-    weight: 10,
-    status: 'active',
-    endpoint: 'https://api.cohere.ai/v2/chat',
-    models: ['command-r-08-2024', 'command-r-plus-08-2024'],
-    rpmLimit: 40
-  },
-  {
-    name: 'mistral',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://api.mistral.ai/v1/chat/completions',
-    models: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
-    rpmLimit: 30
-  },
-  {
-    name: 'perplexity',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://api.perplexity.ai/chat/completions',
-    models: ['sonar-deep-research', 'sonar-pro', 'sonar'],
-    rpmLimit: 50
-  },
-  {
-    name: 'minimax',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://api.minimax.chat/v1/text_chat',
-    models: ['abab7-chat', 'abab6.5-chat'],
-    rpmLimit: 20
   },
   {
     name: 'fireworks',
@@ -265,26 +117,10 @@ export const STATIC_PROVIDERS = [
     weight: 5,
     status: 'active',
     endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions',
-    models: ['f1-preview', 'llama-v3p1-405b-instruct'],
+    models: [
+      'accounts/fireworks/models/f1-preview', 'accounts/fireworks/models/llama-v3p1-8b-instruct'
+    ],
     rpmLimit: 30
-  },
-  {
-    name: 'nebius',
-    priority: 3,
-    weight: 5,
-    status: 'active',
-    endpoint: 'https://api.studio.nebius.ai/v1/chat/completions',
-    models: ['meta-llama/Meta-Llama-3.1-405B-Instruct'],
-    rpmLimit: 50
-  },
-  {
-    name: 'siliconflow',
-    priority: 2,
-    weight: 10,
-    status: 'active',
-    endpoint: 'https://api.siliconflow.cn/v1/chat/completions',
-    models: ['deepseek-v3', 'deepseek-r1'],
-    rpmLimit: 100
   },
   {
     name: 'hyperbolic',
@@ -292,7 +128,9 @@ export const STATIC_PROVIDERS = [
     weight: 5,
     status: 'active',
     endpoint: 'https://api.hyperbolic.xyz/v1/chat/completions',
-    models: ['deepseek-v3', 'llama-3.1-405b'],
+    models: [
+      'meta-llama/Llama-3.2-3B-Instruct', 'deepseek-ai/DeepSeek-V3'
+    ],
     rpmLimit: 50
   },
   {
@@ -301,35 +139,43 @@ export const STATIC_PROVIDERS = [
     weight: 5,
     status: 'active',
     endpoint: 'https://llm.chutes.ai/v1/chat/completions',
-    models: ['llama-3.1-405b-instruct'],
+    models: [
+      'meta-llama/Meta-Llama-3.1-8B-Instruct'
+    ],
     rpmLimit: 30
   },
   {
-    name: 'nanobanana',
-    priority: 4,
-    weight: 5,
+    name: 'inception',
+    priority: 2,
+    weight: 8,
     status: 'active',
-    endpoint: 'https://api.nanobananaapi.ai/v1/chat/completions',
-    models: ['default'],
+    endpoint: 'https://api.inceptionlabs.ai/v1/chat/completions',
+    models: [
+      'mercury-2', 'mercury-coder', 'mercury-small'
+    ],
+    rpmLimit: 60
+  },
+  {
+    name: 'xiaomi',
+    priority: 3,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.mimo.xiaomi.com/v1/chat/completions',
+    models: [
+      'MiMo-V2-Pro', 'MiMo-V2-Omni', 'MiMo-V2-Flash'
+    ],
     rpmLimit: 50
   },
   {
-    name: 'deepgram',
-    priority: 5,
-    weight: 1,
+    name: 'ollama-cloud',
+    priority: 3,
+    weight: 10,
     status: 'active',
-    endpoint: 'https://api.deepgram.com/v1/listen',
-    models: ['default'],
-    rpmLimit: 100
-  },
-  {
-    name: 'assemblyai',
-    priority: 5,
-    weight: 1,
-    status: 'active',
-    endpoint: 'https://api.assemblyai.com/v1/audio/transcriptions',
-    models: ['default'],
-    rpmLimit: 100
+    endpoint: 'https://ollama.com/api',
+    models: [
+      'llama3.2', 'phi4', 'qwen2.5'
+    ],
+    rpmLimit: 50
   },
   {
     name: 'vertex',
@@ -337,7 +183,9 @@ export const STATIC_PROVIDERS = [
     weight: 5,
     status: 'active',
     endpoint: 'https://us-central1-aiplatform.googleapis.com/v1/projects/',
-    models: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+    models: [
+      'gemini-1.5-pro', 'gemini-1.5-flash'
+    ],
     rpmLimit: 20
   },
   {
@@ -346,8 +194,32 @@ export const STATIC_PROVIDERS = [
     weight: 5,
     status: 'active',
     endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    models: ['glm-4-plus', 'glm-4-flash', 'glm-4v-plus'],
+    models: [
+      'glm-4-plus', 'glm-4-flash'
+    ],
     rpmLimit: 30
+  },
+  {
+    name: 'minimax',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.minimax.chat/v1/text_chat',
+    models: [
+      'abab7-chat', 'abab6.5-chat'
+    ],
+    rpmLimit: 20
+  },
+  {
+    name: 'ollama',
+    priority: 5,
+    weight: 1,
+    status: 'active',
+    endpoint: 'http://localhost:11434/v1/chat/completions',
+    models: [
+      'llama3.2', 'qwen2.5-coder', 'phi4', 'gemma2'
+    ],
+    rpmLimit: 100
   },
   // ─── Local CLI Daemon providers (type: local_http) ───────────────
   // Served by OmniRouteAI-Local daemon on http://localhost:5059
