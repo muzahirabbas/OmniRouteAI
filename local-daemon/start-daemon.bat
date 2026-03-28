@@ -1,6 +1,8 @@
 @echo off
 TITLE OmniRouteAI - Local Daemon ^& Ngrok 
 
+set MITM_PROXY=true
+
 echo Starting the OmniRouteAI Local Daemon in the background...
 start /B node src/main.js
 

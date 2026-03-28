@@ -243,6 +243,7 @@
               <tr>
                 <th>Key</th>
                 <th>Usage Today</th>
+                <th>Tokens Today</th>
                 <th>RPM</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -371,6 +372,25 @@
         <div class="stat-card">
           <div class="stat-label">Output Tokens</div>
           <div class="stat-value" id="stat-day-output-tokens">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Provider Breakdown (Today)</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Requests</th>
+                <th>Input Tokens</th>
+                <th>Output Tokens</th>
+              </tr>
+            </thead>
+            <tbody id="stats-provider-body">
+              <tr><td colspan="4" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

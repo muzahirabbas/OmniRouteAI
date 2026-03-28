@@ -13,13 +13,19 @@ export class OpenRouterAdapter extends OpenAICompatibleAdapter {
 
   /**
    * OpenRouter requires HTTP-Referer and X-Title headers for ranking/tracking.
+   * Also forwards requestId for distributed tracing.
    */
-  buildHeaders(apiKey) {
-    return {
+  buildHeaders(apiKey, options = {}) {
+    const headers = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization:  `Bearer ${apiKey}`,
       'HTTP-Referer': process.env.OPENROUTER_REFERER || 'https://omnirouteai.app',
-      'X-Title': 'OmniRouteAI',
+      'X-Title':      'OmniRouteAI',
     };
+    if (options?.requestId) {
+      headers['X-Request-ID'] = options.requestId;
+      headers['X-OmniRoute-Request-ID'] = options.requestId;
+    }
+    return headers;
   }
 }

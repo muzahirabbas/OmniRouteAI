@@ -15,15 +15,16 @@ export class MinimaxAdapter extends AnthropicAdapter {
 
   buildHeaders(apiKey, options = {}) {
     const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type':      'application/json',
+      'Authorization':     `Bearer ${apiKey}`,
+      'anthropic-version': this.apiVersion, // Required by Minimax's Anthropic-compatible endpoint
     };
-    
+
     if (options?.requestId) {
       headers['X-Request-ID'] = options.requestId;
       headers['X-OmniRoute-Request-ID'] = options.requestId;
     }
-    
+
     return headers;
   }
 }

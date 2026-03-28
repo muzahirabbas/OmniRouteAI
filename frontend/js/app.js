@@ -353,6 +353,7 @@ async function refreshKeys(force = false) {
       <tr>
         <td class="mono">${k.key}</td>
         <td>${k.usage}</td>
+        <td>${k.tokensIn || 0} / ${k.tokensOut || 0}</td>
         <td>${k.rpm}</td>
         <td><span class="badge ${k.disabled ? 'badge-error' : 'badge-success'}">
           ${k.disabled ? 'Disabled' : 'Active'}
@@ -495,12 +496,47 @@ async function refreshStatsPage(force = false) {
     // Aggregate input/output tokens across providers
     let inputTokens = 0;
     let outputTokens = 0;
+    const providerStats = {}; // { provider: { requests, in, out } }
+
     for (const [key, value] of Object.entries(stats)) {
-      if (key.startsWith('tokens:input:')) inputTokens += value;
-      if (key.startsWith('tokens:output:')) outputTokens += value;
+      if (key.startsWith('tokens:input:')) {
+        inputTokens += value;
+        const p = key.replace('tokens:input:', '');
+        if (!providerStats[p]) providerStats[p] = { requests: 0, in: 0, out: 0 };
+        providerStats[p].in = value;
+      }
+      if (key.startsWith('tokens:output:')) {
+        outputTokens += value;
+        const p = key.replace('tokens:output:', '');
+        if (!providerStats[p]) providerStats[p] = { requests: 0, in: 0, out: 0 };
+        providerStats[p].out = value;
+      }
+      if (key.startsWith('requests:')) {
+        const p = key.replace('requests:', '');
+        if (p === 'total') continue;
+        if (!providerStats[p]) providerStats[p] = { requests: 0, in: 0, out: 0 };
+        providerStats[p].requests = value;
+      }
     }
     document.getElementById('stat-day-input-tokens').textContent = inputTokens.toLocaleString();
     document.getElementById('stat-day-output-tokens').textContent = outputTokens.toLocaleString();
+
+    // Provider Breakdown table
+    const providerBody = document.getElementById('stats-provider-body');
+    const sortedProviders = Object.entries(providerStats).sort((a, b) => b[1].requests - a[1].requests);
+    
+    if (sortedProviders.length) {
+      providerBody.innerHTML = sortedProviders.map(([name, s]) => `
+        <tr>
+          <td><strong>${name}</strong></td>
+          <td>${s.requests.toLocaleString()}</td>
+          <td>${s.in.toLocaleString()}</td>
+          <td>${s.out.toLocaleString()}</td>
+        </tr>
+      `).join('');
+    } else {
+      providerBody.innerHTML = '<tr><td colspan="4" class="empty-state">No requests recorded yet today.</td></tr>';
+    }
 
     // History table
     const histBody = document.getElementById('stats-history-body');

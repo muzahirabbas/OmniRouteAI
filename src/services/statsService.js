@@ -41,8 +41,14 @@ export async function trackRequest(provider, key, tokens = { input: 0, output: 0
   const inp = tokens?.input  || 0;
   const out = tokens?.output || 0;
 
-  if (inp > 0) await incrByWithTTL(`stats:${today}:tokens:input:${provider}`,  inp, DAY_TTL);
-  if (out > 0) await incrByWithTTL(`stats:${today}:tokens:output:${provider}`, out, DAY_TTL);
+  if (inp > 0) {
+     await incrByWithTTL(`stats:${today}:tokens:input:${provider}`, inp, DAY_TTL);
+     await incrByWithTTL(`stats:${today}:key:${key}:tokens:input`, inp, DAY_TTL);
+  }
+  if (out > 0) {
+     await incrByWithTTL(`stats:${today}:tokens:output:${provider}`, out, DAY_TTL);
+     await incrByWithTTL(`stats:${today}:key:${key}:tokens:output`, out, DAY_TTL);
+  }
 
   // Per-key tracking
   await incrWithTTL(`stats:${today}:key:${key}:requests`, DAY_TTL);
@@ -120,7 +126,15 @@ export async function extractTokens(rawResponse, outputText = '', inputText = ''
       };
     }
 
-    // ── Cohere ───────────────────────────────────────────────────────
+    // ── Cohere V2 ─────────────────────────────────────────────────────
+    if (rawResponse.usage?.tokens) {
+      return {
+        input:  rawResponse.usage.tokens.input_tokens  || 0,
+        output: rawResponse.usage.tokens.output_tokens || 0,
+      };
+    }
+
+    // ── Cohere V1 (legacy) ───────────────────────────────────────────
     if (rawResponse.meta?.tokens) {
       return {
         input:  rawResponse.meta.tokens.input_tokens  || 0,

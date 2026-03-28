@@ -98,10 +98,15 @@ async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.CloudflareAdapter();
       break;
     }
-    case 'openai':
-    case 'glm': {
+    case 'openai': {
       const mod = await import('../adapters/openaiAdapter.js');
       adapter = new mod.OpenAIAdapter();
+      break;
+    }
+    case 'glm': {
+      // ZhipuAI GLM — OpenAI-compatible but different endpoint
+      const mod = await import('../adapters/inferenceAdapter.js');
+      adapter = new mod.InferenceAdapter('glm', 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
       break;
     }
     case 'anthropic': {
@@ -199,23 +204,23 @@ async function getAdapter(providerName, providerConfig = null) {
     case 'siliconflow':
     case 'hyperbolic':
     case 'chutes':
-    case 'nanobanana':
-    case 'deepgram':
-    case 'assemblyai': {
+    case 'nanobanana': {
+      // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
-        fireworks: 'https://api.fireworks.ai/inference/v1/chat/completions',
-        nebius: 'https://api.studio.nebius.ai/v1/chat/completions',
+        fireworks:   'https://api.fireworks.ai/inference/v1/chat/completions',
+        nebius:      'https://api.studio.nebius.ai/v1/chat/completions',
         siliconflow: 'https://api.siliconflow.cn/v1/chat/completions',
-        hyperbolic: 'https://api.hyperbolic.xyz/v1/chat/completions',
-        chutes: 'https://llm.chutes.ai/v1/chat/completions',
-        nanobanana: 'https://api.nanobananaapi.ai/v1/chat/completions',
-        deepgram: 'https://api.deepgram.com/v1/listen',
-        assemblyai: 'https://api.assemblyai.com/v1/audio/transcriptions'
+        hyperbolic:  'https://api.hyperbolic.xyz/v1/chat/completions',
+        chutes:      'https://llm.chutes.ai/v1/chat/completions',
+        nanobanana:  'https://api.nanobananaapi.ai/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
     }
+    // NOTE: deepgram and assemblyai are speech-to-text APIs — they require
+    // dedicated adapters with multipart/form-data bodies. Do NOT route them
+    // through OpenAI-compatible chat adapters.
     case 'vertex': {
       const mod = await import('../adapters/vertexAdapter.js');
       adapter = new mod.VertexAdapter();

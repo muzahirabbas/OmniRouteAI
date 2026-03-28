@@ -131,6 +131,7 @@ export class CloudflareAdapter extends BaseAdapter {
       return {
         output: fullOutput,
         tokens: await extractTokens(null, fullOutput, prompt),
+        raw:    { streaming: true, provider: this.providerName, model },
       };
     } catch (err) {
       this.clearTimeout(controller);

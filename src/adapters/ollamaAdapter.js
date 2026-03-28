@@ -11,8 +11,13 @@ export class OllamaAdapter extends OpenAICompatibleAdapter {
     super('ollama', process.env.OLLAMA_URL || 'http://localhost:11434/v1/chat/completions');
   }
 
-  // Ollama doesn't require auth
-  buildHeaders(apiKey) {
-    return { 'Content-Type': 'application/json' };
+  // Ollama doesn't require auth but forwards requestId for tracing
+  buildHeaders(apiKey, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (options?.requestId) {
+      headers['X-Request-ID'] = options.requestId;
+      headers['X-OmniRoute-Request-ID'] = options.requestId;
+    }
+    return headers;
   }
 }

@@ -32,13 +32,15 @@ export class GeminiAdapter extends BaseAdapter {
     const controller = this.createTimeout();
 
     try {
+      const reqHeaders = { 'Content-Type': 'application/json' };
+      if (options.requestId) {
+        reqHeaders['X-Request-ID'] = options.requestId;
+        reqHeaders['X-OmniRoute-Request-ID'] = options.requestId;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Request-ID': options.requestId || '',
-          'X-OmniRoute-Request-ID': options.requestId || '',
-        },
+        headers: reqHeaders,
         body: JSON.stringify(this.buildBody(prompt, options)),
         signal: controller.signal,
       });
@@ -68,13 +70,15 @@ export class GeminiAdapter extends BaseAdapter {
     let lastRaw = null; // capture last parsed chunk for usageMetadata
 
     try {
+      const reqHeaders = { 'Content-Type': 'application/json' };
+      if (options.requestId) {
+        reqHeaders['X-Request-ID'] = options.requestId;
+        reqHeaders['X-OmniRoute-Request-ID'] = options.requestId;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Request-ID': options.requestId || '',
-          'X-OmniRoute-Request-ID': options.requestId || '',
-        },
+        headers: reqHeaders,
         body: JSON.stringify(this.buildBody(prompt, options)),
         signal: controller.signal,
       });

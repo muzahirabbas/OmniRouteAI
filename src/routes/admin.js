@@ -284,12 +284,18 @@ export async function adminRoutes(app) {
       const usage    = parseInt(keysList[i + 1], 10);
       const disabled = await isKeyDisabled(provider, key);
       const rpmRaw   = await get(`rpm:${provider}:${key}`);
+      
+      const today    = new Date().toISOString().slice(0, 10);
+      const tokensIn = parseInt((await get(`stats:${today}:key:${key}:tokens:input`)) || '0', 10);
+      const tokensOut = parseInt((await get(`stats:${today}:key:${key}:tokens:output`)) || '0', 10);
 
       result.push({
         key:      maskKey(key),
         fullKey:  key,
         usage,
         rpm:      parseInt(rpmRaw || '0', 10),
+        tokensIn,
+        tokensOut,
         disabled,
       });
     }
@@ -313,12 +319,18 @@ export async function adminRoutes(app) {
       const rpmRaw   = await get(`rpm:${provider}:${key}`);
       const rpm      = parseInt(rpmRaw || '0', 10);
 
+      const today    = new Date().toISOString().slice(0, 10);
+      const tokensIn = parseInt((await get(`stats:${today}:key:${key}:tokens:input`)) || '0', 10);
+      const tokensOut = parseInt((await get(`stats:${today}:key:${key}:tokens:output`)) || '0', 10);
+
       result.push({
         key:          maskKey(key),
         usage,
         rpm,
         rpmLimit,
         rpmAvailable: rpmLimit - rpm,
+        tokensIn,
+        tokensOut,
         disabled,
         status:       disabled ? 'disabled' : rpm >= rpmLimit ? 'rpm_exceeded' : 'available',
       });
