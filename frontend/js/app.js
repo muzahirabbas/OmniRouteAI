@@ -431,23 +431,37 @@ async function refreshLogs(force = false) {
   try {
     const data = await API.getLogs({ provider, status: effectiveStatus, limit, forceRefresh: force });
     if (!data.logs?.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No logs found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No logs found</td></tr>';
       return;
     }
 
-    tbody.innerHTML = data.logs.map((log) => `
-      <tr>
-        <td class="text-muted">${formatTime(log.timestamp)}</td>
-        <td class="mono">${(log.request_id || '').slice(0, 8)}...</td>
-        <td>${log.provider}</td>
-        <td class="mono">${log.model || '—'}</td>
-        <td><span class="badge ${getStatusBadge(log.status)}">${log.status}</span></td>
-        <td>${log.latency ? log.latency + 'ms' : '—'}</td>
-        <td>${log.tokens ? `${log.tokens.input || 0}/${log.tokens.output || 0}` : '—'}</td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = data.logs.map((log, index) => {
+      const isError = log.status === 'error';
+      const rowClass = isError ? 'log-row-error' : '';
+      const errorMsg = log.error || '—';
+      
+      return `
+        <tr class="${rowClass}" onclick="${isError ? `toggleErrorRow(${index})` : ''}">
+          <td class="text-muted">${formatTime(log.timestamp)}</td>
+          <td class="mono" title="${log.request_id}">${(log.request_id || '').slice(0, 8)}...</td>
+          <td>${log.provider}</td>
+          <td class="mono">${log.model || '—'}</td>
+          <td><span class="badge ${getStatusBadge(log.status)}">${log.status}</span></td>
+          <td>${log.latency ? log.latency + 'ms' : '—'}</td>
+          <td>${log.tokens ? `${log.tokens.input || 0}/${log.tokens.output || 0}` : '—'}</td>
+          <td class="error-msg-cell ${isError ? 'text-error' : ''}">${errorMsg}</td>
+        </tr>
+        ${isError ? `
+          <tr id="error-row-${index}" class="error-detail-row">
+            <td colspan="8">
+              <div class="error-content">${log.error}</div>
+            </td>
+          </tr>
+        ` : ''}
+      `;
+    }).join('');
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${err.message}</td></tr>`;
   }
 }
 
@@ -1218,3 +1232,14 @@ document.addEventListener('keydown', (e) => {
     sendOllamaMessage();
   }
 });
+
+/**
+ * Toggle the visibility of detailed error rows in the Logs table.
+ * @param {number} index - Index of the log entry.
+ */
+window.toggleErrorRow = function(index) {
+  const row = document.getElementById(`error-row-${index}`);
+  if (row) {
+    row.classList.toggle('active');
+  }
+};

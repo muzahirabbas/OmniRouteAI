@@ -948,3 +948,43 @@ select.input {
     height: 400px;
   }
 }
+
+/* ─── Expandable Logs ──────────────────────────────────────────────────── */
+.log-row-error {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.log-row-error:hover td {
+  background: rgba(248,113,113,0.05) !important;
+}
+
+.error-detail-row {
+  display: none;
+  background: var(--bg-base);
+}
+
+.error-detail-row.active {
+  display: table-row;
+}
+
+.error-content {
+  padding: 1.25rem;
+  border-left: 3px solid var(--color-error);
+  margin: 0.5rem 1rem;
+  background: rgba(248,113,113,0.02);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 0.82rem;
+  color: var(--color-error);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.error-msg-cell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-error) !important;
+}

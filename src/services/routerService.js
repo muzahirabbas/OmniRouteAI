@@ -477,10 +477,15 @@ export async function routeAndExecute(prompt, opts = {}) {
 
     } catch (err) {
       // Ensure the error carries provider/model metadata for the background worker
-      if (!(err instanceof ProviderError) && provider) {
-        lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
-      } else {
+      // even if it was thrown by a generic adapter or with incorrect model info
+      if (err instanceof ProviderError) {
+        err.model = model;
+        // Re-construct the message to ensure prefix includes the resolved model
+        const originalMessage = err.message.includes('] ') ? err.message.split('] ')[1] : err.message;
+        err.message = `[${provider.name}|${model}] ${originalMessage}`;
         lastError = err;
+      } else {
+        lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
       }
 
       // Record key failure (may auto-disable key if threshold exceeded)
