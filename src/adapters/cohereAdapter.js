@@ -62,7 +62,8 @@ export class CohereAdapter extends BaseAdapter {
 
   async normalizeResponse(rawResponse) {
     // Cohere V2 format: { message: { content: [{type, text}] }, usage: { tokens: { input_tokens, output_tokens } } }
-    const output = rawResponse.message?.content?.[0]?.text || '';
+    const textBlocks = rawResponse.message?.content?.filter(c => c.type === 'text') || [];
+    const output = textBlocks.map(c => c.text).join('') || '';
     const tokens = {
       input:  rawResponse.usage?.tokens?.input_tokens  || 0,
       output: rawResponse.usage?.tokens?.output_tokens || 0,

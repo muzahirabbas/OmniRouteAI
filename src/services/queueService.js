@@ -81,8 +81,12 @@ export async function waitForResult(jobId, timeout = 30000) {
     const state = await job.getState();
 
     if (state === 'completed') {
-      // Guard against null returnvalue (Root Cause 2)
-      return job.returnvalue || { success: true, output: "" };
+      if (job.returnvalue === undefined) {
+        // Fix Race Condition: job was loaded before returnvalue was written by the Lua script.
+        const updatedJob = await getQueue().getJob(jobId);
+        return updatedJob?.returnvalue || { success: true, output: "" };
+      }
+      return job.returnvalue;
     }
 
     if (state === 'failed') {
@@ -128,8 +132,11 @@ export async function waitForResult(jobId, timeout = 30000) {
   if (finalJob) {
     const finalState = await finalJob.getState();
     if (finalState === 'completed') {
-      // Guard against null returnvalue (Fixes Root Cause 2)
-      return finalJob.returnvalue || { success: true, output: "" };
+      if (finalJob.returnvalue === undefined) {
+        const updatedJob = await getQueue().getJob(jobId);
+        return updatedJob?.returnvalue || { success: true, output: "" };
+      }
+      return finalJob.returnvalue;
     }
     if (finalState === 'failed') {
       throw new Error(finalJob.failedReason || 'Job failed at the last millisecond');

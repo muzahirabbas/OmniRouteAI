@@ -218,9 +218,10 @@ async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
     }
-    // NOTE: deepgram and assemblyai are speech-to-text APIs — they require
-    // dedicated adapters with multipart/form-data bodies. Do NOT route them
-    // through OpenAI-compatible chat adapters.
+    case 'deepgram':
+    case 'assemblyai': {
+      throw new ProviderError(providerName, `Provider '${providerName}' does not support text chat completions (it is a Speech-to-Text API)`, 400);
+    }
     case 'vertex': {
       const mod = await import('../adapters/vertexAdapter.js');
       adapter = new mod.VertexAdapter();
