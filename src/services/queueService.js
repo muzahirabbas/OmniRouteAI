@@ -81,8 +81,8 @@ export async function waitForResult(jobId, timeout = 30000) {
     const state = await job.getState();
 
     if (state === 'completed') {
-      if (job.returnvalue === undefined) {
-        // Fix Race Condition: job was loaded before returnvalue was written by the Lua script.
+      if (job.returnvalue === undefined || job.returnvalue === null) {
+        // Fix Race Condition: job was loaded before Lua script wrote returnvalue
         const updatedJob = await getQueue().getJob(jobId);
         return updatedJob?.returnvalue || { success: true, output: "" };
       }
@@ -90,7 +90,13 @@ export async function waitForResult(jobId, timeout = 30000) {
     }
 
     if (state === 'failed') {
-      const reason = job.failedReason || 'Job failed';
+      let reason = job.failedReason;
+      if (reason === undefined || reason === null) {
+        // Fix Race Condition: job was loaded before Lua script wrote failedReason
+        const updatedJob = await getQueue().getJob(jobId);
+        reason = updatedJob?.failedReason;
+      }
+      reason = reason || 'Job failed';
       const err = new Error(reason);
 
       // Reconstruct known error types for correct HTTP status mapping in API
@@ -132,14 +138,19 @@ export async function waitForResult(jobId, timeout = 30000) {
   if (finalJob) {
     const finalState = await finalJob.getState();
     if (finalState === 'completed') {
-      if (finalJob.returnvalue === undefined) {
+      if (finalJob.returnvalue === undefined || finalJob.returnvalue === null) {
         const updatedJob = await getQueue().getJob(jobId);
         return updatedJob?.returnvalue || { success: true, output: "" };
       }
       return finalJob.returnvalue;
     }
     if (finalState === 'failed') {
-      throw new Error(finalJob.failedReason || 'Job failed at the last millisecond');
+      let reason = finalJob.failedReason;
+      if (reason === undefined || reason === null) {
+        const updatedJob = await getQueue().getJob(jobId);
+        reason = updatedJob?.failedReason;
+      }
+      throw new Error(reason || 'Job failed at the last millisecond');
     }
   }
 
