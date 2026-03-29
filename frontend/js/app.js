@@ -318,8 +318,14 @@ function openEditProviderModal(name, priority, weight, models, defaultModel) {
   // Clone models array for editing
   window._currentEditingModels = Array.isArray(models) ? [...models] : [];
 
-  const modelSelect = document.getElementById('edit-provider-default-model');
-  renderProviderModelSelect(modelSelect, window._currentEditingModels, defaultModel);
+  // Reset discovery UI
+  window._discoveredModels = [];
+  const discoveryContainer = document.getElementById('discovery-container');
+  if (discoveryContainer) discoveryContainer.style.display = 'none';
+  const discoveryList = document.getElementById('discovery-list');
+  if (discoveryList) discoveryList.innerHTML = '<div class="empty-state">Click fetch to discover models.</div>';
+  const searchInput = document.getElementById('discovery-search');
+  if (searchInput) searchInput.value = '';
 
   document.getElementById('modal-edit-provider').classList.add('active');
 }
@@ -353,6 +359,86 @@ function addProviderModel() {
   );
   input.value = '';
   showToast('success', `Model "${model}" added`);
+}
+
+/**
+ * Model Harvester Logic
+ */
+window._discoveredModels = [];
+
+async function fetchProviderModels() {
+  const name = document.getElementById('edit-provider-name').value;
+  const btnText = document.getElementById('fetch-models-btn-text');
+  const spinner = document.getElementById('fetch-models-spinner');
+  const container = document.getElementById('discovery-container');
+
+  if (!name) return;
+
+  try {
+    btnText.style.display = 'none';
+    spinner.style.display = 'inline-block';
+
+    const response = await fetch('/api/admin/providers/fetch-models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerName: name })
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || result.message || 'Discovery failed');
+
+    window._discoveredModels = result.models || [];
+    container.style.display = 'block';
+    renderDiscoveredModels(window._discoveredModels);
+    
+    showToast('success', `Discovered ${window._discoveredModels.length} models for ${name}`);
+  } catch (err) {
+    showToast('error', err.message);
+  } finally {
+    btnText.style.display = 'inline';
+    spinner.style.display = 'none';
+  }
+}
+
+function renderDiscoveredModels(models) {
+  const el = document.getElementById('discovery-list');
+  if (!el) return;
+
+  if (!models.length) {
+    el.innerHTML = '<div class="empty-state">No models found on this endpoint.</div>';
+    return;
+  }
+
+  el.innerHTML = models.map(m => {
+    const isAdded = window._currentEditingModels.includes(m);
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+        <span style="font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80%;">${m}</span>
+        <button type="button" class="btn btn-xs ${isAdded ? 'btn-ghost' : 'btn-secondary'}" 
+                onclick="addDiscoveredModel('${m}')" ${isAdded ? 'disabled' : ''}>
+          ${isAdded ? 'Added' : '+ Add'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterDiscoveredModels() {
+  const query = document.getElementById('discovery-search').value.toLowerCase();
+  const filtered = window._discoveredModels.filter(m => m.toLowerCase().includes(query));
+  renderDiscoveredModels(filtered);
+}
+
+function addDiscoveredModel(modelId) {
+  if (!window._currentEditingModels.includes(modelId)) {
+    window._currentEditingModels.push(modelId);
+    // Update the default model select with the new item
+    const modelSelect = document.getElementById('edit-provider-default-model');
+    const currentValue = modelSelect.value;
+    renderProviderModelSelect(modelSelect, window._currentEditingModels, currentValue);
+    // Refresh discovery list to show "Added" status
+    filterDiscoveredModels(); 
+  }
 }
 
 function closeModal(id) {
