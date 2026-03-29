@@ -133,10 +133,15 @@ export async function adminRoutes(app) {
       if (doc.exists) {
         await providerRef.update(updates);
       } else {
-        await providerRef.set({ name, ...updates });
+        await providerRef.set({ name, ...updates }, { merge: true });
       }
 
-      await del('providers:list'); // Invalidate provider cache
+      await del('providers:list'); // Invalidate provider list cache
+      
+      // Also invalidate router adapter cache so the routing engine sees the new models
+      const { invalidateAdapterCache } = await import('../services/routerService.js');
+      invalidateAdapterCache(name);
+
       return { success: true, provider: name };
     } catch (err) {
       reply.code(500).send({ error: err.message });
