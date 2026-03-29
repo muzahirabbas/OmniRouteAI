@@ -90,13 +90,37 @@ async function getEncoder(model) {
 /**
  * Estimate tokens using tiktoken (accurate) or fallback (approximate).
  * 
- * @param {string} text - Text to count tokens for
+ * @param {string|Array} text - Text or multimodal array to count tokens for
  * @param {string} [model] - Optional model name for tiktoken
  * @returns {Promise<number>} Token count
  */
 export async function countTokens(text, model = 'gpt-3.5-turbo') {
   if (!text) return 0;
+
+  // 1. Handle multimodal content (array of parts)
+  if (Array.isArray(text)) {
+    let total = 0;
+    for (const part of text) {
+      if (typeof part === 'string') {
+        total += await countTokens(part, model);
+      } else if (part.type === 'text' && part.text) {
+        total += await countTokens(part.text, model);
+      } else if (part.type === 'image_url' || part.type === 'image') {
+        // High-level heuristic: ~1000 tokens for vision
+        // (OpenAI uses ~170-1105, Gemini 258, Anthropic ~1600)
+        total += 1000;
+      } else if (part.type === 'audio' || part.type === 'video') {
+        // Size-based heuristic for large media: 1MB ≈ 2000 tokens
+        // (Gemini uses ~32 tokens per second of audio)
+        const bytes = part.data ? (part.data.length * 3) / 4 : 0;
+        const mb = bytes / (1024 * 1024);
+        total += Math.max(100, Math.ceil(mb * 2000));
+      }
+    }
+    return total;
+  }
   
+  // 2. Handle simple text
   // Try tiktoken first
   const encoder = await getEncoder(model);
   if (encoder) {

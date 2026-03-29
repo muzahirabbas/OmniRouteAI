@@ -17,8 +17,28 @@ export class GeminiAdapter extends BaseAdapter {
    * Send a non-streaming request to Gemini.
    */
   buildBody(prompt, options = {}) {
+    let parts = [];
+
+    if (Array.isArray(prompt)) {
+      parts = prompt.map(p => {
+        if (typeof p === 'string') return { text: p };
+        if (p.type === 'text') return { text: p.text };
+        if (p.type === 'image' || p.type === 'audio' || p.type === 'video') {
+          return {
+            inlineData: {
+              mimeType: p.media_type,
+              data: p.data
+            }
+          };
+        }
+        return p;
+      });
+    } else {
+      parts = [{ text: prompt }];
+    }
+
     const body = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: { maxOutputTokens: 8192 },
     };
     if (options.systemPrompt) {

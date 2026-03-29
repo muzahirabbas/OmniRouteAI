@@ -317,9 +317,14 @@
                 How can I help you test your AI providers today?
              </div>
           </div>
-          <div class="chat-controls">
-             <textarea id="chat-input" class="chat-input input" placeholder="Message your AI..." rows="1"></textarea>
-             <button id="send-btn" class="btn btn-primary" onclick="sendMessage()">Send</button>
+          <div class="chat-controls-container">
+            <div id="staged-images" class="staged-images-container"></div>
+            <div class="chat-controls">
+               <button class="btn btn-icon" onclick="document.getElementById('image-input').click()" title="Attach Image">🖼️</button>
+               <input type="file" id="image-input" style="display: none;" accept="image/*" multiple onchange="handleImageUpload(this)">
+               <textarea id="chat-input" class="chat-input input" placeholder="Message your AI... (Paste images Ctrl+V)" rows="1" onkeydown="handleInputKey(event)" onpaste="handlePaste(event)"></textarea>
+               <button id="send-btn" class="btn btn-primary" onclick="sendMessage()">Send</button>
+            </div>
           </div>
         </div>
       </div>

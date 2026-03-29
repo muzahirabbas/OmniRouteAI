@@ -4,6 +4,9 @@
  * Handles page routing, data rendering, and user interactions.
  */
 
+// ─── Global State ───────────────────────────────────────────────────
+let stagedFiles = [];
+
 // ─── Navigation ──────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1201,11 +1204,27 @@ async function sendMessage() {
   const prompt = inputEl.value.trim();
 
   if (!prompt) return;
-
   // Add user message to UI
   const userMsg = document.createElement('div');
   userMsg.className = 'chat-message user';
   userMsg.textContent = prompt;
+  
+  // Append any attached media to the bubble
+  if (stagedFiles.length > 0) {
+    for (const file of stagedFiles) {
+      if (file.type === 'image') {
+        const img = document.createElement('img');
+        img.src = file.preview;
+        userMsg.appendChild(img);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'chat-media-attachment';
+        placeholder.innerHTML = `<span>${file.type === 'audio' ? '🎵' : '🎬'}</span><small>${file.name}</small>`;
+        userMsg.appendChild(placeholder);
+      }
+    }
+  }
+
   chatWindow.appendChild(userMsg);
   
   // Clear input
@@ -1234,11 +1253,27 @@ async function sendMessage() {
         }
     }
 
-    const payload = { prompt };
+    const payload = {};
+    
+    // Construct multimodal prompt if images are staged
+    if (stagedFiles.length > 0) {
+      payload.prompt = [{ type: 'text', text: prompt }];
+      for (const file of stagedFiles) {
+        payload.prompt.push({
+          type: 'image',
+          media_type: file.type,
+          data: file.base64
+        });
+      }
+    } else {
+      payload.prompt = prompt;
+    }
+
     if (model && model !== 'auto') payload.model = model;
     if (provider && provider !== 'auto') payload.provider = provider;
 
     let res, data;
+    const finalPrompt = payload.prompt; // For local routing
 
     // LOCAL providers: intercept and route directly to user's local daemon
     const isLocalProvider = provider && (
@@ -1261,7 +1296,7 @@ async function sendMessage() {
 
         data = await API.daemonRequest(daemonPath, {
           method: 'POST',
-          body: JSON.stringify({ prompt, model: model !== 'auto' ? model : undefined })
+          body: JSON.stringify({ prompt: finalPrompt, model: model !== 'auto' ? model : undefined })
         });
         res = { ok: true, status: 200 };
       } catch (err) {
@@ -1286,9 +1321,13 @@ async function sendMessage() {
     botMsg.classList.remove('thinking');
     if (!res.ok || data.error) {
        botMsg.classList.add('error');
-       botMsg.textContent = `Error (${res.status}): ${data.message || data.error || 'Unknown error'}`;
+       botMsg.innerHTML = `Error (${res.status}): ${data.message || data.error || 'Unknown error'}`;
     } else {
-       botMsg.textContent = data.output || JSON.stringify(data);
+       botMsg.innerHTML = renderMessageContent(data.output || JSON.stringify(data));
+       
+       // Clear staged files on success
+       stagedFiles = [];
+       renderStagedImages();
     }
 
     // Add metadata (always show if available, even on error)
@@ -1310,6 +1349,119 @@ async function sendMessage() {
 function clearChat() {
   const chatWindow = document.getElementById('chat-window');
   chatWindow.innerHTML = '<div class="chat-message bot">Window cleared. How can I help you?</div>';
+}
+
+// ─── Multimodal Helpers ─────────────────────────────────────────────
+
+async function handleImageUpload(input) {
+  if (!input.files || input.files.length === 0) return;
+  
+  for (const file of input.files) {
+    const isImage = file.type.startsWith('image/');
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (isImage || isAudio || isVideo) {
+      await processFile(file);
+    }
+  }
+  input.value = ''; // Reset input
+}
+
+async function handlePaste(e) {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      const file = item.getAsFile();
+      await processFile(file);
+    }
+  }
+}
+
+async function processFile(file) {
+  const base64Raw = await fileToBase64(file);
+  const base64 = base64Raw.split(',')[1];
+  
+  let type = 'image';
+  let preview = base64Raw;
+  
+  if (file.type.startsWith('audio/')) {
+    type    = 'audio';
+    preview = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSAxOGgyYTMgMyAwIDAgMCIDMtM1YyYTQgNCAwIDAgMC00IDRoNCIvPjxwYXRoIGQ9Ik0xOSAxMGgtMS41Ii8+PHBhdGggZD0iTTcgMTBoLTEuNSIvPjxwYXRoIGQ9Ik0xMSAxOWg0Ii8+PC9zdmc+'; // generic musical-note icon
+  } else if (file.type.startsWith('video/')) {
+    type    = 'video';
+    preview = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHJ4PSIyLjEzIi8+PHBhdGggZD0iTTcgMmwtNCA0Ii8+PHBhdGggZD0iTTcgMjJsLTQgLTQiLz48cGF0aCBkPSJNMjIgN2wtNCA0Ii8+PHBhdGggZD0iTTIyIDE3bC00IC00Ii8+PC9zdmc+'; // generic clapperboard icon
+  }
+
+  stagedFiles.push({
+    name: file.name,
+    type,
+    media_type: file.type,
+    size: file.size,
+    base64,
+    preview
+  });
+  renderStagedImages();
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+
+function renderStagedImages() {
+  const container = document.getElementById('staged-images');
+  if (!container) return;
+  
+  container.innerHTML = stagedFiles.map((file, index) => `
+    <div class="staged-image">
+      <img src="${file.preview}" alt="preview">
+      <button class="remove-btn" onclick="removeStagedImage(${index})">✕</button>
+    </div>
+  `).join('');
+}
+
+window.removeStagedImage = function(index) {
+  stagedFiles.splice(index, 1);
+  renderStagedImages();
+};
+
+function handleInputKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+/**
+ * Smart Message Renderer for Multimodal AI responses.
+ * Detects Markdown images, audio/video links and renders them as HTML elements.
+ */
+function renderMessageContent(content) {
+  if (!content) return '';
+  
+  // Escape HTML first to prevent XSS
+  let escaped = content
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Basic Markdown Images
+  // ![alt](url) -> <img src="url" alt="alt">
+  escaped = escaped.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="chat-response-media">');
+  
+  // Markdown Audio Link: [audio](url) -> <audio controls src="url"></audio>
+  escaped = escaped.replace(/\[audio\]\(([^)]+)\)/g, '<audio controls src="$1" class="chat-response-media"></audio>');
+  
+  // Markdown Video Link: [video](url) -> <video controls src="url"></video>
+  escaped = escaped.replace(/\[video\]\(([^)]+)\)/g, '<video controls src="$1" class="chat-response-media"></video>');
+
+  // Newline to <br>
+  return escaped.replace(/\n/g, '<br>');
 }
 
 // ─── Local Auth Page ────────────────────────────────────────────────

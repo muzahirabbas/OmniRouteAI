@@ -135,10 +135,22 @@ export async function getKeywords() {
  * @returns {'coding' | 'fast' | 'fast_loop' | 'general'}
  */
 export async function classify(prompt) {
-  if (!prompt || typeof prompt !== 'string') return 'general';
+  if (!prompt) return 'general';
+  
+  let textToClassify = '';
+  if (typeof prompt === 'string') {
+    textToClassify = prompt;
+  } else if (Array.isArray(prompt)) {
+    // Extract strings from multimodal parts
+    textToClassify = prompt
+      .map(p => typeof p === 'string' ? p : (p.type === 'text' ? p.text : ''))
+      .join(' ');
+  } else {
+    return 'general';
+  }
 
   const { coding, fastLoop } = await loadKeywords();
-  const lower = prompt.toLowerCase();
+  const lower = textToClassify.toLowerCase();
 
   // Check coding keywords
   for (const kw of coding) {
@@ -151,7 +163,7 @@ export async function classify(prompt) {
   }
 
   // Short prompts → fast
-  if (prompt.length < 100) return 'fast';
+  if (textToClassify.length < 100) return 'fast';
 
   return 'general';
 }
@@ -187,14 +199,25 @@ function getSyncKeywords() {
  * Synchronous classify function (for performance-critical paths).
  * Uses locally cached keywords (may be up to 1 minute stale).
  *
- * @param {string} prompt
+ * @param {string|Array} prompt
  * @returns {'coding' | 'fast' | 'fast_loop' | 'general'}
  */
 export function classifySync(prompt) {
-  if (!prompt || typeof prompt !== 'string') return 'general';
+  if (!prompt) return 'general';
+
+  let textToClassify = '';
+  if (typeof prompt === 'string') {
+    textToClassify = prompt;
+  } else if (Array.isArray(prompt)) {
+    textToClassify = prompt
+      .map(p => typeof p === 'string' ? p : (p.type === 'text' ? p.text : ''))
+      .join(' ');
+  } else {
+    return 'general';
+  }
 
   const { coding, fastLoop } = getSyncKeywords();
-  const lower = prompt.toLowerCase();
+  const lower = textToClassify.toLowerCase();
 
   // Check coding keywords
   for (const kw of coding) {
@@ -207,7 +230,7 @@ export function classifySync(prompt) {
   }
 
   // Short prompts → fast
-  if (prompt.length < 100) return 'fast';
+  if (textToClassify.length < 100) return 'fast';
 
   return 'general';
 }

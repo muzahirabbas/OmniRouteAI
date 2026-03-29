@@ -36,7 +36,24 @@ export class VertexAdapter extends BaseAdapter {
   }
 
   buildBody(prompt, options = {}) {
-    const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
+    let parts = [];
+
+    if (typeof prompt === 'string') {
+      parts = [{ text: prompt }];
+    } else if (Array.isArray(prompt)) {
+      parts = prompt.map(p => {
+        if (typeof p === 'string') return { text: p };
+        if (p.type === 'text') return { text: p.text };
+        if (p.type === 'image' || p.type === 'audio' || p.type === 'video') {
+          return {
+            inline_data: { mime_type: p.media_type, data: p.data }
+          };
+        }
+        return p;
+      });
+    }
+
+    const body = { contents: [{ role: 'user', parts }] };
     if (options.systemPrompt) {
       body.systemInstruction = { parts: [{ text: options.systemPrompt }] };
     }

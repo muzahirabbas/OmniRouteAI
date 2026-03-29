@@ -33,9 +33,26 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
   }
 
   buildBody(prompt, model, stream = false, options = {}) {
+    let content = prompt;
+
+    // Handle multimodal array
+    if (Array.isArray(prompt)) {
+      content = prompt.map(p => {
+        if (typeof p === 'string') return { type: 'text', text: p };
+        if (p.type === 'text') return p;
+        if (p.type === 'image') {
+          return {
+            type: 'image_url',
+            image_url: { url: `data:${p.media_type};base64,${p.data}` }
+          };
+        }
+        return p;
+      });
+    }
+
     const body = {
       model,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content }],
       stream,
     };
     if (options.systemPrompt) {

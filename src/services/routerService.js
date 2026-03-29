@@ -304,8 +304,19 @@ export async function route(prompt, opts = {}) {
     searchList = [...activeProviders];
   }
 
+  // ─── Detect if multimodal (vision, audio, video) is required ──────
+  const multimodalParts = Array.isArray(prompt) ? prompt.filter(p => typeof p === 'object') : [];
+  const isVision = multimodalParts.some(p => p.type === 'image_url' || p.type === 'image');
+  const isAudio  = multimodalParts.some(p => p.type === 'audio');
+  const isVideo  = multimodalParts.some(p => p.type === 'video');
+
   for (const provider of searchList) {
     if (excludeProviders.includes(provider.name)) continue;
+
+    // Filter by capabilities
+    if (isVision && (!provider.features || !provider.features.includes('vision'))) continue;
+    if (isAudio  && (!provider.features || !provider.features.includes('audio'))) continue;
+    if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
 
     // Model selection: requested model → provider default → first model in list
     let model = opts.model && provider.models?.includes(opts.model) ? opts.model : null;

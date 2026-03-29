@@ -41,9 +41,26 @@ export class AnthropicAdapter extends BaseAdapter {
   }
 
   buildBody(prompt, model, stream = false, options = {}) {
+    let content = prompt;
+
+    // Handle multimodal array
+    if (Array.isArray(prompt)) {
+      content = prompt.map(p => {
+        if (typeof p === 'string') return { type: 'text', text: p };
+        if (p.type === 'text') return p;
+        if (p.type === 'image') {
+          return {
+            type: 'image',
+            source: { type: 'base64', media_type: p.media_type, data: p.data }
+          };
+        }
+        return p;
+      });
+    }
+
     const body = {
       model,
-      messages:   [{ role: 'user', content: prompt }],
+      messages:   [{ role: 'user', content }],
       max_tokens: 8192,
       stream,
     };

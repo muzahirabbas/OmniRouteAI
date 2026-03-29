@@ -15,7 +15,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['vision']
   },
   {
     name: 'anthropic',
@@ -26,7 +27,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['vision']
   },
   {
     name: 'google',
@@ -37,7 +39,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'gemini-2.0-flash-001', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemma-2-27b-it'
     ],
-    rpmLimit: 15
+    rpmLimit: 15,
+    features: ['vision', 'audio', 'video']
   },
   {
     name: 'xai',
@@ -222,7 +225,8 @@ export const STATIC_PROVIDERS = [
     models: [
       '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct'
     ],
-    rpmLimit: 100
+    rpmLimit: 100,
+    features: ['vision']
   },
   {
     name: 'huggingface',
@@ -343,7 +347,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'gemini-1.5-pro', 'gemini-1.5-flash'
     ],
-    rpmLimit: 20
+    rpmLimit: 20,
+    features: ['vision', 'audio', 'video']
   },
   {
     name: 'glm',
