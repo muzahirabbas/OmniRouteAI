@@ -627,7 +627,6 @@ export async function adminRoutes(app) {
       let keyMetadata = {};
 
       if (keysSnapshot.empty) {
-        // Fallback to searching without is_disabled (legacy or during migration)
         const fallbackSnapshot = await db.collection('api_keys')
           .where('provider', '==', providerName)
           .limit(1)
@@ -641,7 +640,27 @@ export async function adminRoutes(app) {
         keyMetadata = keysSnapshot.docs[0].data().metadata || {};
       }
 
-      // 3. Determine Models URL
+      // 3. Setup Model Lists & Discovery
+      const HARDCODED_MODELS = {
+        'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+        'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
+        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash'],
+        'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
+        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro']
+      };
+
+      // These providers MUST use hardcoded models (no discovery API)
+      if (['anthropic', 'minimax', 'xiaomi'].includes(providerName)) {
+        return {
+          success: true,
+          provider: providerName,
+          models: HARDCODED_MODELS[providerName],
+          count: HARDCODED_MODELS[providerName].length,
+          note: 'Hardcoded list (Provider does not support API discovery)'
+        };
+      }
+
+      // 4. Determine Models URL
       let modelsUrl = provider.endpoint || '';
       
       if (providerName === 'cloudflare') {
@@ -667,32 +686,13 @@ export async function adminRoutes(app) {
         }
       }
 
-      // Special cases & Hardcoded Fallbacks:
+      // Special cases:
       if (providerName === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
       if (providerName === 'huggingface') {
         modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
       }
       if (providerName === 'ollama-cloud') {
         modelsUrl = 'https://ollama.com/api/tags';
-      }
-
-      // 3.5 Anthropic/Minimax don't have public discovery APIs. 
-      // We return their static model lists immediately.
-      const HARDCODED_MODELS = {
-        'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-        'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
-        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash']
-      };
-
-      if (HARDCODED_MODELS[providerName]) {
-        console.log(`Returning hardcoded models for ${providerName}`);
-        return {
-          success: true,
-          provider: providerName,
-          models: HARDCODED_MODELS[providerName],
-          count: HARDCODED_MODELS[providerName].length,
-          note: 'Hardcoded list (Provider does not support API discovery)'
-        };
       }
 
       if (!modelsUrl) throw new Error(`Could not determine models list URL for ${providerName}`);
@@ -715,12 +715,16 @@ export async function adminRoutes(app) {
       } catch (err) {
         console.warn(`Live discovery failed for ${providerName}: ${err.message}. Falling back to hardcoded.`);
         if (HARDCODED_MODELS[providerName]) {
+          const fallbackNote = providerName === 'vertex' 
+            ? `Live discovery failed (Status ${err.message}). If using Vertex AI, ensure the "Vertex AI API" is enabled in Google Cloud Console and your Project ID is correct.`
+            : `Live discovery failed (${err.message}). Using hardcoded fallback.`;
+
           return {
             success: true,
             provider: providerName,
             models: HARDCODED_MODELS[providerName],
             count: HARDCODED_MODELS[providerName].length,
-            note: `Live discovery failed (${err.message}). Using hardcoded fallback.`
+            note: fallbackNote
           };
         }
         throw err; // Re-throw if no fallback exists

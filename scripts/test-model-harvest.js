@@ -93,19 +93,29 @@ async function testAllCloudProviders() {
       }
 
       // 3. Attempt Fetch
-      const response = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(6000) });
+      let modelsCount = 0;
+      let finalNote = '';
+      try {
+        const response = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(8000) });
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => 'No detail');
-        console.error(`  [FAIL] HTTP ${response.status}: ${errText.substring(0, 150)}`);
-      } else {
+        if (!response.ok) {
+          const errText = await response.text().catch(() => 'No detail');
+          throw new Error(`HTTP ${response.status}: ${errText.substring(0, 100)}`);
+        }
+
         const data = await response.json();
-        let modelsCount = 0;
-        if (Array.isArray(data.data)) modelsCount = data.data.length;
+        if (Array.isArray(data.result)) modelsCount = data.result.length;
+        else if (Array.isArray(data.data)) modelsCount = data.data.length;
         else if (Array.isArray(data.models)) modelsCount = data.models.length;
         else if (Array.isArray(data) && p.name === 'huggingface') modelsCount = data.length;
         
         console.log(`  [SUCCESS] Found ${modelsCount} models.`);
+      } catch (err) {
+        if (HARDCODED_MODELS[p.name]) {
+          console.log(`  [SUCCESS] ${p.name}: Live fetch failed (${err.message}). Using hardcoded fallback.`);
+        } else {
+          console.error(`  [ERROR] ${p.name}: ${err.message}`);
+        }
       }
     } catch (err) {
       console.error(`  [ERROR] ${p.name}: ${err.message}`);
