@@ -37,23 +37,41 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
 
     // Handle multimodal array
     if (Array.isArray(prompt)) {
+      const hasAudio = prompt.some(p => p.type === 'audio');
       content = prompt.map(p => {
         if (typeof p === 'string') return { type: 'text', text: p };
         if (p.type === 'text') return p;
         if (p.type === 'image') {
           return {
             type: 'image_url',
-            image_url: { url: `data:${p.media_type};base64,${p.data}` }
+            image_url: { url: `data:${this.sanitizeMimeType(p.media_type)};base64,${p.data}` }
+          };
+        }
+        if (p.type === 'audio') {
+          const cleanMime = this.sanitizeMimeType(p.media_type); // e.g. 'audio/webm'
+          const format = cleanMime.split('/')[1] || 'wav'; // simple format inference
+          return {
+            type: 'input_audio',
+            input_audio: { data: p.data, format }
           };
         }
         return p;
       });
+
+      if (hasAudio) {
+        // If audio is present in GPT-4o-audio-preview, we must specify modalities
+        options.modalities = ['text', 'audio'];
+        // Default to alloy voice for responses if audio output is enabled (though our bridge focus is input)
+        options.audio = { voice: 'alloy', format: 'wav' };
+      }
     }
 
     const body = {
       model,
       messages: [{ role: 'user', content }],
       stream,
+      ...(options.modalities ? { modalities: options.modalities } : {}),
+      ...(options.audio ? { audio: options.audio } : {}),
     };
     if (options.systemPrompt) {
       body.messages.unshift({ role: 'system', content: options.systemPrompt });

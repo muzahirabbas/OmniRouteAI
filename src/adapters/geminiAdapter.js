@@ -26,7 +26,7 @@ export class GeminiAdapter extends BaseAdapter {
         if (p.type === 'image' || p.type === 'audio' || p.type === 'video') {
           return {
             inlineData: {
-              mimeType: p.media_type,
+              mimeType: this.sanitizeMimeType(p.media_type),
               data: p.data
             }
           };

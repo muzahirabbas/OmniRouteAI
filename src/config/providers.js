@@ -16,7 +16,7 @@ export const STATIC_PROVIDERS = [
       'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'
     ],
     rpmLimit: 50,
-    features: ['vision']
+    features: ['vision', 'audio']
   },
   {
     name: 'anthropic',
@@ -409,7 +409,8 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/gemini`
       : 'http://localhost:5059/gemini',
     models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'default'],
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
   },
   {
     name: 'qwen_cli_local',
@@ -421,7 +422,8 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/qwen`
       : 'http://localhost:5059/qwen',
     models: ['qwen3-235b-a22b', 'default'],
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
   },
   {
     name: 'antigravity_cli_local',
@@ -577,7 +579,8 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/cursor`
       : 'http://localhost:5059/cursor',
     models: ['default'],
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision']
   }
 ];
 

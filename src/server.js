@@ -19,6 +19,7 @@ export async function buildServer(opts = {}) {
     },
     genReqId: () => uuidv4(),
     requestTimeout: 120000,
+    bodyLimit: 20971520, // 20MB for multimodal payloads
     ...opts,
   });
 

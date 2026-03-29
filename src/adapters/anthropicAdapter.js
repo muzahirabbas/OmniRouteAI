@@ -45,17 +45,23 @@ export class AnthropicAdapter extends BaseAdapter {
 
     // Handle multimodal array
     if (Array.isArray(prompt)) {
-      content = prompt.map(p => {
-        if (typeof p === 'string') return { type: 'text', text: p };
-        if (p.type === 'text') return p;
-        if (p.type === 'image') {
-          return {
-            type: 'image',
-            source: { type: 'base64', media_type: p.media_type, data: p.data }
-          };
-        }
-        return p;
-      });
+      content = prompt
+        .filter(p => typeof p === 'string' || p.type === 'text' || p.type === 'image')
+        .map(p => {
+          if (typeof p === 'string') return { type: 'text', text: p };
+          if (p.type === 'text') return p;
+          if (p.type === 'image') {
+            return {
+              type: 'image',
+              source: { 
+                type: 'base64', 
+                media_type: this.sanitizeMimeType(p.media_type), 
+                data: p.data 
+              }
+            };
+          }
+          return p;
+        });
     }
 
     const body = {

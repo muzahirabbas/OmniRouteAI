@@ -46,7 +46,7 @@ export class VertexAdapter extends BaseAdapter {
         if (p.type === 'text') return { text: p.text };
         if (p.type === 'image' || p.type === 'audio' || p.type === 'video') {
           return {
-            inline_data: { mime_type: p.media_type, data: p.data }
+            inline_data: { mime_type: this.sanitizeMimeType(p.media_type), data: p.data }
           };
         }
         return p;

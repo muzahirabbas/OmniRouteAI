@@ -20,6 +20,19 @@ export class BaseAdapter {
   }
 
   /**
+   * Sanitizes a MIME type by removing parameters (like ;codecs=opus).
+   * Most AI providers (Gemini, Anthropic) are strict and reject MIME types with parameters.
+   * 
+   * @param {string} mimeType 
+   * @returns {string} - Cleaned MIME type (e.g., 'audio/webm')
+   */
+  sanitizeMimeType(mimeType) {
+    if (!mimeType) return 'application/octet-stream';
+    // Remove everything after the first semicolon
+    return mimeType.split(';')[0].trim().toLowerCase();
+  }
+
+  /**
    * Create an AbortController with timeout.
    * @param {number} [ms] - timeout in milliseconds
    * @returns {{ controller: AbortController, signal: AbortSignal }}
