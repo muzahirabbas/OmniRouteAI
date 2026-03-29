@@ -26,12 +26,26 @@ async function testAllCloudProviders() {
         continue;
       }
       
-      const apiKey = activeKeys[0].data().key;
+      const firstKeyData = activeKeys[0].data();
+      const apiKey = firstKeyData.key;
+      const keyMetadata = firstKeyData.metadata || {};
       console.log(`Testing [${p.name}]...`);
 
       // 2. URL transformation (Copy of backend logic)
       let modelsUrl = p.endpoint || '';
-      if (modelsUrl.includes('/chat/completions')) {
+      
+      if (p.name === 'cloudflare') {
+        const accountId = keyMetadata.accountId || process.env.CF_ACCOUNT_ID;
+        if (accountId) {
+          modelsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`;
+        }
+      } else if (p.name === 'vertex') {
+        const projectId = keyMetadata.projectId || process.env.GOOGLE_PROJECT_ID;
+        const region = keyMetadata.region || 'us-central1';
+        if (projectId) {
+          modelsUrl = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models`;
+        }
+      } else if (modelsUrl.includes('/chat/completions')) {
         modelsUrl = modelsUrl.replace('/chat/completions', '/models');
       } else if (modelsUrl.includes('/messages')) {
         modelsUrl = modelsUrl.replace('/messages', '/models');
@@ -55,13 +69,15 @@ async function testAllCloudProviders() {
       // Hardcoded Overrides Simulation (Matching Backend)
       const HARDCODED_MODELS = {
         'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-        'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
         'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
+        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash'],
+        'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
         'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash']
       };
 
-      if (HARDCODED_MODELS[p.name]) {
+      const forceHardcoded = ['anthropic', 'minimax', 'xiaomi'].includes(p.name);
+
+      if (forceHardcoded || (!modelsUrl && HARDCODED_MODELS[p.name])) {
         console.log(`  [SUCCESS] ${p.name}: Found ${HARDCODED_MODELS[p.name].length} models (HARDCODED FALLBACK)`);
         continue;
       }

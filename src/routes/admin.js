@@ -617,15 +617,17 @@ export async function adminRoutes(app) {
       if (!provider) throw new Error(`Provider ${providerName} not found`);
 
       // 2. Get API Key (get first non-disabled key)
-      let apiKey;
       const keysSnapshot = await db.collection('api_keys')
         .where('provider', '==', providerName)
         .where('is_disabled', '!=', true)
         .limit(1)
         .get();
       
+      let apiKey;
+      let keyMetadata = {};
+
       if (keysSnapshot.empty) {
-        // Try fallback: maybe keys don't have is_disabled field at all
+        // Fallback to searching without is_disabled (legacy or during migration)
         const fallbackSnapshot = await db.collection('api_keys')
           .where('provider', '==', providerName)
           .limit(1)
@@ -633,22 +635,35 @@ export async function adminRoutes(app) {
           
         if (fallbackSnapshot.empty) throw new Error(`No API key found for ${providerName}`);
         apiKey = fallbackSnapshot.docs[0].data().key;
+        keyMetadata = fallbackSnapshot.docs[0].data().metadata || {};
       } else {
         apiKey = keysSnapshot.docs[0].data().key;
+        keyMetadata = keysSnapshot.docs[0].data().metadata || {};
       }
 
       // 3. Determine Models URL
-      // Pattern: Replace /chat/completions or /messages with /models
       let modelsUrl = provider.endpoint || '';
-      if (modelsUrl.includes('/chat/completions')) {
+      
+      if (providerName === 'cloudflare') {
+        const accountId = keyMetadata.accountId || process.env.CF_ACCOUNT_ID;
+        if (accountId) {
+          modelsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`;
+        }
+      } else if (providerName === 'vertex') {
+        const projectId = keyMetadata.projectId || process.env.GOOGLE_PROJECT_ID;
+        const region = keyMetadata.region || 'us-central1';
+        if (projectId) {
+          modelsUrl = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models`;
+        }
+      } else if (modelsUrl.includes('/chat/completions')) {
         modelsUrl = modelsUrl.replace('/chat/completions', '/models');
       } else if (modelsUrl.includes('/messages')) {
         modelsUrl = modelsUrl.replace('/messages', '/models');
       } else {
         const parts = modelsUrl.split('/');
         if (parts.length > 3) {
-           parts.pop(); 
-           modelsUrl = parts.join('/') + '/models';
+            parts.pop(); 
+            modelsUrl = parts.join('/') + '/models';
         }
       }
 
@@ -658,13 +673,11 @@ export async function adminRoutes(app) {
         modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
       }
 
-      // 3.5 Anthropic/Minimax/Cloudflare don't have public discovery APIs. 
+      // 3.5 Anthropic/Minimax don't have public discovery APIs. 
       // We return their static model lists immediately.
       const HARDCODED_MODELS = {
         'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-        'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
         'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
-        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
         'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash']
       };
 
@@ -683,27 +696,48 @@ export async function adminRoutes(app) {
       console.log(`Harvesting models for ${providerName} from ${modelsUrl}`);
 
       // 4. Fetch
-      const headers = { 'Authorization': `Bearer ${apiKey}` };
-      // Google AI Studio uses ?key= API key
-      const finalUrl = providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
-      if (providerName === 'google') delete headers.Authorization;
-      if (providerName === 'huggingface') delete headers.Authorization;
+      let data;
+      try {
+        const headers = { 'Authorization': `Bearer ${apiKey}` };
+        const finalUrl = providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
+        if (providerName === 'google') delete headers.Authorization;
+        if (providerName === 'huggingface') delete headers.Authorization;
 
-      const response = await fetch(finalUrl, { headers });
-      if (!response.ok) {
-        const errText = await response.text().catch(() => 'No detail');
-        throw new Error(`Provider Error (${response.status}): ${errText.substring(0, 100)}`);
+        const response = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(8000) });
+        if (!response.ok) {
+          const errText = await response.text().catch(() => 'No detail');
+          throw new Error(`Status ${response.status}: ${errText.substring(0, 100)}`);
+        }
+        data = await response.json();
+      } catch (err) {
+        console.warn(`Live discovery failed for ${providerName}: ${err.message}. Falling back to hardcoded.`);
+        if (HARDCODED_MODELS[providerName]) {
+          return {
+            success: true,
+            provider: providerName,
+            models: HARDCODED_MODELS[providerName],
+            count: HARDCODED_MODELS[providerName].length,
+            note: `Live discovery failed (${err.message}). Using hardcoded fallback.`
+          };
+        }
+        throw err; // Re-throw if no fallback exists
       }
 
-      const data = await response.json();
-      
-      // 5. Extract model IDs (standard OpenAI format is data: [{ id: "...", ... }])
+      // 5. Extract model IDs
       let modelIds = [];
-      if (Array.isArray(data.data)) {
+      if (Array.isArray(data.result)) {
+        // Cloudflare search format
+        modelIds = data.result.map(m => m.name || m.id).filter(id => id.startsWith('@cf/'));
+      } else if (Array.isArray(data.data)) {
+        // standard OpenAI format is data: [{ id: "...", ... }]
         modelIds = data.data.map(m => m.id || m.name);
       } else if (Array.isArray(data.models)) {
-        // Handle Ollama tags format or Google format
-        modelIds = data.models.map(m => (m.name || m.id).replace('models/', ''));
+        // Handle Ollama tags format or Google Vertex format
+        // Vertex names look like: projects/id/locations/id/publishers/google/models/gemini-1.5-pro
+        modelIds = data.models.map(m => {
+          const raw = m.name || m.id || '';
+          return raw.includes('/') ? raw.split('/').pop() : raw;
+        }).filter(id => id && !id.includes('/') && id.length > 2);
       } else if (Array.isArray(data) && providerName === 'huggingface') {
         modelIds = data.map(m => m.id);
       }
