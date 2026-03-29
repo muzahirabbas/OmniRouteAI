@@ -120,6 +120,29 @@ export async function adminRoutes(app) {
     return { providers: result };
   });
 
+  // Get a unique list of all saved/seeded models across all providers
+  app.get('/api/admin/models', async () => {
+    const allProviders = await getProviders();
+    const uniqueModels = new Set();
+    allProviders.forEach(p => {
+      if (p.models) p.models.forEach(m => uniqueModels.add(m));
+    });
+    return { models: Array.from(uniqueModels).sort() };
+  });
+
+  // Get models for a specific named provider from the database
+  app.get('/api/admin/providers/:name/models', async (request, reply) => {
+    const { name } = request.params;
+    const allProviders = await getProviders();
+    const provider = allProviders.find(p => p.name === name);
+    if (!provider) return reply.code(404).send({ error: `Provider "${name}" not found.` });
+    return { 
+      provider: name, 
+      models: provider.models || [],
+      features: provider.features || []
+    };
+  });
+
   // Update provider in Firestore
   app.put('/api/admin/providers/:name', async (request, reply) => {
     const { name }  = request.params;

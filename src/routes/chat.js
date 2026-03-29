@@ -19,6 +19,33 @@ export async function chatRoutes(app) {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 
+  // ─── Standard OpenAI Model Discovery ─────────────────────────────────
+  app.get('/v1/models', async () => {
+    const { getProviders } = await import('../config/providers.js');
+    const allProviders = await getProviders();
+    const models = [];
+    const seen = new Set();
+    
+    allProviders.forEach(p => {
+      if (p.models) {
+        p.models.forEach(m => {
+          if (!seen.has(m)) {
+            seen.add(m);
+            models.push({
+              id:       m,
+              object:   'model',
+              created:  Math.floor(Date.now() / 1000),
+              owned_by: p.name,
+              features: p.features || []
+            });
+          }
+        });
+      }
+    });
+
+    return { object: 'list', data: models };
+  });
+
   // ─── Chat completions ────────────────────────────────────────────────
   app.post('/v1/chat/completions', {
     schema: {
