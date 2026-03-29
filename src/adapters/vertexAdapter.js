@@ -17,9 +17,10 @@ export class VertexAdapter extends BaseAdapter {
     this.region = region;
   }
 
-  buildUrl(projectId, model, stream = false) {
+  buildUrl(projectId, model, region, stream = false) {
+    const r = region || this.region;
     const method = stream ? 'streamGenerateContent' : 'generateContent';
-    return `https://${this.region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${this.region}/publishers/google/models/${model}:${method}`;
+    return `https://${r}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${r}/publishers/google/models/${model}:${method}`;
   }
 
   buildHeaders(apiKey, options = {}) {
@@ -44,7 +45,8 @@ export class VertexAdapter extends BaseAdapter {
 
   async sendRequest(prompt, model, apiKey, options = {}) {
     const projectId = options.metadata?.projectId || options.projectId || process.env.GOOGLE_PROJECT_ID;
-    const url = this.buildUrl(projectId, model, false);
+    const region = options.metadata?.region || this.region;
+    const url = this.buildUrl(projectId, model, region, false);
     const controller = this.createTimeout();
 
     try {
@@ -75,8 +77,9 @@ export class VertexAdapter extends BaseAdapter {
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
     const projectId = options.metadata?.projectId || options.projectId || process.env.GOOGLE_PROJECT_ID;
+    const region = options.metadata?.region || this.region;
     // ?alt=sse forces SSE streaming (same as Gemini streamGenerateContent)
-    const url = `${this.buildUrl(projectId, model, true)}?alt=sse`;
+    const url = `${this.buildUrl(projectId, model, region, true)}?alt=sse`;
     const controller = this.createTimeout();
     let fullOutput = '';
     let lastRaw = null;

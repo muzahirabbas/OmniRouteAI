@@ -525,7 +525,10 @@ async function refreshKeys(force = false) {
     tbody.innerHTML = data.keys.map((k) => {
       let metaLabel = '';
       if (k.metadata?.accountId) metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-primary);">Account: ${k.metadata.accountId}</div>`;
-      if (k.metadata?.projectId) metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-success);">Project: ${k.metadata.projectId}</div>`;
+      if (k.metadata?.projectId) {
+        const region = k.metadata.region || 'us-central1';
+        metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-success);">Project: ${k.metadata.projectId} | Region: ${region}</div>`;
+      }
 
       return `
         <tr>
@@ -574,9 +577,15 @@ function handleKeyProviderChange() {
   } else if (provider === 'vertex') {
     metadataEl.style.display = 'block';
     metadataContent.innerHTML = `
-      <div class="form-group" style="margin-bottom: 0;">
-        <label class="form-label">Google Cloud Project ID</label>
-        <input type="text" id="meta-projectId" class="input" style="width: 100%;" placeholder="e.g. my-gemini-project-123">
+      <div style="display: flex; gap: 1rem;">
+        <div class="form-group" style="margin-bottom: 0; flex: 2;">
+          <label class="form-label">Google Cloud Project ID</label>
+          <input type="text" id="meta-projectId" class="input" style="width: 100%;" placeholder="e.g. my-gemini-project-123">
+        </div>
+        <div class="form-group" style="margin-bottom: 0; flex: 1;">
+          <label class="form-label">Region (Default: us-central1)</label>
+          <input type="text" id="meta-region" class="input" style="width: 100%;" placeholder="us-central1">
+        </div>
       </div>
     `;
   }
