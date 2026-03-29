@@ -126,12 +126,18 @@
       </div>
       <div class="card">
         <div class="form-row">
-          <select id="key-provider-select" class="input">
-            <option value="" disabled selected>Select provider...</option>
+          <select id="key-provider-select" class="input" onchange="handleKeyProviderChange()">
+            <option value="">Select Provider</option>
             <!-- Dynamically populated -->
           </select>
-          <input type="text" id="key-input" class="input" placeholder="Paste API key here...">
-          <button class="btn btn-primary" onclick="addKey()">+ Add Key</button>
+          <input type="password" id="key-input" class="input" placeholder="Paste API Key here...">
+          <button class="btn btn-primary" onclick="addKey()">Add Key</button>
+        </div>
+        
+        <!-- Metadata Fields (Dynamic) -->
+        <div id="metadata-fields" style="margin-top: 1rem; display: none; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed var(--border-color);">
+          <div id="metadata-fields-content"></div>
+          <small class="form-hint" style="margin-top: 0.5rem; display: block;">This ID will be saved specifically for this key.</small>
         </div>
       </div>
       <div class="card" style="margin-top: 1rem;">

@@ -327,10 +327,10 @@ const API = {
     return this.request(`/api/admin/keys/${provider}`, opts);
   },
 
-  async addKey(provider, key) {
+  async addKey(provider, key, metadata = {}) {
     return this.request(`/api/admin/keys/${provider}`, {
       method: 'POST',
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, metadata }),
     });
   },
 

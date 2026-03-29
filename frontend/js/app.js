@@ -545,11 +545,43 @@ async function refreshKeys(force = false) {
   }
 }
 
+function handleKeyProviderChange() {
+  const provider = document.getElementById('key-provider-select').value;
+  const metadataEl = document.getElementById('metadata-fields');
+  const metadataContent = document.getElementById('metadata-fields-content');
+
+  // Reset
+  metadataEl.style.display = 'none';
+  metadataContent.innerHTML = '';
+
+  if (provider === 'cloudflare') {
+    metadataEl.style.display = 'block';
+    metadataContent.innerHTML = `
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label">Cloudflare Account ID</label>
+        <input type="text" id="meta-accountId" class="input" style="width: 100%;" placeholder="e.g. 5e7... (Find in CF dashboard)">
+      </div>
+    `;
+  } else if (provider === 'vertex') {
+    metadataEl.style.display = 'block';
+    metadataContent.innerHTML = `
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label">Google Cloud Project ID</label>
+        <input type="text" id="meta-projectId" class="input" style="width: 100%;" placeholder="e.g. my-gemini-project-123">
+      </div>
+    `;
+  }
+}
+
 async function addKey() {
   const provider = document.getElementById('key-provider-select').value;
   const keyInput = document.getElementById('key-input');
   const key = keyInput.value.trim();
 
+  if (!provider) {
+    showToast('warning', 'Please select a provider first');
+    return;
+  }
   if (!key) {
     showToast('warning', 'Please enter an API key');
     return;

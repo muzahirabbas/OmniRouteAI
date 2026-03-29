@@ -43,7 +43,7 @@ export class VertexAdapter extends BaseAdapter {
   }
 
   async sendRequest(prompt, model, apiKey, options = {}) {
-    const projectId = options.projectId || process.env.GOOGLE_PROJECT_ID;
+    const projectId = options.metadata?.projectId || options.projectId || process.env.GOOGLE_PROJECT_ID;
     const url = this.buildUrl(projectId, model, false);
     const controller = this.createTimeout();
 
@@ -74,7 +74,7 @@ export class VertexAdapter extends BaseAdapter {
    * Streaming request — reads Vertex SSE events (same format as Gemini).
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const projectId = options.projectId || process.env.GOOGLE_PROJECT_ID;
+    const projectId = options.metadata?.projectId || options.projectId || process.env.GOOGLE_PROJECT_ID;
     // ?alt=sse forces SSE streaming (same as Gemini streamGenerateContent)
     const url = `${this.buildUrl(projectId, model, true)}?alt=sse`;
     const controller = this.createTimeout();

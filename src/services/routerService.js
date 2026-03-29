@@ -1,6 +1,6 @@
 import { classify, classifySync } from '../utils/classifier.js';
 import { getActiveProviders, recordProviderResult } from './providerService.js';
-import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure } from './keyService.js';
+import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure, getKeyMetadata } from './keyService.js';
 import { estimateTokens } from './statsService.js';
 import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
 
@@ -397,6 +397,7 @@ export async function routeAndExecute(prompt, opts = {}) {
 
     try {
       const adapter = await getAdapter(provider.name, provider);
+      const metadata = await getKeyMetadata(provider.name, apiKey);
 
       if (opts.stream) {
         // ── Streaming path ─────────────────────────────────────────
@@ -405,6 +406,7 @@ export async function routeAndExecute(prompt, opts = {}) {
           taskType,
           systemPrompt: opts.systemPrompt,
           onChunk:      opts.onChunk,
+          metadata:     metadata || {},
         });
 
         await recordProviderResult(provider.name, true);
@@ -432,6 +434,7 @@ export async function routeAndExecute(prompt, opts = {}) {
         requestId:    opts.requestId,
         taskType,
         systemPrompt: opts.systemPrompt,
+        metadata:     metadata || {},
       });
 
       if (!rawResponse) {

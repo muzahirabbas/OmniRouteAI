@@ -18,11 +18,12 @@ export class CloudflareAdapter extends BaseAdapter {
    * Send a non-streaming request to Cloudflare Workers AI.
    */
   async sendRequest(prompt, model, apiKey, options = {}) {
-    if (!this.accountId) {
+    const accountId = options.metadata?.accountId || this.accountId;
+    if (!accountId) {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
 
-    const url = `${this.baseUrl}/${model}`;
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
     const controller = this.createTimeout();
 
     try {
@@ -61,11 +62,12 @@ export class CloudflareAdapter extends BaseAdapter {
    * Send a streaming request to Cloudflare Workers AI.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    if (!this.accountId) {
+    const accountId = options.metadata?.accountId || this.accountId;
+    if (!accountId) {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
 
-    const url = `${this.baseUrl}/${model}`;
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
     const controller = this.createTimeout();
     let fullOutput = '';
 

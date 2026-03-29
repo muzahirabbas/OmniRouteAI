@@ -232,6 +232,30 @@ export async function registerKeys(provider, keysToRegister) {
 }
 
 /**
+ * Store metadata (e.g., Account ID, Project ID) for a specific API key.
+ *
+ * @param {string} provider
+ * @param {string} key
+ * @param {object} metadata
+ */
+export async function setKeyMetadata(provider, key, metadata) {
+  if (!metadata || Object.keys(metadata).length === 0) return;
+  await setex(`key:metadata:${provider}:${key}`, 31536000, JSON.stringify(metadata)); // 1 year TTL
+}
+
+/**
+ * Retrieve metadata for a specific API key.
+ *
+ * @param {string} provider
+ * @param {string} key
+ * @returns {Promise<object|null>}
+ */
+export async function getKeyMetadata(provider, key) {
+  const data = await get(`key:metadata:${provider}:${key}`);
+  return data ? JSON.parse(data) : null;
+}
+
+/**
  * Reset all key scores for a provider to 0 and clear all disabled flags.
  * Used by the provider refresh endpoint.
  *

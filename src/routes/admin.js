@@ -255,10 +255,18 @@ export async function adminRoutes(app) {
         await registerKeys(providerName, providerKeys);
       }
 
-      // Re-apply permanently disabled status in Redis
+      // Re-apply permanently disabled status & metadata in Redis
       for (const dk of disabledKeys) {
         await disableKey(dk.provider, dk.key, 31536000); // 1 year
       }
+      
+      const { setKeyMetadata } = await import('../services/keyService.js');
+      keysSnapshot.forEach(async doc => {
+        const data = doc.data();
+        if (data.metadata) {
+          await setKeyMetadata(data.provider, data.key, data.metadata);
+        }
+      });
 
       // 5. Invalidate adapter cache (for endpoint URL changes)
       const { invalidateAdapterCache } = await import('../services/routerService.js');
@@ -381,20 +389,22 @@ export async function adminRoutes(app) {
     };
   });
 
-  // Add a key for a provider
   app.post('/api/admin/keys/:provider', async (request, reply) => {
     const { provider } = request.params;
-    const { key }      = request.body;
+    const { key, metadata } = request.body;
 
     if (!key) return reply.code(400).send({ error: 'key is required' });
 
+    const { registerKeys, setKeyMetadata } = await import('../services/keyService.js');
     await registerKeys(provider, [key]);
+    if (metadata) await setKeyMetadata(provider, key, metadata);
 
     try {
       const db = getDb();
       await db.collection('api_keys').add({
         provider,
         key,
+        metadata: metadata || {},
         usage_today:  0,
         tokens_today: 0,
         created_at:   new Date().toISOString(),
