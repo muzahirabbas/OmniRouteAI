@@ -533,6 +533,13 @@
             <small class="form-hint">Used for tie-breaking when priority is equal. Higher weight goes first.</small>
           </div>
           <div class="form-group">
+            <label class="form-label">Active Models</label>
+            <div id="edit-provider-models-list" style="display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; min-height: 40px; background: var(--bg-card-secondary); max-height: 120px; overflow-y: auto;">
+              <!-- Model tags with remove buttons -->
+            </div>
+            <small class="form-hint">Click the &times; next to a model to remove it from the list.</small>
+          </div>
+          <div class="form-group" style="margin-top: 1rem;">
             <label class="form-label">Default Model</label>
             <select id="edit-provider-default-model" class="input"></select>
             <small class="form-hint">The model used if none is requested specifically.</small>

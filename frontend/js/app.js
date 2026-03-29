@@ -327,13 +327,46 @@ function openEditProviderModal(name, priority, weight, models, defaultModel) {
   const searchInput = document.getElementById('discovery-search');
   if (searchInput) searchInput.value = '';
 
+  // Initial render of models list & select
+  const modelSelect = document.getElementById('edit-provider-default-model');
+  renderProviderModelControls(modelSelect, window._currentEditingModels, defaultModel);
+
   document.getElementById('modal-edit-provider').classList.add('active');
 }
 
-function renderProviderModelSelect(selectElement, models, defaultModel) {
+/**
+ * Combined renderer for the default model select AND the visual model tag list.
+ */
+function renderProviderModelControls(selectElement, models, defaultModel) {
+  // 1. Update Select Dropdown
   selectElement.innerHTML = models.map(m => `
     <option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>
   `).join('');
+
+  // 2. Update Visual Tag List with Remove Buttons
+  const listEl = document.getElementById('edit-provider-models-list');
+  if (listEl) {
+    if (!models.length) {
+      listEl.innerHTML = '<div class="empty-state" style="width: 100%; text-align: center; color: var(--text-muted); padding: 0.5rem; font-size: 0.9rem;">No models active</div>';
+    } else {
+      listEl.innerHTML = models.map(m => `
+        <div class="model-tag" style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+          ${m}
+          <span style="cursor: pointer; font-weight: bold; font-size: 1rem; line-height: 1;" onclick="removeProviderModel('${m}')">&times;</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function removeProviderModel(modelId) {
+  window._currentEditingModels = window._currentEditingModels.filter(m => m !== modelId);
+  const modelSelect = document.getElementById('edit-provider-default-model');
+  const currentDefault = modelSelect.value;
+  renderProviderModelControls(modelSelect, window._currentEditingModels, currentDefault);
+  
+  // Also refresh discovery list if icons/status needs to update
+  if (typeof filterDiscoveredModels === 'function') filterDiscoveredModels();
 }
 
 function addProviderModel() {
@@ -352,10 +385,10 @@ function addProviderModel() {
   }
   
   window._currentEditingModels.push(model);
-  renderProviderModelSelect(
+  renderProviderModelControls(
     document.getElementById('edit-provider-default-model'),
     window._currentEditingModels,
-    document.getElementById('edit-provider-default-model').value
+    model
   );
   input.value = '';
   showToast('success', `Model "${model}" added`);
@@ -432,10 +465,10 @@ function filterDiscoveredModels() {
 function addDiscoveredModel(modelId) {
   if (!window._currentEditingModels.includes(modelId)) {
     window._currentEditingModels.push(modelId);
-    // Update the default model select with the new item
+    // Update the default model select and visual list
     const modelSelect = document.getElementById('edit-provider-default-model');
     const currentValue = modelSelect.value;
-    renderProviderModelSelect(modelSelect, window._currentEditingModels, currentValue);
+    renderProviderModelControls(modelSelect, window._currentEditingModels, currentValue);
     // Refresh discovery list to show "Added" status
     filterDiscoveredModels(); 
   }
