@@ -45,10 +45,14 @@ async function testAllCloudProviders() {
 
       // Hardcoded overrides
       if (p.name === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+      if (p.name === 'huggingface') {
+        modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
+      }
 
       const headers = { 'Authorization': `Bearer ${apiKey}` };
       let finalUrl = p.name === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
       if (p.name === 'google') delete headers.Authorization;
+      if (p.name === 'huggingface') delete headers.Authorization;
       
       // Amazon/Vertex etc might need special headers
       if (p.name === 'anthropic') {
@@ -63,10 +67,12 @@ async function testAllCloudProviders() {
         console.error(`  [FAIL] HTTP ${response.status}: ${errText.substring(0, 150)}`);
       } else {
         const data = await response.json();
-        let models = [];
-        if (Array.isArray(data.data)) models = data.data.map(m => m.id);
-        else if (Array.isArray(data.models)) models = data.models.map(m => m.name);
-        console.log(`  [SUCCESS] Found ${models.length} models.`);
+        let modelsCount = 0;
+        if (Array.isArray(data.data)) modelsCount = data.data.length;
+        else if (Array.isArray(data.models)) modelsCount = data.models.length;
+        else if (Array.isArray(data) && p.name === 'huggingface') modelsCount = data.length;
+        
+        console.log(`  [SUCCESS] Found ${modelsCount} models.`);
       }
     } catch (err) {
       console.error(`  [ERROR] ${p.name}: ${err.message}`);

@@ -627,7 +627,6 @@ export async function adminRoutes(app) {
       } else if (modelsUrl.includes('/messages')) {
         modelsUrl = modelsUrl.replace('/messages', '/models');
       } else {
-        // Fallback: Strip last segment and append /models
         const parts = modelsUrl.split('/');
         if (parts.length > 3) {
            parts.pop(); 
@@ -635,10 +634,32 @@ export async function adminRoutes(app) {
         }
       }
 
-      // Special cases:
+      // Special cases & Hardcoded Fallbacks:
       if (providerName === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+      if (providerName === 'huggingface') {
+        modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
+      }
 
-      if (!modelsUrl) throw new Error(`Could not determine models list URL for ${providerName}`);
+      // 3.5 Anthropic/Minimax/Cloudflare don't have public discovery APIs. 
+      // We return their static model lists immediately.
+      const HARDCODED_MODELS = {
+        'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+        'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
+        'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
+        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro']
+      };
+
+      if (HARDCODED_MODELS[providerName]) {
+        console.log(`Returning hardcoded models for ${providerName}`);
+        return {
+          success: true,
+          provider: providerName,
+          models: HARDCODED_MODELS[providerName],
+          count: HARDCODED_MODELS[providerName].length,
+          note: 'Hardcoded list (Provider does not support API discovery)'
+        };
+      }
+
       console.log(`Harvesting models for ${providerName} from ${modelsUrl}`);
 
       // 4. Fetch
