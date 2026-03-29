@@ -416,6 +416,10 @@ async function fetchProviderModels() {
       body: JSON.stringify({ providerName: name })
     });
 
+    if (result.success === false) {
+      throw new Error(result.error || 'Discovery failed');
+    }
+
     window._discoveredModels = result.models || [];
     container.style.display = 'block';
     renderDiscoveredModels(window._discoveredModels);

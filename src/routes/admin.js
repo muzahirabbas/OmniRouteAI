@@ -586,75 +586,86 @@ export async function adminRoutes(app) {
   });
 
   // Fetch available models from a provider's official endpoint
-  app.post('/api/admin/providers/fetch-models', async (request) => {
-    const { providerName } = request.body;
-    if (!providerName) throw new Error('Provider name is required');
+  app.post('/api/admin/providers/fetch-models', async (request, reply) => {
+    try {
+      const { providerName } = request.body;
+      if (!providerName) throw new Error('Provider name is required');
 
-    const db = getDb();
-    
-    // 1. Get Provider config
-    const providerDoc = await db.collection('providers').doc(providerName).get();
-    let provider = providerDoc.exists ? providerDoc.data() : STATIC_PROVIDERS.find(p => p.name === providerName);
-    if (!provider) throw new Error(`Provider ${providerName} not found`);
+      const db = getDb();
+      
+      // 1. Get Provider config
+      const providerDoc = await db.collection('providers').doc(providerName).get();
+      let provider = providerDoc.exists ? providerDoc.data() : STATIC_PROVIDERS.find(p => p.name === providerName);
+      if (!provider) throw new Error(`Provider ${providerName} not found`);
 
-    // 2. Get API Key
-    const keysSnapshot = await db.collection('api_keys')
-      .where('provider', '==', providerName)
-      .where('status', '==', 'active')
-      .limit(1)
-      .get();
-    
-    if (keysSnapshot.empty) throw new Error(`No active API key found for ${providerName}`);
-    const apiKey = keysSnapshot.docs[0].data().key;
+      // 2. Get API Key
+      const keysSnapshot = await db.collection('api_keys')
+        .where('provider', '==', providerName)
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+      
+      if (keysSnapshot.empty) throw new Error(`No active API key found for ${providerName}`);
+      const apiKey = keysSnapshot.docs[0].data().key;
 
-    // 3. Determine Models URL
-    // Pattern: Replace /chat/completions or /messages with /models
-    let modelsUrl = provider.endpoint;
-    if (modelsUrl.includes('/chat/completions')) {
-      modelsUrl = modelsUrl.replace('/chat/completions', '/models');
-    } else if (modelsUrl.includes('/messages')) {
-      modelsUrl = modelsUrl.replace('/messages', '/models');
-    } else {
-      // Fallback: Strip last segment and append /models
-      const parts = modelsUrl.split('/');
-      parts.pop(); // remove last part (e.g. completions)
-      modelsUrl = parts.join('/') + '/models';
+      // 3. Determine Models URL
+      // Pattern: Replace /chat/completions or /messages with /models
+      let modelsUrl = provider.endpoint || '';
+      if (modelsUrl.includes('/chat/completions')) {
+        modelsUrl = modelsUrl.replace('/chat/completions', '/models');
+      } else if (modelsUrl.includes('/messages')) {
+        modelsUrl = modelsUrl.replace('/messages', '/models');
+      } else {
+        // Fallback: Strip last segment and append /models
+        const parts = modelsUrl.split('/');
+        if (parts.length > 3) {
+           parts.pop(); 
+           modelsUrl = parts.join('/') + '/models';
+        }
+      }
+
+      // Special cases:
+      if (providerName === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+      if (!modelsUrl) throw new Error(`Could not determine models list URL for ${providerName}`);
+      console.log(`Harvesting models for ${providerName} from ${modelsUrl}`);
+
+      // 4. Fetch
+      const headers = { 'Authorization': `Bearer ${apiKey}` };
+      // Google AI Studio uses ?key= API key
+      const finalUrl = providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
+      if (providerName === 'google') delete headers.Authorization;
+
+      const response = await fetch(finalUrl, { headers });
+      if (!response.ok) {
+        const errText = await response.text().catch(() => 'No detail');
+        throw new Error(`Provider Error (${response.status}): ${errText.substring(0, 100)}`);
+      }
+
+      const data = await response.json();
+      
+      // 5. Extract model IDs (standard OpenAI format is data: [{ id: "...", ... }])
+      let modelIds = [];
+      if (Array.isArray(data.data)) {
+        modelIds = data.data.map(m => m.id || m.name);
+      } else if (Array.isArray(data.models)) {
+        modelIds = data.models.map(m => m.name.replace('models/', ''));
+      }
+
+      return { 
+        success: true, 
+        provider: providerName, 
+        models: modelIds.sort(),
+        count: modelIds.length 
+      };
+    } catch (err) {
+      console.error(`Harvest error for ${request.body?.providerName}:`, err.message);
+      return reply.code(400).send({
+        success: false,
+        error:   err.message,
+        hint:    'Verify your API key is correct and valid for this provider.'
+      });
     }
-
-    // Special cases:
-    if (providerName === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-
-    console.log(`Harvesting models for ${providerName} from ${modelsUrl}`);
-
-    // 4. Fetch
-    const headers = { 'Authorization': `Bearer ${apiKey}` };
-    // Google AI Studio uses ?key= API key
-    const finalUrl = providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
-    if (providerName === 'google') delete headers.Authorization;
-
-    const response = await fetch(finalUrl, { headers });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Failed to fetch models from ${providerName}: ${response.status} ${errText}`);
-    }
-
-    const data = await response.json();
-    
-    // 5. Extract model IDs (standard OpenAI format is data: [{ id: "...", ... }])
-    let modelIds = [];
-    if (Array.isArray(data.data)) {
-      modelIds = data.data.map(m => m.id || m.name);
-    } else if (Array.isArray(data.models)) {
-      // Google format
-      modelIds = data.models.map(m => m.name.replace('models/', ''));
-    }
-
-    return { 
-      success: true, 
-      provider: providerName, 
-      models: modelIds.sort(),
-      count: modelIds.length 
-    };
   });
 }
 

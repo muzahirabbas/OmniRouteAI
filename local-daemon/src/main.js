@@ -58,11 +58,7 @@ async function startDaemon() {
   // ─── CORS (Official Plugin) ──────────────────────────────────────────
   const corsMod = await import('@fastify/cors');
   await app.register(corsMod.default, {
-    origin: [
-      'https://omnirouteai.pages.dev', 
-      'http://localhost:3000', 
-      'http://127.0.0.1:3000'
-    ],
+    origin: true, // Dynamically reflect the request origin
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Origin', 'Content-Type', 'Accept', 'X-Local-Token', 
