@@ -9,7 +9,7 @@ import {
   getProviderHealth,
   resetProviderCircuitBreaker,
 } from '../services/providerService.js';
-import { registerKeys, isKeyDisabled, disableKey, resetProviderKeys } from '../services/keyService.js';
+import { registerKeys, isKeyDisabled, disableKey, resetProviderKeys, getKeyMetadata } from '../services/keyService.js';
 import { getStats, aggregateDaily } from '../services/statsService.js';
 import { flushLogs } from '../services/loggingService.js';
 import { createRateLimiter } from '../utils/rateLimiter.js';
@@ -302,6 +302,8 @@ export async function adminRoutes(app) {
       const tokensIn = parseInt((await get(`stats:${today}:key:${key}:tokens:input`)) || '0', 10);
       const tokensOut = parseInt((await get(`stats:${today}:key:${key}:tokens:output`)) || '0', 10);
 
+      const metadata = await getKeyMetadata(provider, key);
+
       result.push({
         key:      maskKey(key),
         fullKey:  key,
@@ -310,6 +312,7 @@ export async function adminRoutes(app) {
         tokensIn,
         tokensOut,
         disabled,
+        metadata: metadata || {},
       });
     }
 

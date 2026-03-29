@@ -522,24 +522,33 @@ async function refreshKeys(force = false) {
       return;
     }
 
-    tbody.innerHTML = data.keys.map((k) => `
-      <tr>
-        <td class="mono">${k.key}</td>
-        <td>${k.usage}</td>
-        <td>${k.tokensIn || 0} / ${k.tokensOut || 0}</td>
-        <td>${k.rpm}</td>
-        <td><span class="badge ${k.disabled ? 'badge-error' : 'badge-success'}">
-          ${k.disabled ? 'Disabled' : 'Active'}
-        </span></td>
-        <td>
-          <button class="btn btn-sm ${k.disabled ? 'btn-primary' : 'btn-danger'}"
-            onclick="toggleKey('${provider}', '${k.fullKey}', ${!k.disabled})">
-            ${k.disabled ? 'Enable' : 'Disable'}
-          </button>
-          <button class="btn btn-sm btn-ghost" onclick="removeKey('${provider}', '${k.fullKey}')">🗑</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = data.keys.map((k) => {
+      let metaLabel = '';
+      if (k.metadata?.accountId) metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-primary);">Account: ${k.metadata.accountId}</div>`;
+      if (k.metadata?.projectId) metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-success);">Project: ${k.metadata.projectId}</div>`;
+
+      return `
+        <tr>
+          <td class="mono">
+            <div>${k.key}</div>
+            ${metaLabel}
+          </td>
+          <td>${k.usage}</td>
+          <td>${k.tokensIn || 0} / ${k.tokensOut || 0}</td>
+          <td>${k.rpm}</td>
+          <td><span class="badge ${k.disabled ? 'badge-error' : 'badge-success'}">
+            ${k.disabled ? 'Disabled' : 'Active'}
+          </span></td>
+          <td>
+            <button class="btn btn-sm ${k.disabled ? 'btn-primary' : 'btn-danger'}"
+              onclick="toggleKey('${provider}', '${k.fullKey}', ${!k.disabled})">
+              ${k.disabled ? 'Enable' : 'Disable'}
+            </button>
+            <button class="btn btn-sm btn-ghost" onclick="removeKey('${provider}', '${k.fullKey}')">🗑</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${err.message}</td></tr>`;
   }
@@ -587,9 +596,21 @@ async function addKey() {
     return;
   }
 
+  // Scrape metadata
+  const metadata = {};
+  const metaAccount = document.getElementById('meta-accountId');
+  const metaProject = document.getElementById('meta-projectId');
+  if (metaAccount) metadata.accountId = metaAccount.value.trim();
+  if (metaProject) metadata.projectId = metaProject.value.trim();
+
   try {
-    await API.addKey(provider, key);
+    await API.addKey(provider, key, metadata);
     keyInput.value = '';
+    
+    // Clear metadata fields if any
+    if (metaAccount) metaAccount.value = '';
+    if (metaProject) metaProject.value = '';
+
     showToast('success', `Key added to ${provider}`);
 
     // Refresh if viewing same provider
