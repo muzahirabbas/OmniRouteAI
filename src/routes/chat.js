@@ -26,7 +26,12 @@ export async function chatRoutes(app) {
         type: 'object',
         required: ['prompt'],
         properties: {
-          prompt:        { type: 'string', minLength: 1, maxLength: 100000 },
+          prompt: { 
+            oneOf: [
+              { type: 'string', minLength: 1, maxLength: 100000 },
+              { type: 'array' }
+            ]
+          },
           model:         { type: 'string' },
           provider:      { type: 'string' },
           task_type:     { type: 'string' },
@@ -56,7 +61,17 @@ export async function chatRoutes(app) {
     const { trackRequest }               = await import('../services/statsService.js');
 
     // ── Input validation ───────────────────────────────────────────────
-    // Additional runtime validation for edge cases
+    // Helper to get total text length for multimodal or standard prompt
+    const getPromptTextLength = (p) => {
+      if (typeof p === 'string') return p.length;
+      if (Array.isArray(p)) {
+        return p.reduce((acc, part) => acc + (part.text ? part.text.length : 0), 0);
+      }
+      return 0;
+    };
+
+    const promptLength = getPromptTextLength(prompt);
+
     if (systemPrompt && systemPrompt.length > 4000) {
       const err = new Error('system_prompt exceeds maximum length of 4000 characters');
       err.statusCode = 400;
@@ -69,7 +84,7 @@ export async function chatRoutes(app) {
       return;
     }
 
-    if (prompt.length > 100000) {
+    if (promptLength > 100000) {
       const err = new Error('prompt exceeds maximum length of 100000 characters');
       err.statusCode = 400;
       err.name = 'ValidationError';

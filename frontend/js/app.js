@@ -1198,14 +1198,22 @@ function getStatusBadge(status) {
     default: return 'badge-warning';
   }
 }
+
 // ─── AI Playground ───────────────────────────────────────────────────
 
 async function sendMessage() {
   const inputEl = document.getElementById('chat-input');
   const chatWindow = document.getElementById('chat-window');
-  const prompt = inputEl.value.trim();
+  const chatInput = document.getElementById('chat-input');
+  let prompt = chatInput.value.trim();
+
+  // If no text but files are staged, allow sending with a default prompt
+  if (!prompt && stagedFiles.length > 0) {
+    prompt = "Please analyze this media.";
+  }
 
   if (!prompt) return;
+
   // Add user message to UI
   const userMsg = document.createElement('div');
   userMsg.className = 'chat-message user';
@@ -1434,8 +1442,12 @@ window.removeStagedImage = function(index) {
 
 function handleInputKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
+    const prompt = e.target.value.trim();
+    // Allow enter if text is present OR files are staged
+    if (prompt || stagedFiles.length > 0) {
+      e.preventDefault();
+      sendMessage();
+    }
   }
 }
 

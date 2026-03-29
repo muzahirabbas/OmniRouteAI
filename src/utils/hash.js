@@ -18,6 +18,8 @@ import { createHash } from 'node:crypto';
  * @returns {string} hex digest
  */
 export function hashPrompt(prompt, model = '', taskType = '', systemPrompt = '') {
-  const input = `${prompt}|${model}|${taskType}|${systemPrompt}`;
+  // If prompt is multimodal (array/object), stringify it for a unique hash
+  const promptStr = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
+  const input = `${promptStr}|${model}|${taskType}|${systemPrompt}`;
   return createHash('sha256').update(input).digest('hex');
 }
