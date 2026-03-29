@@ -672,6 +672,9 @@ export async function adminRoutes(app) {
       if (providerName === 'huggingface') {
         modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
       }
+      if (providerName === 'ollama-cloud') {
+        modelsUrl = 'https://ollama.com/api/tags';
+      }
 
       // 3.5 Anthropic/Minimax don't have public discovery APIs. 
       // We return their static model lists immediately.
