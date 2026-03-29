@@ -6,6 +6,8 @@
 
 // ─── Global State ───────────────────────────────────────────────────
 let stagedFiles = [];
+let mediaRecorder = null;
+let audioChunks = [];
 
 // ─── Navigation ──────────────────────────────────────────────────────
 
@@ -1639,3 +1641,49 @@ window.toggleErrorRow = function(index) {
     row.classList.toggle('active');
   }
 };
+
+// ─── Native Audio Recording ────────────────────────────────────────
+
+window.toggleRecording = async function() {
+  const container = document.getElementById('chat-controls-container');
+  const isRecording = container.classList.toggle('recording-active');
+
+  if (isRecording) {
+    await startRecording();
+  } else {
+    stopRecording();
+  }
+};
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const file = new File([audioBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
+      await processFile(file);
+      
+      // Stop all tracks to release mic
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    mediaRecorder.start();
+  } catch (err) {
+    console.error('Mic access denied:', err);
+    showToast('error', 'Microphone access denied or not available.');
+    document.getElementById('chat-controls-container').classList.remove('recording-active');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}

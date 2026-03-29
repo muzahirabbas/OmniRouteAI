@@ -996,6 +996,55 @@ select.input {
   padding: 0.5rem;
   background: var(--bg-surface-2);
   border-top: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.recording-active #mic-btn {
+  color: #ff4757;
+  animation: recordingPulse 1.5s infinite;
+  background: rgba(255, 71, 87, 0.1);
+}
+
+@keyframes recordingPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+}
+
+.recording-status {
+  display: none;
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff4757;
+  color: white;
+  padding: 2px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.recording-active .recording-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recordingPulse-dot {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: opacityPulse 0.8s infinite;
+}
+
+@keyframes opacityPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
 }
 
 .chat-controls {
