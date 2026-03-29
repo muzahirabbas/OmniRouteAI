@@ -1214,14 +1214,17 @@ async function sendMessage() {
 
   if (!prompt) return;
 
+  // Capture staged files locally so we can clear the global UI state immediately
+  const filesToSend = [...stagedFiles];
+
   // Add user message to UI
   const userMsg = document.createElement('div');
   userMsg.className = 'chat-message user';
   userMsg.textContent = prompt;
   
-  // Append any attached media to the bubble
-  if (stagedFiles.length > 0) {
-    for (const file of stagedFiles) {
+  // Append any attached media to the bubble (using our local copy)
+  if (filesToSend.length > 0) {
+    for (const file of filesToSend) {
       if (file.type === 'image') {
         const img = document.createElement('img');
         img.src = file.preview;
@@ -1237,8 +1240,11 @@ async function sendMessage() {
 
   chatWindow.appendChild(userMsg);
   
-  // Clear input
+  // Clear input and global staged files immediately for a snappy feel
   inputEl.value = '';
+  stagedFiles = [];
+  renderStagedImages();
+  
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
   // Add thinking indicator
@@ -1265,13 +1271,13 @@ async function sendMessage() {
 
     const payload = {};
     
-    // Construct multimodal prompt if images are staged
-    if (stagedFiles.length > 0) {
+    // Construct multimodal prompt using our local copy of files
+    if (filesToSend.length > 0) {
       payload.prompt = [{ type: 'text', text: prompt }];
-      for (const file of stagedFiles) {
+      for (const file of filesToSend) {
         payload.prompt.push({
-          type: 'image',
-          media_type: file.type,
+          type: file.type, // 'image', 'audio', or 'video'
+          media_type: file.media_type,
           data: file.base64
         });
       }
@@ -1334,10 +1340,6 @@ async function sendMessage() {
        botMsg.innerHTML = `Error (${res.status}): ${data.message || data.error || 'Unknown error'}`;
     } else {
        botMsg.innerHTML = renderMessageContent(data.output || JSON.stringify(data));
-       
-       // Clear staged files on success
-       stagedFiles = [];
-       renderStagedImages();
     }
 
     // Add metadata (always show if available, even on error)
