@@ -598,15 +598,26 @@ export async function adminRoutes(app) {
       let provider = providerDoc.exists ? providerDoc.data() : STATIC_PROVIDERS.find(p => p.name === providerName);
       if (!provider) throw new Error(`Provider ${providerName} not found`);
 
-      // 2. Get API Key
+      // 2. Get API Key (get first non-disabled key)
+      let apiKey;
       const keysSnapshot = await db.collection('api_keys')
         .where('provider', '==', providerName)
-        .where('status', '==', 'active')
+        .where('is_disabled', '!=', true)
         .limit(1)
         .get();
       
-      if (keysSnapshot.empty) throw new Error(`No active API key found for ${providerName}`);
-      const apiKey = keysSnapshot.docs[0].data().key;
+      if (keysSnapshot.empty) {
+        // Try fallback: maybe keys don't have is_disabled field at all
+        const fallbackSnapshot = await db.collection('api_keys')
+          .where('provider', '==', providerName)
+          .limit(1)
+          .get();
+          
+        if (fallbackSnapshot.empty) throw new Error(`No API key found for ${providerName}`);
+        apiKey = fallbackSnapshot.docs[0].data().key;
+      } else {
+        apiKey = keysSnapshot.docs[0].data().key;
+      }
 
       // 3. Determine Models URL
       // Pattern: Replace /chat/completions or /messages with /models

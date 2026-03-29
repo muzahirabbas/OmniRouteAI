@@ -326,6 +326,8 @@ function openEditProviderModal(name, priority, weight, models, defaultModel) {
   if (discoveryList) discoveryList.innerHTML = '<div class="empty-state">Click fetch to discover models.</div>';
   const searchInput = document.getElementById('discovery-search');
   if (searchInput) searchInput.value = '';
+  const errorEl = document.getElementById('discovery-error');
+  if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
 
   // Initial render of models list & select
   const modelSelect = document.getElementById('edit-provider-default-model');
@@ -404,6 +406,9 @@ async function fetchProviderModels() {
   const btnText = document.getElementById('fetch-models-btn-text');
   const spinner = document.getElementById('fetch-models-spinner');
   const container = document.getElementById('discovery-container');
+  const errorEl = document.getElementById('discovery-error');
+
+  if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
 
   if (!name) return;
 
@@ -426,6 +431,10 @@ async function fetchProviderModels() {
     
     showToast('success', `Discovered ${window._discoveredModels.length} models for ${name}`);
   } catch (err) {
+    if (errorEl) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = `❌ ${err.message}`;
+    }
     showToast('error', err.message);
   } finally {
     btnText.style.display = 'inline';
