@@ -651,7 +651,8 @@ export async function adminRoutes(app) {
         'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
         'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
         'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
-        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro']
+        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
+        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash']
       };
 
       if (HARDCODED_MODELS[providerName]) {
@@ -665,6 +666,7 @@ export async function adminRoutes(app) {
         };
       }
 
+      if (!modelsUrl) throw new Error(`Could not determine models list URL for ${providerName}`);
       console.log(`Harvesting models for ${providerName} from ${modelsUrl}`);
 
       // 4. Fetch
@@ -672,6 +674,7 @@ export async function adminRoutes(app) {
       // Google AI Studio uses ?key= API key
       const finalUrl = providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl;
       if (providerName === 'google') delete headers.Authorization;
+      if (providerName === 'huggingface') delete headers.Authorization;
 
       const response = await fetch(finalUrl, { headers });
       if (!response.ok) {
@@ -686,7 +689,10 @@ export async function adminRoutes(app) {
       if (Array.isArray(data.data)) {
         modelIds = data.data.map(m => m.id || m.name);
       } else if (Array.isArray(data.models)) {
-        modelIds = data.models.map(m => m.name.replace('models/', ''));
+        // Handle Ollama tags format or Google format
+        modelIds = data.models.map(m => (m.name || m.id).replace('models/', ''));
+      } else if (Array.isArray(data) && providerName === 'huggingface') {
+        modelIds = data.map(m => m.id);
       }
 
       return { 

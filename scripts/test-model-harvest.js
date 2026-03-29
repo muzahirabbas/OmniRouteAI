@@ -48,13 +48,17 @@ async function testAllCloudProviders() {
       if (p.name === 'huggingface') {
         modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
       }
+      if (p.name === 'ollama-cloud') {
+        modelsUrl = 'https://ollama.com/api/tags';
+      }
 
       // Hardcoded Overrides Simulation (Matching Backend)
       const HARDCODED_MODELS = {
         'anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
         'cloudflare': ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/meta/llama-3.1-405b', '@cf/mistral/mistral-7b-instruct-v0.1'],
         'minimax': ['abab7-chat', 'abab6.5-chat', 'abab6.5s-chat'],
-        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro']
+        'vertex': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
+        'xiaomi': ['mimo-v2-pro', 'mimo-v2-flash', 'mimo-v2-omni', 'MiMo-V2-Flash']
       };
 
       if (HARDCODED_MODELS[p.name]) {
