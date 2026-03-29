@@ -33,6 +33,16 @@ export class BaseAdapter {
   }
 
   /**
+   * Basic validation for supported multimodal MIME types.
+   * Useful for early filtering of obscure formats that cause 400 errors.
+   */
+  isMimeSupported(mimeType) {
+    const clean = this.sanitizeMimeType(mimeType);
+    const supportedPrefixes = ['image/', 'audio/', 'video/', 'application/pdf', 'text/plain'];
+    return supportedPrefixes.some(prefix => clean.startsWith(prefix));
+  }
+
+  /**
    * Create an AbortController with timeout.
    * @param {number} [ms] - timeout in milliseconds
    * @returns {{ controller: AbortController, signal: AbortSignal }}

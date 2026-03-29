@@ -1391,6 +1391,22 @@ async function handlePaste(e) {
 }
 
 async function processFile(file) {
+  // Deep Audit: Validate MIME types before staging to prevent 400 errors
+  const isImage = file.type.startsWith('image/');
+  const isAudio = file.type.startsWith('audio/');
+  const isVideo = file.type.startsWith('video/');
+
+  if (!isImage && !isAudio && !isVideo) {
+    showToast('warning', `Unsupported file type: ${file.type || 'unknown'}`);
+    return;
+  }
+
+  // Check for specific obscure types that often fail across providers
+  const problematicTypes = ['image/bmp', 'image/tiff', 'audio/aac'];
+  if (problematicTypes.includes(file.type)) {
+    showToast('warning', `Format ${file.type} may not be supported by all AI models.`);
+  }
+
   const base64Raw = await fileToBase64(file);
   const base64 = base64Raw.split(',')[1];
   

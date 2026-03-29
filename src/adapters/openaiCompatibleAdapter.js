@@ -49,7 +49,12 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
         }
         if (p.type === 'audio') {
           const cleanMime = this.sanitizeMimeType(p.media_type); // e.g. 'audio/webm'
-          const format = cleanMime.split('/')[1] || 'wav'; // simple format inference
+          let format = cleanMime.split('/')[1] || 'wav'; // simple format inference
+          
+          // OpenAI input_audio supports: wav, mp3, flac, opus, pcm16
+          // Browsers record as audio/webm;codecs=opus, so map webm to opus.
+          if (format === 'webm') format = 'opus';
+          
           return {
             type: 'input_audio',
             input_audio: { data: p.data, format }
