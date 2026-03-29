@@ -544,6 +544,15 @@
             <select id="edit-provider-default-model" class="input"></select>
             <small class="form-hint">The model used if none is requested specifically.</small>
           </div>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label">Add Custom Model</label>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="edit-provider-new-model" class="input" placeholder="e.g., my-custom-model-70b" style="flex: 1;">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addProviderModel()">+ Add</button>
+            </div>
+            <small class="form-hint">Type a model ID manually and click add.</small>
+          </div>
+
           <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
             <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
               Discover Models

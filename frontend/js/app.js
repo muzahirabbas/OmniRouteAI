@@ -411,14 +411,10 @@ async function fetchProviderModels() {
     btnText.style.display = 'none';
     spinner.style.display = 'inline-block';
 
-    const response = await fetch('/api/admin/providers/fetch-models', {
+    const result = await API.request('/api/admin/providers/fetch-models', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ providerName: name })
     });
-
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || result.message || 'Discovery failed');
 
     window._discoveredModels = result.models || [];
     container.style.display = 'block';
