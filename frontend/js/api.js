@@ -1,0 +1,587 @@
+/**
+ * OmniRouteAI Dashboard — API Client
+ *
+ * Handles all communication with the backend admin API.
+ * Settings (API URL, key) are stored in localStorage.
+ * 
+ * SECURITY: API key can be stored encrypted using Web Crypto API.
+ * Encryption key is derived from a user-provided passphrase (not stored).
+ * For maximum security, users should re-enter passphrase each session.
+ */
+
+// ─── Crypto Utilities ──────────────────────────────────────────────────
+
+const CRYPTO_ENABLED = typeof crypto !== 'undefined' && crypto.subtle;
+
+/**
+ * Derive an encryption key from a passphrase using PBKDF2.
+ * @param {string} passphrase
+ * @param {Uint8Array} salt
+ * @returns {Promise<CryptoKey>}
+ */
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Encrypt data with a passphrase.
+ * @param {string} data - String to encrypt
+ * @param {string} passphrase
+ * @returns {Promise<string>} Base64-encoded encrypted data with salt
+ */
+async function encryptData(data, passphrase) {
+  if (!CRYPTO_ENABLED) return btoa(data); // Fallback to base64
+  
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const encoded = new TextEncoder().encode(data);
+  
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoded
+  );
+  
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+  
+  return btoa(unescape(encodeURIComponent(String.fromCharCode(...combined))));
+}
+
+/**
+ * Decrypt data with a passphrase.
+ * @param {string} encryptedDataBase64
+ * @param {string} passphrase
+ * @returns {Promise<string>}
+ */
+async function decryptData(encryptedDataBase64, passphrase) {
+  if (!CRYPTO_ENABLED) return atob(encryptedDataBase64); // Fallback (doesn't handle Unicode)
+  
+  try {
+    const combined = Uint8Array.from(decodeURIComponent(escape(encryptedDataBase64)), c => c.charCodeAt(0));
+    
+    const salt = combined.slice(0, 16);
+    const iv = combined.slice(16, 28);
+    const encrypted = combined.slice(28);
+    
+    const key = await deriveKey(passphrase, salt);
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encrypted
+    );
+    
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    throw new Error('Decryption failed. Check your passphrase.');
+  }
+}
+
+// ─── API Client ────────────────────────────────────────────────────────
+
+// Fast session cache to prevent redundant UI reloading when switching tabs
+const AppCache = {
+  data: new Map(),
+  get(key) {
+    const entry = this.data.get(key);
+    if (entry && (Date.now() - entry.time < 300000)) { // 5-minute TTL
+      return JSON.parse(JSON.stringify(entry.payload));
+    }
+    return null;
+  },
+  set(key, payload) {
+    this.data.set(key, { time: Date.now(), payload: JSON.parse(JSON.stringify(payload)) });
+  },
+  clear() {
+    this.data.clear();
+  }
+};
+
+const API = {
+  /**
+   * Get the configured backend URL.
+   */
+  getBaseUrl() {
+    return localStorage.getItem('omniroute_api_url') || 'http://localhost:3000';
+  },
+
+  /**
+   * Get the configured API key.
+   * If encrypted, prompts for passphrase (optional based on settings).
+   */
+  async getApiKey() {
+    const encryptedKey = localStorage.getItem('omniroute_api_key_encrypted');
+    const plainKey = localStorage.getItem('omniroute_api_key');
+    
+    // If we have an encrypted key, decrypt it
+    if (encryptedKey) {
+      const useEncryption = localStorage.getItem('omniroute_use_encryption') === 'true';
+      if (useEncryption) {
+        // Check if passphrase is cached for this session
+        let passphrase = sessionStorage.getItem('omniroute_passphrase_cache');
+        
+        if (!passphrase) {
+          // Prompt user for passphrase
+          passphrase = prompt('Enter your passphrase to decrypt the API key:');
+          if (!passphrase) return plainKey || '';
+          
+          // Cache passphrase for this session only
+          sessionStorage.setItem('omniroute_passphrase_cache', passphrase);
+        }
+        
+        try {
+          return await decryptData(encryptedKey, passphrase);
+        } catch (err) {
+          console.error('Failed to decrypt API key:', err);
+          sessionStorage.removeItem('omniroute_passphrase_cache');
+          return plainKey || '';
+        }
+      }
+    }
+    
+    return plainKey || '';
+  },
+
+  /**
+   * Clear all active caches to force refresh
+   */
+  clearCache() {
+    AppCache.clear();
+  },
+
+  /**
+   * Save settings to localStorage.
+   * @param {string} url
+   * @param {string} apiKey
+   * @param {object} options - { useEncryption, passphrase }
+   */
+  async saveSettings(url, apiKey, options = {}) {
+    const { useEncryption = false, passphrase, daemonUrl, daemonToken } = options;
+    
+    if (url) {
+      let finalUrl = url.trim().replace(/\/$/, '');
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      localStorage.setItem('omniroute_api_url', finalUrl);
+    }
+    
+    if (apiKey) {
+      if (useEncryption && passphrase && CRYPTO_ENABLED) {
+        // Store encrypted key
+        const encrypted = await encryptData(apiKey, passphrase);
+        localStorage.setItem('omniroute_api_key_encrypted', encrypted);
+        localStorage.removeItem('omniroute_api_key');
+        localStorage.setItem('omniroute_use_encryption', 'true');
+      } else {
+        // Store plain key
+        localStorage.setItem('omniroute_api_key', apiKey);
+        localStorage.removeItem('omniroute_api_key_encrypted');
+        localStorage.removeItem('omniroute_use_encryption');
+      }
+    }
+
+    if (daemonUrl) {
+      localStorage.setItem('daemonUrl', daemonUrl.trim().replace(/\/$/, ''));
+    }
+    if (daemonToken) {
+      localStorage.setItem('daemonToken', daemonToken.trim());
+    }
+  },
+
+  /**
+   * Check if encryption is enabled.
+   * @returns {boolean}
+   */
+  isEncryptionEnabled() {
+    return localStorage.getItem('omniroute_use_encryption') === 'true';
+  },
+
+  /**
+   * Clear stored credentials.
+   */
+  clearCredentials() {
+    localStorage.removeItem('omniroute_api_key');
+    localStorage.removeItem('omniroute_api_key_encrypted');
+    localStorage.removeItem('omniroute_use_encryption');
+    localStorage.removeItem('omniroute_api_url');
+    sessionStorage.removeItem('omniroute_passphrase_cache');
+  },
+
+  /**
+   * Make an authenticated request to the backend.
+   */
+  async request(path, options = {}) {
+    const base = this.getBaseUrl();
+    const apiKey = await this.getApiKey();
+
+    const headers = {
+      ...options.headers,
+    };
+
+    // Only set Content-Type to JSON if we are actually sending a body
+    if (options.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    const url = `${base}${path}`;
+
+    const isGet = (!options.method || options.method === 'GET');
+    const cacheKey = isGet ? `${base}${path}` : null;
+
+    if (!isGet) {
+       AppCache.clear(); // Any mutation invalidates all cached views
+    } else if (!options.forceRefresh && cacheKey) {
+       const cached = AppCache.get(cacheKey);
+       if (cached) return cached;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (isGet && cacheKey) AppCache.set(cacheKey, payload);
+      return payload;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error('Request timed out after 60 seconds.');
+      }
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Cannot connect to backend. Check your API URL in Settings.');
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Make a streaming request to the backend.
+   * Returns a ReadableStream for SSE consumption.
+   */
+  async streamRequest(path, body, onChunk) {
+    const base = this.getBaseUrl();
+    const apiKey = await this.getApiKey();
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+    };
+
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    try {
+      const response = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      return response.body;
+    } catch (err) {
+      throw new Error(`Stream request failed: ${err.message}`);
+    }
+  },
+
+  // ─── Health & Overview ─────────────────────────────────────────────
+
+  async getHealth(opts = {}) {
+    return this.request('/api/admin/health', opts);
+  },
+
+  async getOverview(opts = {}) {
+    return this.request('/api/admin/overview', opts);
+  },
+
+  // ─── Providers ─────────────────────────────────────────────────────
+
+  async getProviders(opts = {}) {
+    return this.request('/api/admin/providers', opts);
+  },
+
+  async updateProvider(name, data) {
+    return this.request(`/api/admin/providers/${name}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleProvider(name, disabled, ttl) {
+    return this.request(`/api/admin/providers/${name}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ disabled, ttl }),
+    });
+  },
+
+  async deleteProvider(name) {
+    return this.request(`/api/admin/providers/${name}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async addCustomProvider(data) {
+    return this.request('/api/admin/providers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async seedProviders() {
+    return this.request('/api/admin/seed-providers', { method: 'POST' });
+  },
+
+  async clearCache() {
+    return this.request('/api/admin/clear-cache', { method: 'POST' });
+  },
+
+  async refreshProvidersFromDb() {
+    return this.request('/api/admin/providers/refresh', { method: 'POST' });
+  },
+
+  // ─── API Keys ──────────────────────────────────────────────────────
+
+  async getKeys(provider, opts = {}) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}`, opts);
+  },
+
+  async addKey(provider, key, metadata = {}) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}`, {
+      method: 'POST',
+      body: JSON.stringify({ key, metadata }),
+    });
+  },
+
+  async removeKey(provider, key) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async toggleKey(provider, key, disabled) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ disabled }),
+    });
+  },
+
+  async getKeysHistory(provider, days = 7) {
+    return this.request(`/api/admin/keys/${provider}/history?days=${days}`);
+  },
+
+  // ─── Search Providers ─────────────────────────────────────────────────
+
+  async getSearchProviders(opts = {}) {
+    return this.request('/api/admin/search-providers', opts);
+  },
+
+  async updateSearchProvider(name, data) {
+    return this.request(`/api/admin/search-providers/${name}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleSearchProvider(name, disabled, ttl) {
+    return this.request(`/api/admin/search-providers/${name}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ disabled, ttl }),
+    });
+  },
+
+  async seedSearchProviders() {
+    return this.request('/api/admin/search-providers/seed', { method: 'POST' });
+  },
+
+  // ─── Search API Keys ─────────────────────────────────────────────────
+
+  async getSearchKeys(provider, opts = {}) {
+    return this.request(`/api/admin/search-keys/${encodeURIComponent(provider)}`, opts);
+  },
+
+  async addSearchKey(provider, key, metadata = {}) {
+    return this.request(`/api/admin/search-keys/${encodeURIComponent(provider)}`, {
+      method: 'POST',
+      body: JSON.stringify({ key, metadata }),
+    });
+  },
+
+  async removeSearchKey(provider, key) {
+    return this.request(`/api/admin/search-keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async toggleSearchKey(provider, key, disabled) {
+    return this.request(`/api/admin/search-keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ disabled }),
+    });
+  },
+
+  // ─── Logs ──────────────────────────────────────────────────────────
+
+  async getLogs(opts = {}) {
+    const params = new URLSearchParams();
+    if (opts.limit) params.set('limit', opts.limit);
+    if (opts.provider) params.set('provider', opts.provider);
+    if (opts.status) params.set('status', opts.status);
+
+    return this.request(`/api/admin/logs?${params.toString()}`, opts);
+  },
+
+  async flushLogs() {
+    return this.request('/api/admin/logs/flush', { method: 'POST' });
+  },
+
+  // ─── Stats ─────────────────────────────────────────────────────────
+
+  async getStats(opts = {}) {
+    return this.request('/api/admin/stats', opts);
+  },
+
+  async getStatsHistory(days = 7, opts = {}) {
+    return this.request(`/api/admin/stats/history?days=${days}`, opts);
+  },
+
+  async getStatsHistoryFiltered(params = {}, opts = {}) {
+    const query = new URLSearchParams();
+    if (params.days) query.set('days', params.days);
+    if (params.startDate) query.set('startDate', params.startDate);
+    if (params.endDate) query.set('endDate', params.endDate);
+    if (params.provider) query.set('provider', params.provider);
+    query.set('format', 'simple');
+    return this.request(`/api/admin/stats/history?${query.toString()}`, opts);
+  },
+
+  async aggregateStats() {
+    return this.request('/api/admin/stats/aggregate', { method: 'POST' });
+  },
+
+  // ─── Local Daemon (direct localhost calls) ──────────────────────────
+
+  getDaemonUrl() {
+    return (localStorage.getItem('daemonUrl') || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1');
+  },
+
+  getDaemonToken() {
+    return localStorage.getItem('daemonToken') || '';
+  },
+
+  /**
+   * Make a request directly to the local daemon (bypasses cloud backend).
+   * Uses X-Local-Token header for auth.
+   */
+  async daemonRequest(path, options = {}) {
+    const base = this.getDaemonUrl();
+    const token = this.getDaemonToken();
+
+    const headers = {
+      ...options.headers,
+      'ngrok-skip-browser-warning': 'true',
+    };
+
+    if (options.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (token) {
+      headers['X-Local-Token'] = token;
+    }
+
+    const url = `${base}${path}`;
+
+    const isGet = (!options.method || options.method === 'GET');
+    const cacheKey = isGet ? `${base}${path}` : null;
+
+    if (!isGet) {
+       AppCache.clear();
+    } else if (!options.forceRefresh && cacheKey) {
+       const cached = AppCache.get(cacheKey);
+       if (cached) return cached;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (isGet && cacheKey) AppCache.set(cacheKey, payload);
+      return payload;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error('Local daemon request timed out. Please check if your PC is online.');
+      }
+      if (err.name === 'TypeError' && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
+        throw new Error('Cannot connect to your local daemon. 🛠️ Please run "start-daemon.bat" on your PC.');
+      }
+      if (err.message.includes('502') || err.message.includes('Bad Gateway')) {
+        throw new Error('Local daemon bridge (ngrok) returned a 502 Bad Gateway. 💡 Your ngrok is running, but the local daemon on your PC is not responding. Please restart the daemon.');
+      }
+      throw err;
+    }
+  },
+};
+
+// Export for module environments, or set globally
+if (typeof window !== 'undefined') {
+  window.API = API;
+}

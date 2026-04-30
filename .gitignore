@@ -1,0 +1,38 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+local-daemon/node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Redis/DB
+*.db
+*.sqlite
+
+# Firestore
+firebase-*.json
+serviceAccountKey.json
+
+# Temp files
+tmp/
+temp/
+*.tmp

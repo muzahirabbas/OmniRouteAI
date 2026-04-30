@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniRouteAI — Dashboard</title>
+  <meta name="description" content="Multi-Provider AI API Router Dashboard — Monitor providers, keys, usage, and system health.">
+  <meta name="theme-color" content="#111827">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚡</div>
+      <h1>OmniRoute<span class="brand-accent">AI</span></h1>
+    </div>
+    <nav class="sidebar-nav" aria-label="Main navigation">
+      <a href="#" class="nav-link active" data-page="overview">
+        <span class="nav-icon">📊</span>Overview
+      </a>
+      <a href="#" class="nav-link" data-page="providers">
+        <span class="nav-icon">🔌</span>Providers
+      </a>
+      <a href="#" class="nav-link" data-page="keys">
+        <span class="nav-icon">🔑</span>API Keys
+      </a>
+      <a href="#" class="nav-link" data-page="logs">
+        <span class="nav-icon">📝</span>Logs
+      </a>
+      <a href="#" class="nav-link" data-page="playground">
+        <span class="nav-icon">🎮</span>Playground
+      </a>
+      <a href="#" class="nav-link" data-page="ollama">
+        <span class="nav-icon">🦙</span>Ollama
+      </a>
+      <a href="#" class="nav-link" data-page="stats">
+        <span class="nav-icon">📈</span>Stats
+      </a>
+      <a href="#" class="nav-link" data-page="search-providers">
+        <span class="nav-icon">🔍</span>Search Providers
+      </a>
+      <a href="#" class="nav-link" data-page="settings">
+        <span class="nav-icon">⚙️</span>Settings
+      </a>
+      <a href="#" class="nav-link" data-page="local-auth">
+        <span class="nav-icon">🔐</span>Local Auth
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="health-indicator" id="health-indicator">
+        <span class="health-dot"></span>
+        <span class="health-text">Checking...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mobile nav toggle -->
+  <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">☰</button>
+
+  <!-- Main content -->
+  <main class="main" id="main" aria-label="Main content">
+    <!-- Page: Overview -->
+    <section class="page active" id="page-overview">
+      <div class="page-header">
+        <h2>Dashboard Overview</h2>
+        <button type="button" class="btn btn-ghost" onclick="refreshOverview(true)">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="overview-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Requests Today</div>
+          <div class="stat-value" id="stat-total-requests">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Providers</div>
+          <div class="stat-value" id="stat-active-providers">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">System Status</div>
+          <div class="stat-value" id="stat-system-status">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" id="stat-uptime">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Provider Health</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Status</th>
+                <th scope="col">Error Rate</th>
+                <th scope="col">Models</th>
+                <th scope="col">Priority</th>
+              </tr>
+            </thead>
+            <tbody id="overview-providers-body">
+              <tr><td colspan="5" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Providers -->
+    <section class="page" id="page-providers">
+      <div class="page-header">
+        <h2>Providers</h2>
+        <div class="header-actions">
+          <button type="button" class="btn btn-secondary" onclick="openAddCustomProviderModal()">➕ Add Custom</button>
+          <button type="button" class="btn btn-secondary" id="seed-defaults-btn" onclick="seedProviders()">🌱 Seed Defaults</button>
+          <button type="button" class="btn btn-ghost" onclick="refreshProviders(true)">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="providers-list" class="providers-grid">
+        <div class="empty-state">Loading providers...</div>
+      </div>
+    </section>
+
+    <!-- Page: API Keys -->
+    <section class="page" id="page-keys">
+      <div class="page-header">
+        <h2>API Keys</h2>
+      </div>
+      <div class="card">
+        <div class="form-row">
+          <select id="key-provider-select" class="input" aria-label="Select provider for key" onchange="handleKeyProviderChange()">
+            <option value="">Select Provider</option>
+            <!-- Dynamically populated -->
+          </select>
+          <input type="password" id="key-input" class="input" aria-label="API key value" placeholder="Paste API Key here...">
+          <button class="btn btn-primary" id="add-key-btn" onclick="addKey()">Add Key</button>
+        </div>
+        
+        <!-- Metadata Fields (Dynamic) -->
+        <div id="metadata-fields" style="margin-top: 1rem; display: none; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed var(--border-color);">
+          <div id="metadata-fields-content"></div>
+          <small class="form-hint" style="margin-top: 0.5rem; display: block;">This ID will be saved specifically for this key.</small>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 1rem;">
+        <div class="form-row" style="margin-bottom: 1rem;">
+          <select id="key-view-provider" class="input" aria-label="Filter keys by provider" onchange="refreshKeys()">
+            <option value="" disabled selected>Filter by provider...</option>
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Key</th>
+                <th scope="col">Usage Today</th>
+                <th scope="col">Tokens Today</th>
+                <th scope="col">RPM</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="keys-body">
+              <tr><td colspan="6" class="empty-state">Select a provider</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Logs -->
+    <section class="page" id="page-logs">
+      <div class="page-header">
+        <h2>Request Logs</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="flushLogs()">📤 Flush Buffer</button>
+          <button class="btn btn-ghost" onclick="refreshLogs(true)">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="form-row" style="margin-bottom: 1rem;">
+          <select id="log-filter-provider" class="input" aria-label="Filter logs by provider" onchange="refreshLogs()">
+            <option value="">All Providers</option>
+            <!-- Dynamically populated -->
+          </select>
+          <select id="log-filter-status" class="input" aria-label="Filter logs by status" onchange="refreshLogs()">
+            <option value="">All Statuses</option>
+            <option value="success">Success</option>
+            <option value="error">Error</option>
+            <option value="cache_hit">Cache Hit</option>
+          </select>
+          <input type="number" id="log-limit" class="input" aria-label="Limit number of logs" value="50" min="10" max="200" placeholder="Limit">
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Request ID</th>
+                <th scope="col">Provider</th>
+                <th scope="col">Model</th>
+                <th scope="col">Status</th>
+                <th scope="col">Latency</th>
+                <th scope="col">Tokens</th>
+                <th scope="col">Error Message</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body">
+              <tr><td colspan="8" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Stats -->
+    <section class="page" id="page-stats">
+      <div class="page-header">
+        <h2>Usage Statistics</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="aggregateStats()">📦 Aggregate Now</button>
+          <button class="btn btn-ghost" onclick="refreshStatsPage(true)">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-today">
+        <div class="stat-card">
+          <div class="stat-label">Requests Today</div>
+          <div class="stat-value" id="stat-day-requests">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Input Tokens</div>
+          <div class="stat-value" id="stat-day-input-tokens">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Output Tokens</div>
+          <div class="stat-value" id="stat-day-output-tokens">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="margin: 0;">Token History Graph</h3>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <select id="stats-timeframe" class="select" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" onchange="onStatsTimeframeChange()">
+              <option value="7">Past 7 Days</option>
+              <option value="14">Past 14 Days</option>
+              <option value="30">Past 30 Days</option>
+              <option value="90">Past 3 Months</option>
+              <option value="180">Past 6 Months</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            <select id="stats-provider-filter" class="select" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" onchange="onStatsProviderChange()">
+              <option value="all">All Providers</option>
+            </select>
+            <button id="stats-apply-custom" class="btn btn-primary btn-sm" style="display: none;" onclick="applyStatsCustomRange()">Apply</button>
+          </div>
+        </div>
+        <div id="stats-custom-range" style="display: none; margin-bottom: 1rem; gap: 0.5rem; align-items: center;">
+          <input type="date" id="stats-start-date" class="input" aria-label="Stats start date" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+          <span>to</span>
+          <input type="date" id="stats-end-date" class="input" aria-label="Stats end date" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+        </div>
+        <div style="position: relative; height: 300px;">
+          <canvas id="stats-chart"></canvas>
+        </div>
+        <div id="stats-totals" style="margin-top: 1rem; padding: 1rem; background: var(--bg-card-secondary); border-radius: 8px; display: none;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Tokens In</div>
+              <div id="stats-total-in" style="font-size: 1.25rem; font-weight: 600; color: #22c55e;">—</div>
+            </div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Tokens Out</div>
+              <div id="stats-total-out" style="font-size: 1.25rem; font-weight: 600; color: #f59e0b;">—</div>
+            </div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Tokens</div>
+              <div id="stats-total-all" style="font-size: 1.25rem; font-weight: 600; color: #3b82f6;">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Provider Breakdown (Today)</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Input Tokens</th>
+                <th scope="col">Output Tokens</th>
+              </tr>
+            </thead>
+            <tbody id="stats-provider-body">
+              <tr><td colspan="4" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Daily History</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 30px;"></th>
+                <th>Date</th>
+                <th>Total Requests</th>
+                <th>Input Tokens</th>
+                <th>Output Tokens</th>
+                <th>Cost Estimate</th>
+              </tr>
+            </thead>
+            <tbody id="stats-history-body">
+              <tr><td colspan="6" class="empty-state">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Search Providers -->
+    <section class="page" id="page-search-providers">
+      <div class="page-header">
+        <h2>Search Providers</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="seedSearchProviders()">🌱 Seed Defaults</button>
+          <button class="btn btn-ghost" onclick="refreshSearchProviders(true)">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="search-providers-list" class="providers-grid">
+        <div class="empty-state">Loading search providers...</div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Add API Key</h3>
+        <div class="form-row">
+          <select id="search-key-provider-select" class="input" aria-label="Select search provider" onchange="handleSearchKeyProviderChange()">
+            <option value="">Select Search Provider</option>
+          </select>
+          <input type="password" id="search-key-input" class="input" aria-label="Search API key" placeholder="Paste API Key here...">
+          <button class="btn btn-primary" onclick="addSearchKey()">Add Key</button>
+        </div>
+        <div id="search-metadata-fields" style="margin-top: 1rem; display: none; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed var(--border-color);">
+          <div id="search-metadata-fields-content"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <div class="form-row" style="margin-bottom: 1rem;">
+          <select id="search-key-view-provider" class="input" aria-label="Filter search keys by provider" onchange="refreshSearchKeys()">
+            <option value="" disabled selected>Filter by provider...</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Key</th>
+                <th scope="col">Usage</th>
+                <th scope="col">RPM</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="search-keys-body">
+              <tr><td colspan="5" class="empty-state">Select a provider</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Page: Playground -->
+    <section class="page" id="page-playground">
+      <div class="page-header">
+        <h2>AI Playground</h2>
+        <div class="header-actions">
+           <span class="badge badge-success">Live Ready</span>
+        </div>
+      </div>
+
+      <div class="playground-layout">
+        <div class="playground-sidebar">
+          <div class="card" style="margin-bottom: 1rem;">
+             <h3>Configuration</h3>
+             <div class="form-group">
+                <label class="form-label">Target Provider</label>
+                <select id="playground-provider" class="input" onchange="updatePlaygroundModels(this.value)">
+                   <option value="auto">Auto Router (All Providers)</option>
+                   <!-- Dynamically populated -->
+                </select>
+             </div>
+             <div class="form-group">
+                <label class="form-label">Model</label>
+                <select id="playground-model-select" class="input" onchange="handlePlaygroundModelChange()">
+                   <option value="auto">Auto/Default</option>
+                   <option value="custom">Custom...</option>
+                </select>
+             </div>
+              <div class="form-group" id="playground-model-input-group" style="display: none;">
+                 <label class="form-label">Custom Model String</label>
+                 <input type="text" id="playground-model" class="input" placeholder="e.g. gpt-4-turbo">
+                 <small class="form-hint">Type any specific model name supported by the provider.</small>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="checkbox" id="stream-toggle">
+                  <span>Stream Response</span>
+                </label>
+                <small class="form-hint">Stream tokens as they're generated (faster perceived response)</small>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="checkbox" id="thinking-toggle">
+                  <span>Thinking Mode</span>
+                </label>
+                <small class="form-hint">Enable reasoning/thinking for capable models (o1, Claude 3.7+, Gemini 2.5)</small>
+                <select id="reasoning-effort" class="input" aria-label="Reasoning effort level" style="margin-top: 0.25rem; font-size: 0.85rem;">
+                  <option value="none">Effort: None</option>
+                  <option value="low">Effort: Low</option>
+                  <option value="medium" selected>Effort: Medium</option>
+                  <option value="high">Effort: High</option>
+                  <option value="xhigh">Effort: X-High</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost" style="width: 100%;" onclick="clearChat()">Clear Window</button>
+          </div>
+        </div>
+
+        <div class="playground-main">
+          <div id="chat-window" class="chat-window">
+             <div class="chat-message bot">
+                How can I help you test your AI providers today?
+             </div>
+          </div>
+          <div class="chat-controls-container" id="chat-controls-container">
+            <div class="recording-status">
+              <span class="recordingPulse-dot"></span> REC
+            </div>
+            <div id="staged-images" class="staged-images-container"></div>
+            <div class="chat-controls">
+               <button class="btn btn-icon" id="mic-btn" onclick="toggleRecording()" title="Record Voice">🎙️</button>
+               <button class="btn btn-icon" onclick="document.getElementById('image-input').click()" title="Attach Media (Image, Audio, Video)">🖼️</button>
+               <input type="file" id="image-input" aria-label="Upload image file" style="display: none;" accept="image/*,audio/*,video/*" multiple onchange="handleImageUpload(this)">
+               <textarea id="chat-input" class="chat-input input" aria-label="Chat message input" placeholder="Message your AI... (Voice & Paste supported)" rows="1" onkeydown="handleInputKey(event)" onpaste="handlePaste(event)"></textarea>
+               <button id="send-btn" class="btn btn-primary" onclick="sendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page: Ollama Playground -->
+    <section class="page" id="page-ollama">
+      <div class="page-header">
+        <h2>🦙 Ollama Playground</h2>
+        <div class="header-actions">
+          <button class="btn btn-ghost" onclick="refreshOllamaHealth(true)">↻ Refresh Status</button>
+        </div>
+      </div>
+
+      <!-- Status Panel -->
+      <div class="card" style="margin-bottom: 1rem;">
+        <h3>Connection Status</h3>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div class="status-chip" id="ollama-chip-daemon">
+            <span class="status-chip-dot"></span>
+            <span>Daemon Bridge</span>
+          </div>
+          <div class="status-chip" id="ollama-chip-server">
+            <span class="status-chip-dot"></span>
+            <span>Ollama (11434)</span>
+          </div>
+          <div id="ollama-hint" class="form-hint" style="display: none; color: var(--color-warning);">
+            ⚠️ Ollama is not running. Start it with: <code>ollama serve</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playground Panel -->
+      <div class="playground-layout" style="height: calc(100vh - 380px); min-height: 350px;">
+        <div class="playground-sidebar">
+          <div class="card" style="margin-bottom: 1rem;">
+            <h3>Configuration</h3>
+            <div class="form-group">
+              <label class="form-label">Model</label>
+              <select id="ollama-model-select" class="input" style="width: 100%;">
+                <option value="">Loading models...</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost" style="width: 100%;" onclick="loadOllamaModels(true)">↻ Refresh Models</button>
+          </div>
+        </div>
+        <div class="playground-main">
+          <div id="ollama-chat-window" class="chat-window">
+            <div class="chat-message bot">
+              Welcome to the local Ollama playground. Select a model and start chatting — all requests go directly to your local Ollama instance.
+            </div>
+          </div>
+          <div class="chat-controls">
+            <div id="ollama-staged-files" class="staged-files"></div>
+            <div style="display: flex; gap: 0.5rem; width: 100%; align-items: flex-end;">
+              <button class="btn btn-ghost" style="padding: 0.5rem; border: 1px solid var(--border-color); min-width: 40px;" onclick="document.getElementById('ollama-file-input').click()" title="Attach image">📎</button>
+              <textarea id="ollama-chat-input" class="chat-input input" aria-label="Ollama chat input" placeholder="Message Ollama..." rows="1" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendOllamaMessage(); }"></textarea>
+              <button id="ollama-send-btn" class="btn btn-primary" onclick="sendOllamaMessage()">Send</button>
+            </div>
+            <input type="file" id="ollama-file-input" aria-label="Ollama file upload" style="display: none;" accept="image/*" multiple onchange="processOllamaFiles(this.files)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Daemon Logs Panel -->
+      <div class="card" style="margin-top: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="margin: 0;">Daemon Logs (Ollama)</h3>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+              <input type="checkbox" id="ollama-log-filter" checked> Ollama only
+            </label>
+            <button class="btn btn-sm btn-ghost" onclick="refreshOllamaLogs(true)">↻ Refresh</button>
+          </div>
+        </div>
+        <pre class="code-block" id="ollama-logs" style="max-height: 250px; font-size: 0.78rem;">Loading...</pre>
+      </div>
+    </section>
+
+    <!-- Page: Settings -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <h2>Settings</h2>
+      </div>
+
+      <div class="card">
+        <h3>Backend Connection</h3>
+        <div class="form-group">
+          <label class="form-label">Backend API URL</label>
+          <input type="text" id="settings-api-url" class="input" placeholder="https://your-backend.com">
+          <small class="form-hint">The URL where your OmniRouteAI backend is running</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Router API Key</label>
+          <input type="password" id="settings-api-key" class="input" placeholder="Bearer token for authenticating with the backend">
+          <small class="form-hint">This is the API_KEY set in your backend .env file</small>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Local Daemon Connection</h3>
+        <div class="form-group">
+          <label class="form-label">Daemon Token</label>
+          <input type="password" id="settings-daemon-token" class="input" placeholder="Token for local daemon (127.0.0.1:5059)">
+          <small class="form-hint">Stored at ~/.omniroute/local-cli/token.txt — required for Ollama Playground</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Daemon URL</label>
+          <input type="text" id="settings-daemon-url" class="input" value="http://127.0.0.1:5059" placeholder="http://127.0.0.1:5059">
+        </div>
+        <button class="btn btn-secondary" onclick="saveDaemonSettings()">💾 Save Daemon Settings</button>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Quick Actions</h3>
+        <div class="actions-grid">
+          <button class="btn btn-secondary" onclick="seedProviders()">🌱 Seed Default Providers</button>
+          <button class="btn btn-secondary" onclick="refreshProvidersFromDb()">🔄 Sync All From Firestore</button>
+          <button class="btn btn-secondary" onclick="flushLogs()">📤 Flush Log Buffer</button>
+          <button class="btn btn-secondary" onclick="aggregateStats()">📦 Aggregate Daily Stats</button>
+          <button class="btn btn-secondary" onclick="clearCache()">🗑️ Clear Cache</button>
+          <button class="btn btn-danger" onclick="testConnection()">🔌 Test Connection</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Connection Status</h3>
+        <pre class="code-block" id="connection-status">Not tested yet</pre>
+      </div>
+    </section>
+
+    <!-- Page: Local Auth -->
+    <section class="page" id="page-local-auth">
+      <div class="page-header">
+        <h2>Local CLI Auth Management</h2>
+        <div class="header-actions">
+           <button class="btn btn-secondary" onclick="harvestLocalTokens()">🔄 Re-Scan Files</button>
+           <button class="btn btn-ghost" onclick="refreshLocalAuth(true)">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Harvested Sessions</h3>
+        <p class="form-hint">The daemon automatically monitors your local config files (Claude Code, Cursor, GitHub gh, etc.) to borrow active sessions.</p>
+        <div class="table-container" style="margin-top: 1rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Method</th>
+                <th scope="col">Status</th>
+                <th scope="col">Expiries In</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="local-auth-body">
+              <tr><td colspan="5" class="empty-state">Loading status...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Direct OAuth / MITM Settings</h3>
+        <div class="form-group">
+          <label class="form-label">Active MITM Proxy</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+             <span class="badge" id="mitm-status">Inactive</span>
+             <small class="form-hint">Enabling <code>MITM_PROXY=true</code> in daemon env allows capturing tokens from keychain-managed tools like Grok.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Modal: OAuth Device Flow -->
+  <div class="modal-overlay" id="modal-device-flow" role="dialog" aria-modal="true" aria-labelledby="device-flow-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="device-flow-title">Connect Local Tool</h3>
+        <button class="modal-close" onclick="closeModal('device-flow')">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center; padding: 2rem;">
+        <p style="margin-bottom: 1rem;">1. Click "Open Provider Website" below</p>
+        <p style="margin-bottom: 1rem;">2. Sign in to your GitHub account</p>
+        <p style="margin-bottom: 1.5rem;">3. Enter this code: <strong style="color: var(--color-primary); font-size: 1.2em;" id="df-code-display">XXXX-XXXX</strong></p>
+        
+        <a id="df-url-link" href="#" target="_blank" class="btn btn-primary" style="margin-bottom: 1rem;">Open Provider Website</a>
+        
+        <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+           <div class="spinner"></div>
+           <span id="df-status-text" class="text-muted">Waiting for approval... (make sure to click "Authorize")</span>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 1rem; border-top: 1px solid var(--border-color); text-align: right;">
+        <button class="btn btn-ghost" onclick="closeModal('device-flow')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-edit-provider" role="dialog" aria-modal="true" aria-labelledby="edit-provider-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="edit-provider-title">Edit Provider</h3>
+        <button class="modal-close" onclick="closeModal('edit-provider')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-edit-provider" onsubmit="event.preventDefault(); saveProviderConfig();">
+          <input type="hidden" id="edit-provider-name">
+          <div class="form-group">
+            <label class="form-label">Priority (1 = Highest)</label>
+            <input type="number" id="edit-provider-priority" class="input" min="1" max="100" required>
+            <small class="form-hint">Providers with lower priority are tried first.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (1-100)</label>
+            <input type="number" id="edit-provider-weight" class="input" min="1" max="100" required>
+            <small class="form-hint">Used for tie-breaking when priority is equal. Higher weight goes first.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Active Models</label>
+            <div id="edit-provider-models-list" style="display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; min-height: 40px; background: var(--bg-card-secondary); max-height: 120px; overflow-y: auto;">
+              <!-- Model tags with remove buttons -->
+            </div>
+            <small class="form-hint">Click the &times; next to a model to remove it from the list.</small>
+          </div>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label">Default Model</label>
+            <select id="edit-provider-default-model" class="input"></select>
+            <small class="form-hint">The model used if none is requested specifically.</small>
+          </div>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label">Add Custom Model</label>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="edit-provider-new-model" class="input" placeholder="e.g., my-custom-model-70b" style="flex: 1;">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addProviderModel()">+ Add</button>
+            </div>
+            <small class="form-hint">Type a model ID manually and click add.</small>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+              Discover Models
+              <button type="button" class="btn btn-sm btn-secondary" onclick="fetchProviderModels()">
+                <span id="fetch-models-btn-text">🔍 Fetch from Endpoint</span>
+                <div id="fetch-models-spinner" class="spinner spinner-xs" style="display: none;"></div>
+              </button>
+            </label>
+            <div id="discovery-container" style="display: none; margin-top: 1rem;">
+               <div id="discovery-error" style="display: none; padding: 0.75rem; border-radius: 4px; background: rgba(220, 53, 69, 0.1); border: 1px solid var(--color-danger); color: var(--color-danger); font-size: 0.85rem; margin-bottom: 0.75rem;"></div>
+               <input type="text" id="discovery-search" class="input" aria-label="Search discovered models" placeholder="Search discovered models..." style="margin-bottom: 0.5rem; height: 32px;" oninput="filterDiscoveredModels()">
+               <div id="discovery-list" class="discovery-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; background: var(--bg-card-secondary);">
+                  <div class="empty-state" style="padding: 1rem;">Click fetch to discover models.</div>
+               </div>
+            </div>
+            <small class="form-hint">Derive models automatically directly from the provider's official /v1/models API.</small>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 2rem;">
+            <button type="button" class="btn btn-ghost" onclick="closeModal('edit-provider')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Provider Modal -->
+  <div class="modal-overlay" id="modal-add-custom-provider" role="dialog" aria-modal="true" aria-labelledby="add-custom-provider-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="add-custom-provider-title">Add Custom Provider</h3>
+        <button class="modal-close" onclick="closeModal('add-custom-provider')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-add-custom-provider" onsubmit="event.preventDefault(); saveCustomProvider()">
+          <div class="form-group">
+            <label class="form-label">Provider Name</label>
+            <input type="text" id="custom-provider-name" class="input" placeholder="e.g., My OpenRouter" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type</label>
+            <select id="custom-provider-type" class="input" onchange="updateCustomProviderEndpointHint()">
+              <option value="custom_openai">OpenAI-Compatible</option>
+              <option value="custom_anthropic">Anthropic-Compatible</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Endpoint URL</label>
+            <input type="url" id="custom-provider-endpoint" class="input" placeholder="https://api.openrouter.ai/v1/chat/completions" required>
+            <small class="form-hint" id="custom-endpoint-hint">Use OpenAI-compatible endpoint format</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key (optional)</label>
+            <input type="password" id="custom-provider-apikey" class="input" placeholder="sk-...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority (1 = Highest)</label>
+            <input type="number" id="custom-provider-priority" class="input" min="1" max="100" value="50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (1-100)</label>
+            <input type="number" id="custom-provider-weight" class="input" min="1" max="100" value="10">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Models (comma-separated)
+              <button type="button" class="btn btn-sm btn-secondary" onclick="fetchCustomProviderModels()" style="margin-left: 0.5rem;">🔍 Fetch</button>
+            </label>
+            <input type="text" id="custom-provider-models" class="input" placeholder="gpt-4o, gpt-4o-mini, claude-3-opus">
+            <small class="form-hint">Or leave empty to fetch automatically</small>
+            <div id="custom-provider-models-list" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;"></div>
+          </div>
+          <div class="modal-actions" style="margin-top: 2rem;">
+            <button type="button" class="btn btn-ghost" onclick="closeModal('add-custom-provider')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Provider</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

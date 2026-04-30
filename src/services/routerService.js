@@ -1,0 +1,721 @@
+import { classify, classifySync } from '../utils/classifier.js';
+import { getActiveProviders, recordProviderResult } from './providerService.js';
+import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure, getKeyMetadata } from './keyService.js';
+import { estimateTokens } from './statsService.js';
+import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
+
+/**
+ * Router service — provider selection, adapter dispatch, retry/failover.
+ *
+ * Retry policy (STRICT — 3 total attempts max):
+ *   Attempt 1: Provider A, Key 1 → fail
+ *   Attempt 2: Provider A, Key 2 (different key) → fail
+ *   Attempt 3: Provider B (next provider), Key 1 → fail → throw
+ *
+ * Rules enforced:
+ * - NEVER retry the same key twice (usedKeys exclusion set)
+ * - After 2 failures on Provider A → mark Provider A as failed → next provider
+ * - MAX 3 total attempts regardless of key/provider availability
+ * - routerService is the SINGLE source of retry truth — workers do NOT retry
+ *
+ * Pre-request token estimation:
+ * - Input tokens are estimated BEFORE the request using estimateTokens(prompt)
+ * - This is passed into the result for quota accounting even if provider tokens are missing
+ */
+
+// ─── Adapter registry — lazy loaded ──────────────────────────────────
+const adapterCache = {};
+
+/**
+ * Invalidate adapter cache for a specific provider or all providers.
+ * Called when provider configuration changes (e.g., endpoint URL changes).
+ * 
+ * @param {string} [providerName] - Specific provider to invalidate, or 'all' for full cache clear
+ */
+export function invalidateAdapterCache(providerName) {
+  if (providerName === 'all' || !providerName) {
+    Object.keys(adapterCache).forEach(key => {
+      delete adapterCache[key];
+    });
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Adapter cache fully invalidated',
+    }));
+  } else {
+    // Invalidate specific provider
+    const cacheKey = adapterCache[providerName] ? providerName : null;
+    
+    // Also check for local_http cache keys
+    for (const key of Object.keys(adapterCache)) {
+      if (key.startsWith(`local_http:`) && key.includes(providerName)) {
+        delete adapterCache[key];
+      }
+    }
+    
+    if (adapterCache[providerName]) {
+      delete adapterCache[providerName];
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: `Adapter cache invalidated for provider: ${providerName}`,
+      }));
+    }
+  }
+}
+
+/**
+ * Get adapter cache info for monitoring.
+ * @returns {{ size: number, keys: string[] }}
+ */
+export function getAdapterCacheInfo() {
+  return {
+    size: Object.keys(adapterCache).length,
+    keys: Object.keys(adapterCache),
+  };
+}
+
+export async function getAdapter(providerName, providerConfig = null) {
+  const cacheKey = providerConfig?.type === 'local_http'
+    ? `local_http:${providerConfig.endpoint}`
+    : providerName;
+
+  if (adapterCache[cacheKey]) return adapterCache[cacheKey];
+
+  let adapter;
+  switch (providerName) {
+    case 'groq': {
+      const mod = await import('../adapters/groqAdapter.js');
+      adapter = new mod.GroqAdapter();
+      break;
+    }
+    case 'google':
+    case 'gemini': {
+      const mod = await import('../adapters/geminiAdapter.js');
+      adapter = new mod.GeminiAdapter();
+      break;
+    }
+    case 'cloudflare': {
+      const mod = await import('../adapters/cloudflareAdapter.js');
+      adapter = new mod.CloudflareAdapter();
+      break;
+    }
+    case 'openai': {
+      const mod = await import('../adapters/openaiAdapter.js');
+      adapter = new mod.OpenAIAdapter();
+      break;
+    }
+    case 'glm': {
+      // ZhipuAI GLM — OpenAI-compatible but different endpoint
+      const mod = await import('../adapters/inferenceAdapter.js');
+      adapter = new mod.InferenceAdapter('glm', 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
+      break;
+    }
+    case 'anthropic': {
+      const mod = await import('../adapters/anthropicAdapter.js');
+      adapter = new mod.AnthropicAdapter();
+      break;
+    }
+    case 'xai': {
+      const mod = await import('../adapters/xaiAdapter.js');
+      adapter = new mod.XAIAdapter();
+      break;
+    }
+    case 'alibaba': {
+      const mod = await import('../adapters/alibabaAdapter.js');
+      adapter = new mod.AlibabaAdapter();
+      break;
+    }
+    case 'openrouter': {
+      const mod = await import('../adapters/openrouterAdapter.js');
+      adapter = new mod.OpenRouterAdapter();
+      break;
+    }
+    case 'deepseek': {
+      const mod = await import('../adapters/deepseekAdapter.js');
+      adapter = new mod.DeepSeekAdapter();
+      break;
+    }
+    case 'moonshot': {
+      const mod = await import('../adapters/moonshotAdapter.js');
+      adapter = new mod.MoonshotAdapter();
+      break;
+    }
+    case 'together': {
+      const mod = await import('../adapters/togetherAdapter.js');
+      adapter = new mod.TogetherAdapter();
+      break;
+    }
+    case 'nvidia': {
+      const mod = await import('../adapters/nvidiaAdapter.js');
+      adapter = new mod.NvidiaAdapter();
+      break;
+    }
+    case 'inception': {
+      const mod = await import('../adapters/inceptionAdapter.js');
+      adapter = new mod.InceptionAdapter();
+      break;
+    }
+    case 'xiaomi': {
+      const mod = await import('../adapters/xiaomiAdapter.js');
+      adapter = new mod.XiaomiAdapter();
+      break;
+    }
+    case 'sambanova': {
+      const mod = await import('../adapters/sambanovaAdapter.js');
+      adapter = new mod.SambaNovaAdapter();
+      break;
+    }
+    case 'cerebras': {
+      const mod = await import('../adapters/cerebrasAdapter.js');
+      adapter = new mod.CerebrasAdapter();
+      break;
+    }
+    case 'huggingface': {
+      const mod = await import('../adapters/huggingfaceAdapter.js');
+      adapter = new mod.HuggingFaceAdapter();
+      break;
+    }
+    case 'cohere': {
+      const mod = await import('../adapters/cohereAdapter.js');
+      adapter = new mod.CohereAdapter();
+      break;
+    }
+    case 'mistral': {
+      const mod = await import('../adapters/mistralAdapter.js');
+      adapter = new mod.MistralAdapter();
+      break;
+    }
+    case 'perplexity': {
+      const mod = await import('../adapters/perplexityAdapter.js');
+      adapter = new mod.PerplexityAdapter();
+      break;
+    }
+    case 'minimax': {
+      const mod = await import('../adapters/minimaxAdapter.js');
+      adapter = new mod.MinimaxAdapter();
+      break;
+    }
+    case 'fireworks':
+    case 'nebius':
+    case 'siliconflow':
+    case 'hyperbolic':
+    case 'chutes':
+    case 'nanobanana':
+    case 'opencode_zen': {
+      // OpenAI-compatible chat completions inference providers
+      const mod = await import('../adapters/inferenceAdapter.js');
+      const endpoints = {
+        fireworks:   'https://api.fireworks.ai/inference/v1/chat/completions',
+        nebius:      'https://api.studio.nebius.ai/v1/chat/completions',
+        siliconflow: 'https://api.siliconflow.cn/v1/chat/completions',
+        hyperbolic:  'https://api.hyperbolic.xyz/v1/chat/completions',
+        chutes:      'https://llm.chutes.ai/v1/chat/completions',
+        nanobanana:  'https://api.nanobananaapi.ai/v1/chat/completions',
+        opencode_zen: 'https://opencode.ai/zen/v1/chat/completions',
+      };
+      adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
+      break;
+    }
+    case 'deepgram':
+    case 'assemblyai': {
+      throw new ProviderError(providerName, `Provider '${providerName}' does not support text chat completions (it is a Speech-to-Text API)`, 400, 'N/A');
+    }
+    case 'vertex': {
+      const mod = await import('../adapters/vertexAdapter.js');
+      adapter = new mod.VertexAdapter();
+      break;
+    }
+    case 'ollama-cloud': {
+      const mod = await import('../adapters/ollamaCloudAdapter.js');
+      adapter = new mod.OllamaCloudAdapter();
+      break;
+    }
+    case 'ollama_local_bridge': {
+      const mod = await import('../adapters/ollamaLocalBridgeAdapter.js');
+      adapter = new mod.OllamaLocalBridgeAdapter();
+      break;
+    }
+    case 'zai_cli_local':
+    case 'cline_cli_local':
+    case 'kimi_cli_local':
+    case 'claude_cli_local':
+    case 'gemini_cli_local':
+    case 'qwen_cli_local':
+    case 'antigravity_cli_local':
+    case 'kilo_cli_local':
+    case 'opencode_cli_local':
+    case 'codex_cli_local':
+    case 'kiro_cli_local':
+    case 'grok_cli_local':
+    case 'copilot_cli_local': {
+      const mod = await import('../adapters/localHttpAdapter.js');
+      const toolName = providerName.split('_')[0]; // zai, cline, kimi, claude, etc.
+      const daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';
+      adapter = new mod.LocalHttpAdapter(providerName, `${daemonUrl}/${toolName}`);
+      break;
+    }
+    default: {
+      // Support local_http provider type generically
+      if (providerConfig?.type === 'local_http') {
+        const mod = await import('../adapters/localHttpAdapter.js');
+        adapter = new mod.LocalHttpAdapter(providerName, providerConfig.endpoint);
+        adapterCache[cacheKey] = adapter;
+        return adapter;
+      }
+
+      // Custom OpenAI-compatible provider
+      if (providerConfig?.type === 'custom_openai') {
+        const mod = await import('../adapters/openaiCompatibleAdapter.js');
+        adapter = new mod.OpenAICompatibleAdapter(providerName, providerConfig.endpoint);
+        adapterCache[cacheKey] = adapter;
+        return adapter;
+      }
+
+      // Custom Anthropic-compatible provider
+      if (providerConfig?.type === 'custom_anthropic') {
+        const mod = await import('../adapters/anthropicAdapter.js');
+        adapter = new mod.AnthropicAdapter(providerConfig.endpoint);
+        adapterCache[cacheKey] = adapter;
+        return adapter;
+      }
+
+      throw new ProviderError(providerName, `No adapter found for provider: ${providerName}`, 502, 'N/A');
+    }
+  }
+
+  adapterCache[cacheKey] = adapter;
+  return adapter;
+}
+
+/**
+ * Route a request to the best available provider+key.
+ * Applies priority-then-weighted-random provider selection.
+ *
+ * @param {string} prompt
+ * @param {object} opts
+ * @param {string}   [opts.model]            - preferred model
+ * @param {string}   [opts.taskType]         - override classifier
+ * @param {string[]} [opts.excludeProviders] - providers to skip entirely
+ * @param {string[]} [opts.excludeKeys]      - keys to skip (retry exclusion)
+ * @returns {Promise<{provider, model, apiKey, taskType}>}
+ */
+export async function route(prompt, opts = {}) {
+  // Use sync classify for performance (keywords cached in memory)
+  const taskType        = opts.taskType || classifySync(prompt);
+  const excludeProviders = opts.excludeProviders || [];
+  const excludeKeys      = opts.excludeKeys      || [];
+  const providerOverride = opts.provider;
+
+  // getActiveProviders() returns providers ordered by priority-tier weighted random
+  const activeProviders = await getActiveProviders();
+
+  // ─── Validate model exists in ANY active provider BEFORE routing ───
+  let searchList;
+  if (opts.model && opts.model !== 'auto') {
+    const availableModels = new Set(activeProviders.flatMap(p => p.models || []));
+    
+    if (!availableModels.has(opts.model)) {
+      // Find similar model suggestions
+      const modelSuggestions = [...availableModels]
+        .filter(m => m.toLowerCase().includes(opts.model.toLowerCase().slice(0, 4)))
+        .slice(0, 5);
+      
+      throw new Error(
+        `Model '${opts.model}' not found in any active provider. ` +
+        `Did you mean: ${modelSuggestions.join(', ') || 'none'}? ` +
+        `Available: ${[...availableModels].slice(0, 20).join(', ')}...`
+      );
+    }
+    
+    // ─── PRIORITIZE providers that have the requested model ───
+    const providersWithModel = activeProviders.filter(p => p.models?.includes(opts.model));
+    const providersWithoutModel = activeProviders.filter(p => !p.models?.includes(opts.model));
+    
+    // Weighted random within each group, then merge: providers WITH model first
+    const shuffle = arr => arr.sort(() => Math.random() - 0.5);
+    searchList = [...shuffle(providersWithModel), ...shuffle(providersWithoutModel)];
+  } else if (providerOverride && providerOverride !== 'auto') {
+    const target = activeProviders.find(p => p.name === providerOverride);
+    searchList = target ? [target] : [];
+  } else {
+    // Standard mode: prioritized weighted random shuffle
+    searchList = [...activeProviders];
+  }
+
+  // ─── Detect if multimodal (vision, audio, video) is required ──────
+  // Check both the raw prompt AND the messages array (where coding agents embed images)
+  const multimodalParts = Array.isArray(prompt) ? prompt.filter(p => typeof p === 'object') : [];
+  let isVision = multimodalParts.some(p => p.type === 'image_url' || p.type === 'image');
+  const isAudio  = multimodalParts.some(p => p.type === 'audio');
+  const isVideo  = multimodalParts.some(p => p.type === 'video');
+
+  // Scan messages array for embedded image content (OpenAI Chat Completions format)
+  if (!isVision && opts.messages && Array.isArray(opts.messages)) {
+    for (const msg of opts.messages) {
+      if (Array.isArray(msg.content)) {
+        if (msg.content.some(part => part.type === 'image_url' || part.type === 'image')) {
+          isVision = true;
+          break;
+        }
+      }
+    }
+  }
+
+  for (const provider of searchList) {
+    if (excludeProviders.includes(provider.name)) continue;
+
+    // Filter by capabilities at provider level
+    if (isVision && (!provider.features || !provider.features.includes('vision'))) continue;
+    if (isAudio  && (!provider.features || !provider.features.includes('audio'))) continue;
+    if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
+
+    // Model selection: requested model → provider default → first model in list
+    let model = opts.model && provider.models?.includes(opts.model) ? opts.model : null;
+    if (!model) {
+      model = (provider.default_model && provider.models?.includes(provider.default_model))
+        ? provider.default_model
+        : provider.models?.[0] || 'default';
+    }
+
+    // ─── Vision-aware model selection ─────────────────────────────────
+    // If request contains images AND this provider has a vision_models list,
+    // ensure the selected model is vision-capable. If not, swap to one that is.
+    if (isVision && provider.vision_models && provider.vision_models.length > 0) {
+      if (!provider.vision_models.includes(model)) {
+        // The selected model doesn't support vision — try to swap
+        const visionModel = provider.vision_models[0]; // Pick the first vision-capable model
+        if (visionModel) {
+          console.log(JSON.stringify({
+            level: 'info',
+            msg: `Vision fallback: swapping model ${model} → ${visionModel} (provider: ${provider.name})`,
+          }));
+          model = visionModel;
+        } else {
+          // No vision models available in this provider — skip it
+          continue;
+        }
+      }
+    }
+
+    // ─── Key Selection ───────────────────────────────────────────────
+    let apiKey;
+
+    if (provider.type === 'local_http') {
+      // Local CLI tools use session auth handled by the daemon.
+      // Each provider gets its OWN unique session key so retry exclusion
+      // only blocks THIS provider, not all other local providers.
+      apiKey = `local-cli-session:${provider.name}`;
+    } else {
+      // Atomic key selection (Lua): skips disabled + RPM-exceeded keys
+      apiKey = excludeKeys.length > 0
+        ? await getLeastUsedKeyExcluding(provider.name, excludeKeys)
+        : await getLeastUsedKey(provider.name);
+    }
+
+    // Skip if no key available (always skip for local_http if already in excludeKeys)
+    if (!apiKey || excludeKeys.includes(apiKey)) {
+      continue;
+    }
+
+    return { provider, model, apiKey, taskType };
+  }
+
+  // Check if it was a vision request that failed
+  if (isVision) {
+    const activeProviders = await getActiveProviders();
+    const visionProviders = activeProviders.filter(p =>
+      p.features && p.features.includes('vision')
+    );
+
+    if (visionProviders.length === 0) {
+      throw new Error(
+        `No vision-capable providers are active. ` +
+        `Please enable a provider with 'vision' feature (e.g., gemini, openai, anthropic). ` +
+        `See /admin for provider status.`
+      );
+    }
+
+    console.log(JSON.stringify({
+      level: 'warn',
+      msg: 'Vision request but all vision providers may be at RPM limit or disabled',
+      visionProviders: visionProviders.map(p => p.name),
+    }));
+  }
+
+  throw new AllProvidersExhaustedError(providerOverride || 'omniroute', opts.model || 'unknown');
+}
+
+/**
+ * Route, execute, and handle retries/failover.
+ *
+ * STRICT RETRY POLICY (3 total attempts):
+ *   Attempt 0 (1st): Provider A, Key 1
+ *   Attempt 1 (2nd): Provider A, Key 2  ← same provider, different key
+ *   Attempt 2 (3rd): Provider B, any key ← failover to next provider
+ *   → Throw if all fail
+ *
+ * The caller (jobWorker) MUST NOT attempt additional retries.
+ * routerService is the single source of retry truth.
+ *
+ * @param {string} prompt
+ * @param {object} opts
+ * @param {string}   [opts.model]
+ * @param {string}   [opts.taskType]
+ * @param {string}   [opts.systemPrompt]
+ * @param {string}   [opts.requestId]
+ * @param {boolean}  [opts.stream]
+ * @param {Function} [opts.onChunk]
+ * @param {Function} [opts.onDone]
+ * @param {Function} [opts.onError]
+ * @returns {Promise<{output, provider, model, tokens, keyUsed}>}
+ */
+export async function routeAndExecute(prompt, opts = {}) {
+  const MAX_ATTEMPTS = 3;
+
+  // Track keys used across ALL attempts — NEVER reuse the same key
+  const usedKeys = [];
+
+  // Track per-provider failure counts to decide when to escalate
+  const providerFailCount  = {};
+  const failedProviders    = [];
+  let lastError;
+
+  // Pre-estimate input tokens BEFORE first request — for quota accounting
+  const estimatedInputTokens = await estimateTokens(prompt);
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let routeResult;
+
+    try {
+      routeResult = await route(prompt, {
+        model:            opts.model,
+        provider:         opts.provider,
+        taskType:         opts.taskType,
+        excludeProviders: failedProviders,
+        excludeKeys:      usedKeys,
+        messages:         opts.messages,  // Pass for vision detection in messages
+      });
+    } catch (err) {
+      // No providers/keys available
+      break;
+    }
+
+    const { provider, model, apiKey, taskType } = routeResult;
+    usedKeys.push(apiKey); // Prevent this key from being selected again
+
+    try {
+      const adapter = await getAdapter(provider.name, provider);
+      const metadata = (provider.type === 'vertex' || provider.type === 'cloudflare' || provider.name === 'google_pse')
+        ? await getKeyMetadata(provider.name, apiKey)
+        : null;
+
+      if (opts.stream) {
+        // ── Streaming path ─────────────────────────────────────────
+        let result;
+        let streamFallbacked = false;
+
+        try {
+          result = await adapter.sendStreamRequest(prompt, model, apiKey, {
+            requestId:    opts.requestId,
+            taskType,
+            systemPrompt: opts.systemPrompt,
+            noContext:    opts.noContext,
+            onChunk:      opts.onChunk,
+            abortSignal:  opts.abortSignal,
+            metadata:     metadata || {},
+            temperature:     opts.temperature,
+            top_p:          opts.top_p,
+            max_tokens:     opts.max_tokens,
+            response_format: opts.response_format,
+            tools:          opts.tools,
+            tool_choice:    opts.tool_choice,
+            reasoningEffort: opts.reasoningEffort,
+          });
+        } catch (streamErr) {
+          // Check if error is likely due to streaming not supported (400, 501, or contains "stream")
+          const statusCode = streamErr.statusCode || streamErr.status;
+          const isStreamNotSupported = 
+            statusCode === 400 || 
+            statusCode === 501 || 
+            streamErr.message?.includes('stream') ||
+            streamErr.message?.includes('Streaming') ||
+            streamErr.message?.includes('not supported') ||
+            streamErr.message?.includes('not allowed');
+
+          if (isStreamNotSupported && !opts._streamRetryAttempt) {
+            // Fallback to non-streaming
+            streamFallbacked = true;
+            const fallbackResult = await adapter.sendRequest(prompt, model, apiKey, {
+              requestId:    opts.requestId,
+              taskType,
+              systemPrompt: opts.systemPrompt,
+              noContext:    opts.noContext,
+              metadata:     metadata || {},
+              temperature:     opts.temperature,
+              top_p:          opts.top_p,
+              max_tokens:     opts.max_tokens,
+              response_format: opts.response_format,
+              tools:          opts.tools,
+              tool_choice:    opts.tool_choice,
+              reasoningEffort: opts.reasoningEffort,
+            });
+            result = fallbackResult;
+          } else {
+            throw streamErr;
+          }
+        }
+
+        await recordProviderResult(provider.name, true);
+
+        const tokens = result.tokens || {};
+        if (!tokens.input || tokens.input === 0) {
+          tokens.input = estimatedInputTokens;
+        }
+
+        const finalResult = {
+          output:   result?.output ?? '',
+          thinking: result?.thinking || null,
+          tool_calls: result?.tool_calls || [],
+          finish_reason: result?.finish_reason || 'stop',
+          provider: provider.name,
+          model,
+          keyUsed:  apiKey,
+          tokens,
+          streamFallbacked: streamFallbacked || result?.raw?.streaming === false,
+        };
+
+        if (opts.onDone) opts.onDone(finalResult);
+        return finalResult;
+      }
+
+      // ── Non-streaming path ────────────────────────────────────────
+      const rawResponse = await adapter.sendRequest(prompt, model, apiKey, {
+        requestId:    opts.requestId,
+        taskType,
+        systemPrompt: opts.systemPrompt,
+        noContext:    opts.noContext,
+        metadata:     metadata || {},
+        // Pass through additional OpenAI options
+        temperature:     opts.temperature,
+        top_p:          opts.top_p,
+        max_tokens:     opts.max_tokens,
+        response_format: opts.response_format,
+        tools:          opts.tools,
+        tool_choice:    opts.tool_choice,
+        reasoningEffort: opts.reasoningEffort,
+      });
+
+      if (!rawResponse) {
+        throw new ProviderError(provider.name, 'Empty response from provider', 502, model);
+      }
+
+      const normalized = await adapter.normalizeResponse(rawResponse);
+      
+      if (!normalized) {
+        throw new ProviderError(provider.name, 'Failed to normalize provider response', 502, model);
+      }
+
+      await recordProviderResult(provider.name, true);
+
+      // TRACE LOGGING: Capture raw provider result for debugging "null result" or empty output issues
+      console.log(JSON.stringify({
+        level:    'debug',
+        msg:      'Provider response trace',
+        provider: provider.name,
+        output:   normalized.output,
+        raw:      normalized.raw,
+      }));
+
+      const tokens = normalized.tokens || {};
+      if (!tokens.input || tokens.input === 0) {
+        tokens.input = estimatedInputTokens;
+      }
+
+      let finalOutput = normalized.output || '';
+      
+      // Fallback to stderr for successful but silent CLI responses
+      if (!finalOutput && rawResponse.stderr) {
+        finalOutput = rawResponse.stderr;
+      }
+
+      return {
+        output:   finalOutput,
+        thinking: normalized?.thinking || null,
+        tool_calls: normalized?.tool_calls || [],
+        finish_reason: normalized?.finish_reason || 'stop',
+        provider: provider.name,
+        model,
+        tokens,
+        keyUsed:  apiKey,
+      };
+
+    } catch (err) {
+      // Ensure the error carries provider/model metadata for the background worker
+      // even if it was thrown by a generic adapter or with incorrect model info
+      if (err instanceof ProviderError) {
+        err.provider = provider.name;
+        err.model = model;
+        // Re-construct the message to ensure prefix includes the resolved model
+        const originalMessage = err.message.includes('] ') ? err.message.split('] ')[1] : err.message;
+        err.message = `[${provider.name}|${model}] ${originalMessage}`;
+        lastError = err;
+      } else {
+        lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
+      }
+
+      // Record key failure (may auto-disable key if threshold exceeded)
+      // Skip for local_http providers — their "key" is a virtual session identifier,
+      // not a real Redis-tracked key. Calling recordKeyFailure on it pollutes the sorted set.
+      if (provider.type !== 'local_http') {
+        await recordKeyFailure(provider.name, apiKey).catch(() => {});
+      }
+
+      // Record provider failure (may trip circuit breaker)
+      await recordProviderResult(provider.name, false).catch(() => {});
+
+      // ─── Vision-specific error: skip provider immediately ──────────
+      // Vision/image capability errors are model-level, not key-level.
+      // Retrying the same provider with a different key will never work.
+      const errMsg = (lastError?.message || '').toLowerCase();
+      const isVisionError = (
+        errMsg.includes('image content is not supported') ||
+        errMsg.includes('image input') ||
+        errMsg.includes('does not support image') ||
+        errMsg.includes('vision') ||
+        errMsg.includes('no endpoints found that support image')
+      );
+      if (isVisionError) {
+        if (!failedProviders.includes(provider.name)) {
+          failedProviders.push(provider.name);
+        }
+        console.log(JSON.stringify({
+          level: 'warn',
+          msg: `Vision error detected — skipping provider ${provider.name} immediately`,
+          error: errMsg.substring(0, 200),
+        }));
+        continue; // Skip the normal failure count logic
+      }
+
+      // Track per-provider failure count
+      providerFailCount[provider.name] = (providerFailCount[provider.name] || 0) + 1;
+
+      // After 2 failures on the same provider → escalate to next provider
+      // Attempt 0 → fail → attempt 1 (same provider, new key)
+      // Attempt 1 → fail → attempt 2 MUST use a different provider
+      if (providerFailCount[provider.name] >= 2) {
+        if (!failedProviders.includes(provider.name)) {
+          failedProviders.push(provider.name);
+        }
+      }
+    }
+  }
+
+  // All attempts exhausted
+  const finalErr = lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
+
+  if (opts.stream && opts.onError) {
+    opts.onError(finalErr);
+    return;
+  }
+
+  throw finalErr;
+}

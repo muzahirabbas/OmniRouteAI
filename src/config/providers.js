@@ -1,0 +1,731 @@
+/**
+ * Static provider configuration with full model lists.
+ * This acts as a fallback if Firestore is empty and as the source for seeding.
+ */
+import { getDb } from './firestore.js';
+import { get, set, setex } from './redis.js';
+
+export const STATIC_PROVIDERS = [
+  {
+    name: 'openai',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    models: [
+      'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'o3', 'o3-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-5.4', 'gpt-4-turbo', 'gpt-3.5-turbo'
+    ],
+    rpmLimit: 50,
+    features: ['vision', 'audio'],
+    supports_reasoning: true,
+    reasoning_effort_default: 'none',
+  },
+  {
+    name: 'anthropic',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.anthropic.com/v1/messages',
+    models: [
+      'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-sonnet-4-6-20250514', 'claude-opus-4-6-20250514'
+    ],
+    rpmLimit: 50,
+    features: ['vision'],
+    supports_reasoning: true,
+    thinking_budget_default: 0,
+  },
+  {
+    name: 'google',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/',
+    models: [
+      'gemini-2.0-flash-001', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemma-2-27b-it', 'gemma-4-31b-it', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-06-05'
+    ],
+    rpmLimit: 15,
+    features: ['vision', 'audio', 'video'],
+    supports_reasoning: true,
+    thinking_budget_default: 0,
+  },
+  {
+    name: 'xai',
+    priority: 2,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.x.ai/v1/chat/completions',
+    models: [
+      'grok-4.20-reasoning', 'grok-4.1-fast-reasoning', 'grok-2', 'grok-3', 'grok-3-mini'
+    ],
+    rpmLimit: 20,
+    features: [],
+    supports_reasoning: true,
+    reasoning_effort_default: 'medium',
+  },
+  {
+    name: 'alibaba',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    models: [
+      'qwen3-235b-a22b', 'qwen2.5-turbo', 'qwen2.5-plus', 'qwen-max', 'qwen-plus', 'qwen-turbo'
+    ],
+    rpmLimit: 30
+  },
+  {
+    name: 'openrouter',
+    priority: 1,
+    weight: 15,
+    status: 'active',
+    endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    models: [
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'mistralai/mistral-small-24b-instruct-2501:free',
+      'google/gemini-2.0-pro-exp-02-05:free',
+      'microsoft/phi-4:free',
+      'openrouter/auto'
+    ],
+    rpmLimit: 100,
+    features: ['vision']
+  },
+  {
+    name: 'groq',
+    priority: 1,
+    weight: 15,
+    status: 'active',
+    endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    models: [
+      'llama-3.3-70b-versatile', 'llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'
+    ],
+    rpmLimit: 30,
+    features: ['vision'],
+    vision_models: ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview']
+  },
+  {
+    name: 'deepseek',
+    priority: 2,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.deepseek.com/v1/chat/completions',
+    models: [
+      'deepseek-chat', 'deepseek-reasoner'
+    ],
+    rpmLimit: 20
+  },
+  {
+    name: 'moonshot',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.moonshot.ai/v1/chat/completions',
+    models: [
+      'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'
+    ],
+    rpmLimit: 20
+  },
+  {
+    name: 'together',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.together.xyz/v1/chat/completions',
+    models: [
+      "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+      "meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo",
+      "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+      "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      "Qwen/Qwen3.5-397B-A17B",
+      "deepseek-ai/DeepSeek-V3.1",
+      "mistralai/Mistral-Small-24B-Instruct-2501",
+      "Qwen/Qwen2.5-7B-Instruct-Turbo",
+      "google/gemma-3n-E4B-it"
+    ],
+    rpmLimit: 50,
+    features: ['vision'],
+    vision_models: ['meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo', 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8']
+  },
+  {
+    name: 'fireworks',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions',
+    models: [
+      'f1-preview', 'accounts/fireworks/models/llama-v3p3-70b-instruct'
+    ],
+    rpmLimit: 30
+  },
+  {
+    name: 'hyperbolic',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.hyperbolic.xyz/v1/chat/completions',
+    models: [
+      'meta-llama/Llama-3.2-3B-Instruct', 'deepseek-ai/DeepSeek-V3'
+    ],
+    rpmLimit: 50
+  },
+  {
+    name: 'chutes',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://llm.chutes.ai/v1/chat/completions',
+    models: [
+      'llama-3.1-8b', 'meta-llama-3.1-8b-instruct'
+    ],
+    rpmLimit: 30
+  },
+  {
+    name: 'mistral',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.mistral.ai/v1/chat/completions',
+    models: [
+      'pixtral-12b-2409', 'mistral-large-latest', 'mistral-small-latest', 'codestral-latest'
+    ],
+    rpmLimit: 30,
+    features: ['vision']
+  },
+  {
+    name: 'perplexity',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.perplexity.ai/chat/completions',
+    models: [
+      'sonar-deep-research', 'sonar-pro', 'sonar'
+    ],
+    rpmLimit: 50
+  },
+  {
+    name: 'nvidia',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    models: [
+      'meta/llama-3.3-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct', 'nvidia/llama-3.2-nv-90b-instruct'
+    ],
+    rpmLimit: 50,
+    features: ['vision'],
+    vision_models: ['nvidia/llama-3.2-nv-90b-instruct']
+  },
+  {
+    name: 'cloudflare',
+    priority: 4,
+    weight: 2,
+    status: 'active',
+    endpoint: 'https://api.cloudflare.com/client/v4/accounts/',
+    models: [
+      '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/llava-1.5-7b-hf'
+    ],
+    rpmLimit: 100,
+    features: ['vision']
+  },
+  {
+    name: 'huggingface',
+    priority: 4,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api-inference.huggingface.co/models/',
+    models: [
+      'meta-llama/Llama-3.1-8B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3'
+    ],
+    rpmLimit: 20,
+    features: ['vision']
+  },
+  {
+    name: 'sambanova',
+    priority: 1,
+    weight: 15,
+    status: 'active',
+    endpoint: 'https://api.sambanova.ai/v1/chat/completions',
+    models: [
+      'Meta-Llama-3.3-70B-Instruct', 'DeepSeek-V3'
+    ],
+    rpmLimit: 100,
+    features: ['vision']
+  },
+  {
+    name: 'cerebras',
+    priority: 1,
+    weight: 20,
+    status: 'active',
+    endpoint: 'https://api.cerebras.ai/v1/chat/completions',
+    models: [
+      'llama3.1-8b', 'llama3.1-70b'
+    ],
+    rpmLimit: 100
+  },
+  {
+    name: 'cohere',
+    priority: 2,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.cohere.ai/v2/chat',
+    models: [
+      'command-a-vision-07-2025', 'command-r-08-2024', 'command-r-plus-08-2024'
+    ],
+    rpmLimit: 40,
+    features: ['vision'],
+    vision_models: ['command-a-vision-07-2025']
+  },
+  {
+    name: 'nebius',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.studio.nebius.ai/v1/chat/completions',
+    models: [
+      'meta-llama/Meta-Llama-3.1-405B-Instruct'
+    ],
+    rpmLimit: 50
+  },
+  {
+    name: 'siliconflow',
+    priority: 2,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.siliconflow.cn/v1/chat/completions',
+    models: [
+      'deepseek-v3', 'deepseek-r1'
+    ],
+    rpmLimit: 100
+  },
+  {
+    name: 'nanobanana',
+    priority: 4,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.nanobananaapi.ai/v1/chat/completions',
+    models: [
+      'default'
+    ],
+    rpmLimit: 50
+  },
+  {
+    name: 'inception',
+    priority: 2,
+    weight: 8,
+    status: 'active',
+    endpoint: 'https://api.inceptionlabs.ai/v1/chat/completions',
+    models: [
+      'mercury-2', 'mercury-coder', 'mercury-small'
+    ],
+    rpmLimit: 60
+  },
+  {
+    name: 'xiaomi',
+    priority: 3,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.mimo.xiaomi.com/v1/chat/completions',
+    models: [
+      'mimo-v2-pro', 'MiMo-V2-Flash', 'mimo-v2-omni'
+    ],
+    rpmLimit: 50
+  },
+  {
+    name: 'ollama-cloud',
+    priority: 3,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://ollama.com/api',
+    models: [
+      'llama3.2:1b', 'qwen2.5:cloud', 'llama3.2:3b'
+    ],
+    rpmLimit: 50
+  },
+
+  {
+    name: 'vertex',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://us-central1-aiplatform.googleapis.com/v1/projects/',
+    models: [
+      'gemini-1.5-pro', 'gemini-1.5-flash'
+    ],
+    rpmLimit: 20,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'glm',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models: [
+      'glm-4-plus', 'glm-4-flash'
+    ],
+    rpmLimit: 30
+  },
+  {
+    name: 'minimax',
+    priority: 3,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://api.minimax.chat/v1/text_chat',
+    models: [
+      'abab7-chat', 'abab6.5-chat'
+    ],
+    rpmLimit: 20
+  },
+
+  // Served by OmniRouteAI-Local daemon on http://localhost:5059
+  // Enable via Firestore by setting status: 'active'
+  // Daemon must be running: cd local-daemon && node src/main.js
+  {
+    name: 'claude_cli_local',
+    type: 'local_http',
+    priority: 0,      // Highest priority when enabled
+    weight: 30,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/claude`
+      : 'http://localhost:5059/claude',
+    models: ['claude-opus-4.5', 'claude-sonnet-4.5', 'claude-3-5-sonnet', 'default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'gemini_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 30,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/gemini`
+      : 'http://localhost:5059/gemini',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'default'],
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'qwen_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/qwen`
+      : 'http://localhost:5059/qwen',
+    models: ['qwen3-235b-a22b', 'default'],
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'antigravity_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/antigravity`
+      : 'http://localhost:5059/antigravity',
+    models: [
+      'claude-opus-4-6-thinking',
+      'claude-sonnet-4-6-thinking',
+      'claude-sonnet-4-6',
+      'gemini-3-flash',
+      'gemini-3.1-pro-low',
+      'gemini-3.1-pro-high',
+      'default'
+    ],
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'kilo_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kilo`
+      : 'http://localhost:5059/kilo',
+    models: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-3-5-sonnet', 'default'],
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'opencode_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/opencode`
+      : 'http://localhost:5059/opencode',
+    models: [
+      // Free models (Zen - OpenCode's model gateway)
+      'minimax-m2.5-free',
+      'mimo-v2-pro-free',
+      'mimo-v2-omni-free',
+      'qwen3.6-plus-free',
+      'nemotron-3-super-free',
+      'big-pickle',
+      'gpt-5.4-nano',
+      // Paid models
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.3-codex',
+      'claude-opus-4.6',
+      'claude-sonnet-4.6',
+      'claude-haiku-4.5',
+      'gemini-3.1-pro',
+      'gemini-3-flash',
+      'kimi-k2.5',
+      'glm-5',
+      'default'
+    ],
+    defaultModel: 'minimax-m2.5-free',
+    rpmLimit: 999999
+  },
+  {
+    name: 'zai_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/zai`
+      : 'http://localhost:5059/zai',
+    models: ['glm-4-flash', 'glm-4', 'glm-3-turbo', 'default'],
+    defaultModel: 'glm-4-flash',
+    rpmLimit: 999999
+  },
+  {
+    name: 'cline_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/cline`
+      : 'http://localhost:5059/cline',
+    models: ['default'],
+    rpmLimit: 999999
+  },
+  {
+    name: 'kimi_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kimi`
+      : 'http://localhost:5059/kimi',
+    models: ['kimi-k2.5', 'kimi-k1.5', 'default'],
+    defaultModel: 'kimi-k1.5',
+    rpmLimit: 999999
+  },
+  {
+    name: 'ollama_local_bridge',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/ollama`
+      : 'http://localhost:5059/ollama',
+    models: [
+      'llama3.3', 'llava', 'moondream', 'qwen2.5-coder', 'deepseek-r1', 'default'
+    ],
+    modelFetchEndpoint: '/ollama/models',
+    rpmLimit: 999999,
+    features: ['vision']
+  },
+  {
+    name: 'codex_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/codex`
+      : 'http://localhost:5059/codex',
+    models: ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'default'],
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'kiro_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/kiro`
+      : 'http://localhost:5059/kiro',
+    models: ['claude-haiku-4.5', 'claude-sonnet-4.5', 'claude-opus-4.5', 'deepseek-3.2', 'minimax-m2.1', 'minimax-m2.5', 'qwen3-coder-next', 'auto', 'default'],
+    defaultModel: 'claude-haiku-4.5',
+    rpmLimit: 999999,
+    features: ['vision', 'audio', 'video']
+  },
+  {
+    name: 'grok_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/grok`
+      : 'http://localhost:5059/grok',
+    models: ['grok-2', 'grok-2-vision-12-19', 'grok-beta', 'default'],
+    defaultModel: 'grok-2',
+    rpmLimit: 999999
+  },
+  {
+    name: 'copilot_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 20,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/copilot`
+      : 'http://localhost:5059/copilot',
+    models: ['claude-sonnet-4-5', 'gpt-4o', 'gpt-4o-mini', 'default'],
+    defaultModel: 'default',
+    rpmLimit: 999999
+  },
+  {
+    name: 'qoder_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 15,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/qoder`
+      : 'http://localhost:5059/qoder',
+    models: ['lite', 'efficient', 'auto', 'performance', 'ultimate'],
+    defaultModel: 'lite',
+    rpmLimit: 999999
+  },
+  {
+    name: 'cursor_cli_local',
+    type: 'local_http',
+    priority: 0,
+    weight: 25,
+    status: 'active',
+    endpoint: process.env.LOCAL_DAEMON_URL
+      ? `${process.env.LOCAL_DAEMON_URL}/cursor`
+      : 'http://localhost:5059/cursor',
+    models: ['default'],
+    rpmLimit: 999999,
+    features: ['vision']
+  },
+  // OpenCode Zen - Direct API access (no CLI required)
+  // Get API key from https://opencode.ai/zen
+  {
+    name: 'opencode_zen',
+    priority: 1,
+    weight: 20,
+    status: 'active',
+    endpoint: 'https://opencode.ai/zen/v1/chat/completions',
+    models: [
+      // Free models (limited time)
+      'minimax-m2.5-free',
+      'mimo-v2-pro-free',
+      'mimo-v2-omni-free',
+      'qwen3.6-plus-free',
+      'nemotron-3-super-free',
+      'big-pickle',
+      'gpt-5.4-nano',
+      // Paid models
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.3-codex',
+      'claude-opus-4.6',
+      'claude-sonnet-4.6',
+      'claude-haiku-4.5',
+      'gemini-3.1-pro',
+      'gemini-3-flash',
+      'kimi-k2.5',
+      'glm-5'
+    ],
+    defaultModel: 'minimax-m2.5-free',
+    rpmLimit: 100,
+    requiresAuth: true,
+    authEnvVar: 'OPENCODE_ZEN_API_KEY',
+    features: ['vision']
+  }
+];
+
+
+/**
+ * Fetch active providers from Firestore, with local fallback and Redis caching.
+ */
+export async function getProviders() {
+  const cacheKey = 'providers:list';
+
+  try {
+    // 1. Try Redis cache
+    const cached = await get(cacheKey);
+    if (cached) {
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+    }
+
+    // 2. Load from source (Firestore or Static base)
+    const db = getDb();
+    
+    // Hardening: Firestore can sometimes hang during cold starts or network congestion.
+    // We race it against a 10s timeout to ensure the app doesn't freeze.
+    const firestorePromise = db.collection('providers').get();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Firestore operation timed out')), 10000)
+    );
+    
+    const snapshot = await Promise.race([firestorePromise, timeoutPromise]);
+
+    // Strategy: Start with STATIC_PROVIDERS as the base (always includes local CLI)
+    // Then merge/overwrite with any data found in Firestore
+    const providersMap = {};
+    STATIC_PROVIDERS.forEach(p => { providersMap[p.name] = { ...p }; });
+
+    if (!snapshot.empty) {
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.name) {
+          const staticBase = providersMap[data.name] || {};
+          providersMap[data.name] = {
+            ...staticBase,
+            ...data,
+            // Static type is authoritative — prevents Firestore from
+            // accidentally overwriting type:'local_http' if it was
+            // seeded before that field existed in the schema.
+            type: staticBase.type || data.type,
+          };
+        }
+      });
+    }
+
+    const providers = Object.values(providersMap);
+
+    // Sort by priority (ascending) and then weight (descending)
+    providers.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99) || (b.weight ?? 0) - (a.weight ?? 0));
+
+    // Cache in Redis for 60 seconds
+    await setex(cacheKey, 60, JSON.stringify(providers));
+
+    return providers;
+  } catch (err) {
+    console.warn('Failed to fetch providers from DB/Cache, using static fallback:', err.message);
+    return [...STATIC_PROVIDERS];
+  }
+
+}
+
+/**
+ * Get the default RPM limit for a provider from static config.
+ *
+ * @param {string} providerName
+ * @returns {number}
+ */
+export function getDefaultRpmLimit(providerName) {
+  const provider = STATIC_PROVIDERS.find((p) => p.name === providerName);
+  return provider ? provider.rpmLimit : 30; // 30 is fallback
+}

@@ -1,0 +1,179 @@
+import { Queue } from 'bullmq';
+import { createDuplicate } from '../config/redis.js';
+
+/**
+ * BullMQ queue for non-streaming chat completions.
+ * Streaming requests bypass this entirely.
+ */
+
+let queue;
+
+function getQueue() {
+  if (!queue) {
+    queue = new Queue('chat-completions', {
+      connection: createDuplicate(),
+      defaultJobOptions: {
+        removeOnComplete: { count: 1000 },
+        removeOnFail: { count: 500 },
+        attempts: 1, // Retries are handled at the router level, not queue level
+      },
+    });
+  }
+  return queue;
+}
+/**
+ * Enqueue a chat completion job.
+ *
+ * @param {object} data - { prompt, model, taskType, requestId }
+ * @returns {Promise<string>} job ID
+ */
+export async function enqueue(data) {
+  const job = await getQueue().add('chat-completion', data, {
+    jobId: data.requestId, // Use request ID as job ID for easy lookup
+  });
+  return job.id;
+}
+
+/**
+ * Wait for a job result with timeout.
+ * Polls job state until completed or failed.
+ * 
+ * Implements dual timeout protection:
+ * 1. User-specified timeout (default 30s)
+ * 2. Maximum poll duration (timeout + 50% buffer, max 60s)
+ *
+ * @param {string} jobId
+ * @param {number} [timeout=30000] - ms
+ * @returns {Promise<object>} job result
+ */
+export async function waitForResult(jobId, timeout = 30000) {
+  const startTime = Date.now();
+  const pollInterval = 100; // ms
+  
+  // Maximum poll duration: timeout + 50% buffer, capped at 600s (10 minutes)
+  const maxPollDuration = Math.min(timeout * 2.0, 600000);
+  
+  // Track consecutive failures to detect stuck jobs
+  let consecutiveNullResponses = 0;
+  const MAX_NULL_RESPONSES = 50; // ~5 seconds of null responses
+
+  while (Date.now() - startTime < timeout) {
+    const job = await getQueue().getJob(jobId);
+
+    // Detect stuck job (job disappeared from queue)
+    if (!job) {
+      consecutiveNullResponses++;
+      
+      if (consecutiveNullResponses >= MAX_NULL_RESPONSES) {
+        const err = new Error(`Job ${jobId} disappeared from queue after ${consecutiveNullResponses} attempts`);
+        err.statusCode = 500;
+        err.name = 'JobLostError';
+        throw err;
+      }
+      
+      await sleep(pollInterval);
+      continue;
+    }
+    
+    // Reset null counter if job exists
+    consecutiveNullResponses = 0;
+
+    const state = await job.getState();
+
+    if (state === 'completed') {
+      if (job.returnvalue === undefined || job.returnvalue === null) {
+        // Fix Race Condition: job was loaded before Lua script wrote returnvalue
+        const updatedJob = await getQueue().getJob(jobId);
+        return updatedJob?.returnvalue || { success: true, output: "" };
+      }
+      return job.returnvalue;
+    }
+
+    if (state === 'failed') {
+      let reason = job.failedReason;
+      if (reason === undefined || reason === null) {
+        // Fix Race Condition: job was loaded before Lua script wrote failedReason
+        const updatedJob = await getQueue().getJob(jobId);
+        reason = updatedJob?.failedReason;
+      }
+      reason = reason || 'Job failed';
+      const err = new Error(reason);
+
+      // Extract provider and model if the string matches the [provider|model] format thrown by ProviderError
+      const metadataMatch = reason.match(/\[(.*?)\|(.*?)\]/);
+      if (metadataMatch) {
+        err.provider = metadataMatch[1];
+        err.model    = metadataMatch[2];
+      }
+
+      // Reconstruct known error types for correct HTTP status mapping in API
+      if (reason.includes('All providers and keys exhausted')) {
+        err.name = 'AllProvidersExhaustedError';
+        err.statusCode = 503;
+      } else if (reason.includes('timed out')) {
+        err.name = 'TimeoutError';
+        err.statusCode = 504;
+      } else if (reason.includes('HTTP')) {
+        err.name = 'ProviderError';
+        err.statusCode = 502;
+      }
+
+      throw err;
+    }
+
+    // Check if job is stuck in active state for too long
+    if (state === 'active') {
+      const processingTime = Date.now() - (job.processedOn || startTime);
+      
+      // If processing for more than 2x timeout, consider it stuck
+      if (processingTime > timeout * 2) {
+        console.warn(JSON.stringify({
+          level: 'warn',
+          msg: 'Job stuck in active state',
+          jobId,
+          processingTime,
+          timeout,
+        }));
+      }
+    }
+
+    await sleep(pollInterval);
+  }
+
+  // --- Final poll before giving up (Fixes race condition) ---
+  const finalJob = await getQueue().getJob(jobId);
+  if (finalJob) {
+    const finalState = await finalJob.getState();
+    if (finalState === 'completed') {
+      if (finalJob.returnvalue === undefined || finalJob.returnvalue === null) {
+        const updatedJob = await getQueue().getJob(jobId);
+        return updatedJob?.returnvalue || { success: true, output: "" };
+      }
+      return finalJob.returnvalue;
+    }
+    if (finalState === 'failed') {
+      let reason = finalJob.failedReason;
+      if (reason === undefined || reason === null) {
+        const updatedJob = await getQueue().getJob(jobId);
+        reason = updatedJob?.failedReason;
+      }
+      throw new Error(reason || 'Job failed at the last millisecond');
+    }
+  }
+
+  const timeoutErr = new Error(`Job ${jobId} timed out after ${timeout}ms`);
+  timeoutErr.statusCode = 504;
+  timeoutErr.name = 'JobTimeoutError';
+  throw timeoutErr;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Get queue instance (for monitoring).
+ */
+export function getQueueInstance() {
+  return getQueue();
+}
