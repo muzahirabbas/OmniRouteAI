@@ -283,7 +283,7 @@ return { object: 'list', data: models };
   };
 
   // ─── Helper: Transform response to OpenAI format ──────────────────────
-  const toOpenAIResponse = (result, requestId, stream = false) => {
+   const toOpenAIResponse = (result, requestId, include_reasoning, stream = false) => {
     const responseId = `chatcmpl-${uuidv4().slice(0, 8)}`;
     const created = Math.floor(Date.now() / 1000);
     
@@ -325,7 +325,7 @@ return { object: 'list', data: models };
   };
 
   // ─── Helper: Transform to Responses API format ─────────────────────────
-  const toResponsesAPIFormat = (result, requestId) => {
+   const toResponsesAPIFormat = (result, requestId, include_reasoning) => {
     const responseId = `resp_${uuidv4().slice(0, 24)}`;
     const messageId = `msg_${uuidv4().slice(0, 24)}`;
     const created = Math.floor(Date.now() / 1000);
@@ -486,14 +486,14 @@ return { object: 'list', data: models };
 
           // Return in requested format
           if (isResponsesAPI) {
-            const responseObj = toResponsesAPIFormat({ ...cached, model: cached.model }, requestId);
+             const responseObj = toResponsesAPIFormat({ ...cached, model: cached.model }, requestId, include_reasoning);
             if (store) {
               const responseId = responseObj.id;
               await storeResponse(responseId, { output: cached.output, model: cached.model, tokens: cached.tokens });
             }
             return responseObj;
           }
-          return toOpenAIResponse({ ...cached, model: cached.model }, requestId, false);
+           return toOpenAIResponse({ ...cached, model: cached.model }, requestId, include_reasoning, false);
         }
       } catch {
         // Cache read error → continue normally
@@ -739,7 +739,7 @@ setCached(processedPrompt, model, task_type, system_prompt, {
         trackRequest(result.provider, result.keyUsed, result.tokens).catch(() => {});
 
         if (isResponsesAPI) {
-          const responseObj = toResponsesAPIFormat(result, requestId);
+          const responseObj = toResponsesAPIFormat(result, requestId, include_reasoning);
           if (store) {
             const responseId = responseObj.id;
             await storeResponse(responseId, { output: result.output, model: result.model, tokens: result.tokens });
@@ -747,7 +747,7 @@ setCached(processedPrompt, model, task_type, system_prompt, {
           return responseObj;
         }
         
-        return toOpenAIResponse(result, requestId, false);
+        return toOpenAIResponse(result, requestId, include_reasoning, false);
       } catch (fallbackErr) {
         const latency = Date.now() - startTime;
 
