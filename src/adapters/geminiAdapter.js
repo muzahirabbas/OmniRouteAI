@@ -257,8 +257,8 @@ export class GeminiAdapter extends BaseAdapter {
                 const text = part.text;
                 // Check if this chunk contains THOUGHT: prefix (Google API bug)
                 // Only send content BEFORE THOUGHT: to frontend in real-time
-                if (text.includes('THOUGHT:')) {
-                  const idx = text.indexOf('THOUGHT:');
+                if (text.toLowerCase().includes('thought:')) {
+                  const idx = text.toLowerCase().indexOf('thought:');
                   const cleanContent = text.substring(0, idx);
                   if (cleanContent && options.onChunk) {
                     options.onChunk({ content: cleanContent, provider: this.providerName, model });
@@ -281,8 +281,8 @@ export class GeminiAdapter extends BaseAdapter {
       // Known Google API bug: thinking appears with "THOUGHT:" prefix in text field
       // Must filter manually (confirmed by Google GitHub issue #2121)
       let thinking = null;
-      if (fullOutput.includes('THOUGHT:')) {
-        const idx = fullOutput.indexOf('THOUGHT:');
+      if (fullOutput.toLowerCase().includes('thought:')) {
+        const idx = fullOutput.toLowerCase().indexOf('thought:');
         thinking = fullOutput.substring(idx);  // Extract thinking content
         fullOutput = fullOutput.substring(0, idx).trim();  // Clean actual response
       }
@@ -337,8 +337,8 @@ export class GeminiAdapter extends BaseAdapter {
     // Known Google API bug: thinking appears with "THOUGHT:" prefix in text field
     // Must filter manually (confirmed by Google GitHub issue #2121)
     let thinking = null;
-    if (output.includes('THOUGHT:')) {
-      const idx = output.indexOf('THOUGHT:');
+    if (output.toLowerCase().includes('thought:')) {
+      const idx = output.toLowerCase().indexOf('thought:');
       thinking = output.substring(idx);  // Extract thinking content
       output = output.substring(0, idx).trim();  // Clean actual response
     }

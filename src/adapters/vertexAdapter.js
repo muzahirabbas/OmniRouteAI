@@ -310,12 +310,13 @@ export class VertexAdapter extends BaseAdapter {
       url += '?alt=sse';
     }
 
-    const controller = this.createTimeout();
-    const signal = options.abortSignal 
-      ? AbortSignal.any([controller.signal, options.abortSignal])
-      : controller.signal;
-    let fullOutput = '';
-    let lastRaw    = null;
+     const controller = this.createTimeout();
+     const signal = options.abortSignal 
+       ? AbortSignal.any([controller.signal, options.abortSignal])
+       : controller.signal;
+     let fullOutput   = '';
+     let lastRaw      = null;
+     let toolCalls    = [];
 
     try {
       const headers = mode === 'gemini'
@@ -346,22 +347,49 @@ export class VertexAdapter extends BaseAdapter {
         const lines = buffer.split('\n');
         buffer = lines.pop();
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+         for (const line of lines) {
+           const trimmed = line.trim();
+           if (!trimmed || !trimmed.startsWith('data: ')) continue;
 
-          try {
-            const parsed = JSON.parse(trimmed.slice(6));
-            lastRaw = parsed;
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              fullOutput += text;
-              if (options.onChunk) {
-                options.onChunk({ content: text, provider: this.providerName, model });
+           try {
+             const parsed = JSON.parse(trimmed.slice(6));
+             lastRaw = parsed;
+
+             // Handle tool calls
+             const parts = parsed.candidates?.[0]?.content?.parts || [];
+             for (const part of parts) {
+               if (part.functionCall) {
+                 const tc = {
+                   id: `call_${Math.random().toString(36).substring(2, 10)}`,
+                   type: 'function',
+                   function: {
+                     name: part.functionCall.name,
+                     arguments: JSON.stringify(part.functionCall.args || {})
+                   }
+                 };
+                 toolCalls.push(tc);
+                 if (options.onChunk) {
+                   options.onChunk({ tool_calls: [tc], provider: this.providerName, model });
+                 }
+               }
+             }
+
+              const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                // Check for THOUGHT: prefix (Google API bug) - filter before sending to frontend
+                if (text.toLowerCase().includes('thought:')) {
+                  const idx = text.toLowerCase().indexOf('thought:');
+                  const cleanContent = text.substring(0, idx);
+                  if (cleanContent && options.onChunk) {
+                    options.onChunk({ content: cleanContent, provider: this.providerName, model });
+                  }
+                } else if (options.onChunk) {
+                  options.onChunk({ content: text, provider: this.providerName, model });
+                }
+                fullOutput += text;
               }
-            }
-          } catch { /* skip unparseable */ }
-        }
+           } catch { /* skip unparseable */ }
+         }
       }
 
       this.clearTimeout(controller);
@@ -376,24 +404,25 @@ export class VertexAdapter extends BaseAdapter {
             output: await estimateTokens(fullOutput),
           };
 
-      // Known Google API bug: thinking appears with "THOUGHT:" prefix in text field
+       // Known Google API bug: thinking appears with "THOUGHT:" prefix in text field
+      // Extract thinking from fullOutput (final pass, ensures consistency)
       let thinking = null;
-      if (fullOutput.includes('THOUGHT:')) {
-        const idx = fullOutput.indexOf('THOUGHT:');
+      if (fullOutput.toLowerCase().includes('thought:')) {
+        const idx = fullOutput.toLowerCase().indexOf('thought:');
         thinking = fullOutput.substring(idx);
         fullOutput = fullOutput.substring(0, idx).trim();
       }
-
-        const finishReason = toolCalls.length > 0 ? 'tool_calls' : (lastRaw?.candidates?.[0]?.finishReason || 'stop');
-
-        return {
-          output: fullOutput.trim(),
-          thinking,
-          tool_calls: toolCalls,
-          finish_reason: finishReason,
-          tokens,
-          raw: { streaming: true, provider: this.providerName, model },
-        };
+      
+      const finishReason = toolCalls.length > 0 ? 'tool_calls' : (lastRaw?.candidates?.[0]?.finishReason || 'stop');
+      
+      return {
+        output: fullOutput.trim(),
+        thinking,
+        tool_calls: toolCalls,
+        finish_reason: finishReason,
+        tokens,
+        raw: { streaming: true, provider: this.providerName, model },
+      };
     } catch (err) {
       this.clearTimeout(controller);
       if (err instanceof ProviderError) throw err;
