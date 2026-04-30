@@ -20,6 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "@fastify/cors": "^11.0.0",
+    "@fastify/multipart": "^10.0.0",
     "@openrouter/sdk": "^0.11.2",
     "@upstash/redis": "^1.37.0",
     "bullmq": "^5.34.6",

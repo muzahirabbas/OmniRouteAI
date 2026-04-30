@@ -13,7 +13,7 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.openai.com/v1/chat/completions',
     models: [
-      'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'o3', 'o3-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-5.4', 'gpt-4-turbo', 'gpt-3.5-turbo'
+      'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'o3', 'o3-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-5.4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'whisper-1'
     ],
     rpmLimit: 50,
     features: ['vision', 'audio'],
@@ -96,10 +96,10 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
     models: [
-      'llama-3.3-70b-versatile', 'llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'
+      'llama-3.3-70b-versatile', 'llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it', 'whisper-large-v3'
     ],
     rpmLimit: 30,
-    features: ['vision'],
+    features: ['vision', 'audio'],
     vision_models: ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview']
   },
   {
@@ -221,10 +221,10 @@ export const STATIC_PROVIDERS = [
     status: 'active',
     endpoint: 'https://api.cloudflare.com/client/v4/accounts/',
     models: [
-      '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/llava-1.5-7b-hf'
+      '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/llava-1.5-7b-hf', '@cf/openai/whisper', '@cf/facebook/seamless-ml'
     ],
     rpmLimit: 100,
-    features: ['vision']
+    features: ['vision', 'audio'],
   },
   {
     name: 'huggingface',
@@ -652,6 +652,28 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'OPENCODE_ZEN_API_KEY',
     features: ['vision']
+  },
+
+  // Audio transcription providers
+  {
+    name: 'deepgram',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.deepgram.com/v1/listen',
+    models: ['nova-2', 'nova-3', 'whisper', 'base', 'enhanced'],
+    rpmLimit: 50,
+    features: ['audio'],
+  },
+  {
+    name: 'assemblyai',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.assemblyai.com/v2/transcript',
+    models: ['best', 'nano'],
+    rpmLimit: 50,
+    features: ['audio'],
   }
 ];
 

@@ -211,4 +211,51 @@ export class CloudflareAdapter extends BaseAdapter {
     }
     return new ProviderError(this.providerName, err.message, err.status || 502, err);
   }
+
+  /**
+   * Transcribe audio using Cloudflare Workers AI Whisper.
+   * Model: @cf/openai/whisper
+   */
+  async transcribe(fileBuffer, model, options = {}) {
+    const accountId = options.metadata?.accountId || this.accountId;
+    if (!accountId) {
+      throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
+    }
+
+    const controller = this.createTimeout(60000);
+
+    try {
+      const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model || '@cf/openai/whisper'}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${options.apiKey}`,
+        },
+        body: JSON.stringify({ audio: Array.from(fileBuffer) }),
+        signal: controller.signal,
+      });
+
+      this.clearTimeout(controller);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
+      }
+
+      const data = await response.json();
+
+      return {
+        text: data.result?.text || '',
+        duration: null,
+        words: null,
+        language: data.result?.language || null,
+      };
+    } catch (err) {
+      this.clearTimeout(controller);
+      if (err instanceof ProviderError) throw err;
+      throw this.handleError(err);
+    }
+  }
 }

@@ -83,8 +83,14 @@ export async function getAdapter(providerName, providerConfig = null) {
   let adapter;
   switch (providerName) {
     case 'groq': {
-      const mod = await import('../adapters/groqAdapter.js');
-      adapter = new mod.GroqAdapter();
+      // Use Whisper adapter for whisper-large-v3 model, OpenAIAdapter for chat
+      if (providerConfig?.model === 'whisper-large-v3' || opts?.model === 'whisper-large-v3') {
+        const mod = await import('../adapters/groqWhisperAdapter.js');
+        adapter = new mod.GroqWhisperAdapter();
+      } else {
+        const mod = await import('../adapters/openaiCompatibleAdapter.js');
+        adapter = new mod.OpenAICompatibleAdapter('groq', 'https://api.groq.com/openai/v1/chat/completions');
+      }
       break;
     }
     case 'google':
@@ -99,8 +105,14 @@ export async function getAdapter(providerName, providerConfig = null) {
       break;
     }
     case 'openai': {
-      const mod = await import('../adapters/openaiAdapter.js');
-      adapter = new mod.OpenAIAdapter();
+      // Use Whisper adapter for whisper-1 model, OpenAIAdapter for chat
+      if (providerConfig?.model === 'whisper-1' || opts?.model === 'whisper-1') {
+        const mod = await import('../adapters/openaiWhisperAdapter.js');
+        adapter = new mod.OpenAIWhisperAdapter();
+      } else {
+        const mod = await import('../adapters/openaiAdapter.js');
+        adapter = new mod.OpenAIAdapter();
+      }
       break;
     }
     case 'glm': {
@@ -217,7 +229,11 @@ export async function getAdapter(providerName, providerConfig = null) {
     }
     case 'deepgram':
     case 'assemblyai': {
-      throw new ProviderError(providerName, `Provider '${providerName}' does not support text chat completions (it is a Speech-to-Text API)`, 400, 'N/A');
+      const mod = await import(`../adapters/${providerName}Adapter.js`);
+      // Adapter class names: DeepgramAdapter, AssemblyAIAdapter
+      const className = providerName.charAt(0).toUpperCase() + providerName.slice(1) + 'Adapter';
+      adapter = new mod[className]();
+      break;
     }
     case 'vertex': {
       const mod = await import('../adapters/vertexAdapter.js');
@@ -345,8 +361,13 @@ export async function route(prompt, opts = {}) {
   // Check both the raw prompt AND the messages array (where coding agents embed images)
   const multimodalParts = Array.isArray(prompt) ? prompt.filter(p => typeof p === 'object') : [];
   let isVision = multimodalParts.some(p => p.type === 'image_url' || p.type === 'image');
-  const isAudio  = multimodalParts.some(p => p.type === 'audio');
+  let isAudio  = multimodalParts.some(p => p.type === 'audio');
   const isVideo  = multimodalParts.some(p => p.type === 'video');
+
+  // For audio transcription, we also need audio-capable providers
+  if (taskType === 'audio_transcription') {
+    isAudio = true;
+  }
 
   // Scan messages array for embedded image content (OpenAI Chat Completions format)
   if (!isVision && opts.messages && Array.isArray(opts.messages)) {
@@ -709,13 +730,115 @@ export async function routeAndExecute(prompt, opts = {}) {
     }
   }
 
-  // All attempts exhausted
-  const finalErr = lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
+// All attempts exhausted
+   const finalErr = lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
 
-  if (opts.stream && opts.onError) {
-    opts.onError(finalErr);
-    return;
+   if (opts.stream && opts.onError) {
+     opts.onError(finalErr);
+     return;
+   }
+
+   throw finalErr;
+}
+
+/**
+ * Route, transcribe, and handle retries/failover for audio transcription.
+ *
+ * @param {Buffer} fileBuffer - Audio file buffer
+ * @param {object} opts
+ * @param {string}   [opts.model] - Model to use (e.g., 'whisper-1', 'nova-2')
+ * @param {string}   [opts.provider] - Preferred provider
+ * @param {string}   [opts.language] - Language code
+ * @param {string}   [opts.response_format] - Response format
+ * @param {string[]} [opts.timestamp_granularities] - Timestamp granularities
+ * @returns {Promise<{text, duration, words?, language, provider, model, tokens, keyUsed}>}
+ */
+export async function transcribe(fileBuffer, opts = {}) {
+  const MAX_ATTEMPTS = 3;
+
+  const usedKeys = [];
+  const providerFailCount = {};
+  const failedProviders = [];
+  let lastError;
+
+  const estimatedInputTokens = Math.ceil(fileBuffer.length / 100);
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let routeResult;
+
+    try {
+      routeResult = await route('', {
+        model: opts.model,
+        provider: opts.provider,
+        taskType: 'audio_transcription',
+        excludeProviders: failedProviders,
+        excludeKeys: usedKeys,
+      });
+    } catch (err) {
+      break;
+    }
+
+    const { provider, model, apiKey, taskType } = routeResult;
+    usedKeys.push(apiKey);
+
+    try {
+      // For openai provider with whisper-1 model, pass model in config to get correct adapter
+      // For groq provider with whisper-large-v3 model, pass model in config to get correct adapter
+      const shouldPassModel = 
+        (provider.name === 'openai' && model === 'whisper-1') ||
+        (provider.name === 'groq' && model === 'whisper-large-v3');
+      const providerConfigForAdapter = { ...provider, model: shouldPassModel ? model : undefined };
+      const adapter = await getAdapter(provider.name, providerConfigForAdapter);
+
+      const transcriptionResult = await adapter.transcribe(fileBuffer, model, {
+        ...opts,
+        apiKey,
+        requestId: opts.requestId,
+        mimeType: opts.mimeType,
+        filename: opts.filename,
+      });
+
+      await recordProviderResult(provider.name, true);
+
+      const tokens = {
+        input: transcriptionResult.duration ? Math.ceil(transcriptionResult.duration / 0.1) : estimatedInputTokens,
+        output: typeof transcriptionResult.text === 'string' ? transcriptionResult.text.split(' ').length : 0,
+      };
+
+      return {
+        ...transcriptionResult,
+        provider: provider.name,
+        model,
+        tokens,
+        keyUsed: apiKey,
+      };
+
+    } catch (err) {
+      if (err instanceof ProviderError) {
+        err.provider = provider.name;
+        err.model = model;
+        const originalMessage = err.message.includes('] ') ? err.message.split('] ')[1] : err.message;
+        err.message = `[${provider.name}|${model}] ${originalMessage}`;
+        lastError = err;
+      } else {
+        lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
+      }
+
+      if (provider.type !== 'local_http') {
+        await recordKeyFailure(provider.name, apiKey).catch(() => {});
+      }
+
+      await recordProviderResult(provider.name, false).catch(() => {});
+
+      providerFailCount[provider.name] = (providerFailCount[provider.name] || 0) + 1;
+
+      if (providerFailCount[provider.name] >= 2) {
+        if (!failedProviders.includes(provider.name)) {
+          failedProviders.push(provider.name);
+        }
+      }
+    }
   }
 
-  throw finalErr;
+  throw lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
 }

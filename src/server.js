@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import { v4 as uuidv4 } from 'uuid';
 import { chatRoutes } from './routes/chat.js';
 import { searchRoutes } from './routes/search.js';
@@ -34,14 +35,22 @@ export async function buildServer(opts = {}) {
     ...opts,
   });
 
-  // ─── CORS ──────────────────────────────────────────────────────────
-  await app.register(cors, {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-    exposedHeaders: ['Content-Type', 'X-Request-Id'],
-    credentials: true,
-  });
+// ─── CORS ──────────────────────────────────────────────────────────
+   await app.register(cors, {
+     origin: '*',
+     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+     exposedHeaders: ['Content-Type', 'X-Request-Id'],
+     credentials: true,
+   });
+
+   // ─── Multipart for audio transcription ─────────────────────────────
+   await app.register(multipart, {
+     limits: {
+       fileSize: 20971520, // 20MB max
+       files: 1,
+     },
+   });
 
   // ─── Request ID decoration ──────────────────────────────────────────
   app.decorateRequest('requestId', null);

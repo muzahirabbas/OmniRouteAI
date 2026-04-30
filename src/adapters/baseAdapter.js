@@ -209,27 +209,40 @@ export class BaseAdapter {
     throw new Error(`normalizeResponse() not implemented for ${this.providerName}`);
   }
 
-  /**
-   * Handle a provider-specific error.
-   * Can be overridden by subclasses for custom error mapping.
-   *
-   * @param {Error} err
-   * @returns {Error}
-   */
-  handleError(err) {
-    // Note: subclasses should override this and import ProviderError directly.
-    // This base implementation provides a generic Error wrapper.
-    if (err.name === 'AbortError') {
-      const timeoutErr = new Error(`[${this.providerName}] Request timed out`);
-      timeoutErr.statusCode = 504;
-      timeoutErr.cause = err;
-      return timeoutErr;
-    }
+/**
+    * Handle a provider-specific error.
+    * Can be overridden by subclasses for custom error mapping.
+    *
+    * @param {Error} err
+    * @returns {Error}
+    */
+   handleError(err) {
+     // Note: subclasses should override this and import ProviderError directly.
+     // This base implementation provides a generic Error wrapper.
+     if (err.name === 'AbortError') {
+       const timeoutErr = new Error(`[${this.providerName}] Request timed out`);
+       timeoutErr.statusCode = 504;
+       timeoutErr.cause = err;
+       return timeoutErr;
+     }
 
-    const statusCode = err.status || err.statusCode || 502;
-    const wrappedErr = new Error(`[${this.providerName}] ${err.message}`);
-    wrappedErr.statusCode = statusCode;
-    wrappedErr.cause = err;
-    return wrappedErr;
-  }
+     const statusCode = err.status || err.statusCode || 502;
+     const wrappedErr = new Error(`[${this.providerName}] ${err.message}`);
+     wrappedErr.statusCode = statusCode;
+     wrappedErr.cause = err;
+     return wrappedErr;
+   }
+
+   /**
+    * Transcribe audio to text.
+    * MUST be implemented by adapters that support audio transcription.
+    *
+    * @param {Buffer} fileBuffer - Audio file buffer
+    * @param {string} model - Model to use for transcription
+    * @param {object} options - { language, response_format, timestamp_granularities, prompt, temperature }
+    * @returns {Promise<{ text: string, duration: number, words?: Array<{word: string, start: number, end: number}>, language?: string }>}
+    */
+   async transcribe(fileBuffer, model, options = {}) {
+     throw new Error(`transcribe() not implemented for ${this.providerName}`);
+   }
 }
