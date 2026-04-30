@@ -324,7 +324,7 @@ const API = {
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
-      return response.body;
+      return response;
     } catch (err) {
       throw new Error(`Stream request failed: ${err.message}`);
     }

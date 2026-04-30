@@ -224,13 +224,15 @@ return { object: 'list', data: models };
       // Tools
       tools: body.tools,
       tool_choice: body.tool_choice,
-      // Reasoning
-      reasoning_effort: body.reasoning_effort || body.thinking?.effort,
-      // Additional OpenAI fields
-      previous_response_id: body.previous_response_id,
-      prediction: body.prediction,
-      store: body.store,
-      metadata: body.metadata,
+       // Reasoning
+       reasoning_effort: body.reasoning_effort || body.thinking?.effort,
+       include_reasoning: body.include_reasoning,
+       // Additional OpenAI fields
+       previous_response_id: body.previous_response_id,
+       prediction: body.prediction,
+       store: body.store,
+       metadata: body.metadata,
+       priority: body.priority || 'normal',
     };
 
     // Handle different input formats
@@ -296,7 +298,7 @@ return { object: 'list', data: models };
       message: {
         role: 'assistant',
         content: result.output || '',
-        ...(result.thinking ? { reasoning: result.thinking } : {}),
+        ...(result.thinking && include_reasoning !== false ? { reasoning: result.thinking } : {}),
         ...(result.tool_calls && result.tool_calls.length > 0 ? { tool_calls: result.tool_calls } : {}),
       },
       finish_reason: result.finish_reason || 'stop',
@@ -361,7 +363,7 @@ return { object: 'list', data: models };
         status: 'completed',
         role: 'assistant',
         content,
-        ...(result.thinking ? { reasoning: result.thinking } : {}),
+        ...(result.thinking && include_reasoning !== false ? { reasoning: result.thinking } : {}),
       });
     }
 
@@ -391,7 +393,7 @@ return { object: 'list', data: models };
     // Normalize input based on format - pass URL provider param
     const urlProvider = request.params?.provider || null;
     const input = normalizeInput(request.body, urlProvider);
-    const { prompt, messages, model, provider: providerOverride, task_type, system_prompt, stream, noContext, priority, previous_response_id, store } = input;
+    const { prompt, messages, model, provider: providerOverride, task_type, system_prompt, stream, noContext, priority, previous_response_id, store, include_reasoning } = input;
     const requestPriority = priority || 'normal';
     
     // Handle "auto" provider - treat as no override to enable auto-selection
@@ -561,7 +563,7 @@ return { object: 'list', data: models };
                 index: 0,
                 delta: {
                   role: 'assistant',
-                  ...(result.thinking ? { reasoning: result.thinking } : {}),
+                  ...(result.thinking && include_reasoning !== false ? { reasoning: result.thinking } : {}),
                 },
                 finish_reason: result.finish_reason || 'stop',
               }],
@@ -839,7 +841,8 @@ setCached(processedPrompt, model, task_type, system_prompt, {
           prediction:             { type: 'object' },
           store:                   { type: 'boolean' },
           metadata:                { type: 'object' },
-          priority:                { type: 'string', enum: ['low', 'normal', 'high', 'critical'], default: 'normal' },
+priority:               { type: 'string', enum: ['low', 'normal', 'high', 'critical'], default: 'normal' },
+          include_reasoning:    { type: 'boolean', default: true },
         },
       },
     },
