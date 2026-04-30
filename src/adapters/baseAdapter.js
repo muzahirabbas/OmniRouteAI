@@ -8,8 +8,8 @@
  * - Return normalized format: { output: string, tokens: { input, output }, raw: object }
  */
 
-const http = require('http');
-const https = require('https');
+import http from 'http';
+import https from 'https';
 
 const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 60000; // 60s
 

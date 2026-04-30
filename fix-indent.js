@@ -1,6 +1,6 @@
-const fs = require('fs');
+import { readFileSync, writeFileSync } from 'node:fs';
 const path = 'E:/ambitious projects/OmniRouteAI2/src/services/providerService. js';
-let c = fs.readFileSync(path, 'utf8');
+let c = readFileSync(path, 'utf8');
 c = c.replace(/\r\n/g, '\n');
-fs.writeFileSync(path, c, 'utf8');
+writeFileSync(path, c, 'utf8');
 console.log('done');
