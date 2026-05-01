@@ -301,7 +301,7 @@ export async function getAdapter(providerName, providerConfig = null) {
       // Custom Anthropic-compatible provider
       if (providerConfig?.type === 'custom_anthropic') {
         const mod = await import('../adapters/anthropicAdapter.js');
-        adapter = new mod.AnthropicAdapter(providerConfig.endpoint);
+        adapter = new mod.AnthropicAdapter(providerName, providerConfig.endpoint);
         adapterCache[cacheKey] = adapter;
         return adapter;
       }

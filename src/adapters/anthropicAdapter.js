@@ -18,8 +18,13 @@ import { estimateTokens, extractTokens } from '../services/statsService.js';
  * All methods return normalized: { output: string, tokens: { input, output }, raw: object }
  */
 export class AnthropicAdapter extends BaseAdapter {
-  constructor(endpoint) {
-    super('anthropic');
+  constructor(providerName = 'anthropic', endpoint) {
+    // Backwards compatibility for cases where only endpoint was passed
+    if (providerName && providerName.startsWith('http') && !endpoint) {
+      endpoint = providerName;
+      providerName = 'anthropic';
+    }
+    super(providerName);
     this.endpoint   = endpoint || 'https://api.anthropic.com/v1/messages';
     this.apiVersion = '2023-06-01';
   }
