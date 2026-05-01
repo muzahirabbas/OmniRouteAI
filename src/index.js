@@ -2,6 +2,27 @@ import { buildServer } from './server.js';
 import { closeRedis } from './config/redis.js';
 import './cron/dailyReset.js'; // Start cron job on boot
 
+// FIX: Add unhandled rejection handler to prevent silent failures
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(JSON.stringify({
+    level: 'fatal',
+    msg: 'Unhandled Promise Rejection',
+    error: reason?.message || String(reason),
+    stack: reason?.stack,
+  }));
+});
+
+// FIX: Add uncaught exception handler
+process.on('uncaughtException', (err) => {
+  console.error(JSON.stringify({
+    level: 'fatal',
+    msg: 'Uncaught Exception',
+    error: err.message,
+    stack: err.stack,
+  }));
+  process.exit(1);
+});
+
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 

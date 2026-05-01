@@ -2,8 +2,16 @@ import { transcribe } from '../services/routerService.js';
 import { logRequest } from '../services/loggingService.js';
 import { trackRequest } from '../services/statsService.js';
 import { ProviderError } from '../utils/errors.js';
+import { rateLimiters } from '../utils/rateLimiter.js';
 
 export async function audioRoutes(app) {
+  // Rate limiting for audio endpoints
+  app.addHook('onRequest', async (request, reply) => {
+    if (request.url.includes('/audio/')) {
+      return rateLimiters.chat(request, reply);
+    }
+  });
+
   // POST /v1/audio/speech - Text to Speech
   app.post('/v1/audio/speech', {
     schema: {
@@ -33,18 +41,63 @@ export async function audioRoutes(app) {
   app.post('/v1/audio/transcriptions', async (request, reply) => {
     const startTime = Date.now();
 
-    try {
-      const parts = {};
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'HANDLER_ENTERED - Audio transcription',
+      requestId: request.requestId,
+      contentType: request.headers['content-type'],
+    }));
 
-      for await (const part of request.parts()) {
-        if (part.fieldname === 'file') {
-          parts.file = part;
-        } else {
-          parts[part.fieldname] = part.value;
+    let fileBuffer = null;
+    let parts = {};
+
+    try {
+      // FIX: Consume file stream in loop to prevent hang + add timeout
+      const MULTIPART_TIMEOUT = 30000; // 30s timeout for multipart parsing
+
+      const partsPromise = (async () => {
+        for await (const part of request.parts()) {
+          if (part.fieldname === 'file') {
+            parts.file = part;
+            // CRITICAL: Must consume stream here to prevent busboy hang
+            fileBuffer = await part.toBuffer();
+          } else {
+            parts[part.fieldname] = part.value;
+          }
         }
+        return fileBuffer;
+      })();
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Multipart parsing timeout after 30s')), MULTIPART_TIMEOUT)
+      );
+
+      try {
+        fileBuffer = await Promise.race([partsPromise, timeoutPromise]);
+      } catch (parseErr) {
+        console.log(JSON.stringify({
+          level: 'error',
+          msg: 'Multipart parsing failed',
+          requestId: request.requestId,
+          error: parseErr.message,
+        }));
+        return reply.code(408).send({
+          error: {
+            message: 'Request timeout during file upload',
+            type: 'timeout_error'
+          }
+        });
       }
 
-      if (!parts.file) {
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'MULTIPART_PARSE_COMPLETE',
+        requestId: request.requestId,
+        hasFile: !!parts.file,
+        fileSize: fileBuffer?.length,
+      }));
+
+      if (!parts.file || !fileBuffer) {
         return reply.code(400).send({
           error: {
             message: 'Missing required field: file',
@@ -64,9 +117,42 @@ export async function audioRoutes(app) {
         });
       }
 
-      const fileBuffer = await parts.file.toBuffer();
       const mimeType = parts.file.mimetype || 'audio/wav';
-      const filename = parts.file.filename || 'audio.wav';
+      const fileSize = fileBuffer.length;
+
+      const ALLOWED_MIME_TYPES = [
+        'audio/mpeg',    // mp3
+        'audio/mp4',     // m4a
+        'audio/wav',     // wav
+        'audio/x-wav',   // wav variant
+        'audio/webm',    // webm
+        'audio/ogg',     // ogg
+        'audio/flac',    // flac
+        'audio/aac',     // aac
+        'audio/x-m4a',   // m4a variant
+      ];
+
+      const cleanMimeType = mimeType.split(';')[0].trim().toLowerCase();
+      if (!ALLOWED_MIME_TYPES.includes(cleanMimeType)) {
+        return reply.code(415).send({
+          error: {
+            message: `Unsupported file type: ${mimeType}. Allowed types: mp3, mp4, wav, webm, ogg, flac, aac`,
+            type: 'invalid_request_error',
+            code: 'unsupported_file_type'
+          }
+        });
+      }
+
+      const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+      if (fileSize > MAX_FILE_SIZE) {
+        return reply.code(413).send({
+          error: {
+            message: `File too large: ${fileSize} bytes. Maximum allowed: ${MAX_FILE_SIZE} bytes`,
+            type: 'invalid_request_error',
+            code: 'file_too_large'
+          }
+        });
+      }
 
       console.log(JSON.stringify({
         level: 'info',
@@ -84,36 +170,22 @@ export async function audioRoutes(app) {
         response_format: parts.response_format,
         timestamp_granularities: parts.timestamp_granularities,
         mimeType,
-        filename,
+        filename: parts.file.filename || 'audio.wav',
         requestId: request.requestId,
         provider: parts.provider,
       });
 
       const latency = Date.now() - startTime;
 
-      await logRequest({
-        request_id: request.requestId,
-        provider: result.provider,
-        model: result.model,
-        key: result.keyUsed,
-        latency,
-        tokens: result.tokens,
-        status: 'success',
-      });
-
-      await trackRequest(result.provider, result.keyUsed, {
-        input: result.tokens.input,
-        output: result.tokens.output,
-      });
-
       console.log(JSON.stringify({
         level: 'info',
-        msg: 'Transcription request completed',
+        msg: 'TRANSCRIPTION_COMPLETE - Sending response',
         requestId: request.requestId,
-        latency,
         provider: result.provider,
+        latency,
       }));
 
+      // FIX: Send response FIRST, then log asynchronously
       return reply.send({
         text: result.text,
         duration: result.duration,
@@ -121,45 +193,72 @@ export async function audioRoutes(app) {
         language: result.language,
       });
 
-    } catch (err) {
-      const latency = Date.now() - startTime;
-
-      if (err instanceof ProviderError) {
-        await logRequest({
-          request_id: request.requestId,
-          provider: err.provider || 'unknown',
-          model: err.model || 'unknown',
-          key: 'unknown',
-          latency,
-          tokens: { input: 0, output: 0 },
-          status: 'error',
-          error: err.message,
-        });
-
-        return reply.code(err.statusCode || 502).send({
-          error: {
-            message: err.message,
-            type: 'server_error',
-            code: err.statusCode?.toString() || '502'
-          }
-        });
-      }
-
-      await logRequest({
-        request_id: request.requestId,
-        provider: 'unknown',
-        model: 'unknown',
-        key: 'unknown',
-        latency,
-        tokens: { input: 0, output: 0 },
-        status: 'error',
-        error: err.message,
+      // FIX: Async logging after response sent
+      setImmediate(async () => {
+        try {
+          await logRequest({
+            request_id: request.requestId,
+            provider: result.provider,
+            model: result.model,
+            key: result.keyUsed,
+            latency,
+            tokens: result.tokens,
+            status: 'success',
+          });
+          await trackRequest(result.provider, result.keyUsed, {
+            input: result.tokens.input,
+            output: result.tokens.output,
+          });
+        } catch (logErr) {
+          console.error(JSON.stringify({
+            level: 'error',
+            msg: 'Background logging failed',
+            requestId: request.requestId,
+            error: logErr.message,
+          }));
+        }
       });
 
-      return reply.code(500).send({
-        error: {
-          message: err.message || 'Internal server error',
-          type: 'server_error'
+    } catch (err) {
+      const latency = Date.now() - startTime;
+      const errorMsg = err.message || 'Unknown error';
+      const errorCode = err.statusCode || 502;
+
+      console.log(JSON.stringify({
+        level: 'error',
+        msg: 'Transcription error',
+        requestId: request.requestId,
+        error: errorMsg,
+        errorCode,
+      }));
+
+      // FIX: Send error response immediately, then log async
+      const errorResponse = (err instanceof ProviderError)
+        ? { error: { message: errorMsg, type: 'server_error', code: String(errorCode) } }
+        : { error: { message: errorMsg, type: 'server_error' } };
+
+      return reply.code(err instanceof ProviderError ? errorCode : 500).send(errorResponse);
+
+      // Async error logging
+      setImmediate(async () => {
+        try {
+          await logRequest({
+            request_id: request.requestId,
+            provider: err.provider || 'unknown',
+            model: err.model || 'unknown',
+            key: 'unknown',
+            latency,
+            tokens: { input: 0, output: 0 },
+            status: 'error',
+            error: errorMsg,
+          });
+        } catch (logErr) {
+          console.error(JSON.stringify({
+            level: 'error',
+            msg: 'Error logging failed',
+            requestId: request.requestId,
+            error: logErr.message,
+          }));
         }
       });
     }

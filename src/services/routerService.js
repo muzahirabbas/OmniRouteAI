@@ -83,8 +83,10 @@ export async function getAdapter(providerName, providerConfig = null) {
   let adapter;
   switch (providerName) {
     case 'groq': {
-      // Use Whisper adapter for whisper-large-v3 model, OpenAIAdapter for chat
-      if (providerConfig?.model === 'whisper-large-v3' || opts?.model === 'whisper-large-v3') {
+      const modelToCheck = providerConfig?.model || opts?.model;
+      const isWhisperModel = modelToCheck === 'whisper-large-v3' || 
+                             (providerConfig?.models && providerConfig.models.includes('whisper-large-v3') && modelToCheck?.includes('whisper'));
+      if (isWhisperModel) {
         const mod = await import('../adapters/groqWhisperAdapter.js');
         adapter = new mod.GroqWhisperAdapter();
       } else {
@@ -105,8 +107,10 @@ export async function getAdapter(providerName, providerConfig = null) {
       break;
     }
     case 'openai': {
-      // Use Whisper adapter for whisper-1 model, OpenAIAdapter for chat
-      if (providerConfig?.model === 'whisper-1' || opts?.model === 'whisper-1') {
+      const modelToCheck = providerConfig?.model || opts?.model;
+      const isWhisperModel = modelToCheck === 'whisper-1' || 
+                             (providerConfig?.models && providerConfig.models.includes('whisper-1') && modelToCheck?.includes('whisper'));
+      if (isWhisperModel) {
         const mod = await import('../adapters/openaiWhisperAdapter.js');
         adapter = new mod.OpenAIWhisperAdapter();
       } else {
@@ -327,19 +331,26 @@ export async function route(prompt, opts = {}) {
   // ─── Validate model exists in ANY active provider BEFORE routing ───
   let searchList;
   if (opts.model && opts.model !== 'auto') {
-    const availableModels = new Set(activeProviders.flatMap(p => p.models || []));
+    // For audio transcription, we should allow any model since Whisper adapters
+    // handle the model validation. Skip this check for audio_transcription.
+    const isAudioTranscription = taskType === 'audio_transcription' || 
+                                  (opts.model && opts.model.toLowerCase().includes('whisper'));
     
-    if (!availableModels.has(opts.model)) {
-      // Find similar model suggestions
-      const modelSuggestions = [...availableModels]
-        .filter(m => m.toLowerCase().includes(opts.model.toLowerCase().slice(0, 4)))
-        .slice(0, 5);
+    if (!isAudioTranscription) {
+      const availableModels = new Set(activeProviders.flatMap(p => p.models || []));
       
-      throw new Error(
-        `Model '${opts.model}' not found in any active provider. ` +
-        `Did you mean: ${modelSuggestions.join(', ') || 'none'}? ` +
-        `Available: ${[...availableModels].slice(0, 20).join(', ')}...`
-      );
+      if (!availableModels.has(opts.model)) {
+        // Find similar model suggestions
+        const modelSuggestions = [...availableModels]
+          .filter(m => m.toLowerCase().includes(opts.model.toLowerCase().slice(0, 4)))
+          .slice(0, 5);
+        
+        throw new Error(
+          `Model '${opts.model}' not found in any active provider. ` +
+          `Did you mean: ${modelSuggestions.join(', ') || 'none'}? ` +
+          `Available: ${[...availableModels].slice(0, 20).join(', ')}...`
+        );
+      }
     }
     
     // ─── PRIORITIZE providers that have the requested model ───
@@ -390,7 +401,9 @@ export async function route(prompt, opts = {}) {
     if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
 
     // Model selection: requested model → provider default → first model in list
-    let model = opts.model && provider.models?.includes(opts.model) ? opts.model : null;
+    // For audio transcription, preserve the original whisper model even if not in provider's models list
+    const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
+    let model = (opts.model && (provider.models?.includes(opts.model) || isWhisperModel)) ? opts.model : null;
     if (!model) {
       model = (provider.default_model && provider.models?.includes(provider.default_model))
         ? provider.default_model
@@ -763,7 +776,7 @@ export async function transcribe(fileBuffer, opts = {}) {
   const failedProviders = [];
   let lastError;
 
-  const estimatedInputTokens = Math.ceil(fileBuffer.length / 100);
+  const estimatedInputTokens = Math.ceil(fileBuffer.length / 1024);
   
   // Log audio received
   console.log(JSON.stringify({
@@ -788,6 +801,8 @@ export async function transcribe(fileBuffer, opts = {}) {
         excludeKeys: usedKeys,
       });
     } catch (err) {
+      // FIX: Save the error to lastError before breaking
+      lastError = err;
       break;
     }
 
@@ -902,7 +917,44 @@ export async function transcribe(fileBuffer, opts = {}) {
     level: 'error',
     msg: 'All transcription attempts failed',
     requestId: opts.requestId,
+    error: lastError?.message,
   }));
+  
+  // FIX: Add audio-specific error context
+  if (opts.taskType === 'audio_transcription' || (opts.model && opts.model.includes('whisper'))) {
+    const { getActiveProviders } = await import('./providerService.js');
+    try {
+      const activeProviders = await getActiveProviders();
+      const audioProviders = activeProviders.filter(p => p.features && p.features.includes('audio'));
+      
+      if (audioProviders.length === 0) {
+        throw new Error(
+          `No audio-capable providers are active. ` +
+          `Please enable a provider with 'audio' feature (e.g., openai, deepgram, assemblyai, groq). ` +
+          `Check /api/admin/providers for status.`
+        );
+      }
+      
+      console.log(JSON.stringify({
+        level: 'warn',
+        msg: 'Audio transcription failed - audio providers available but all failed',
+        requestId: opts.requestId,
+        audioProviders: audioProviders.map(p => p.name),
+      }));
+    } catch (providerErr) {
+      // If it's the "no audio providers" error, rethrow it
+      if (providerErr.message.includes('No audio-capable providers')) {
+        throw providerErr;
+      }
+      // Other errors from getActiveProviders - log but continue
+      console.log(JSON.stringify({
+        level: 'error',
+        msg: 'Failed to check audio providers',
+        requestId: opts.requestId,
+        error: providerErr.message,
+      }));
+    }
+  }
   
   throw lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
 }

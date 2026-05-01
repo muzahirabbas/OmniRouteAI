@@ -30,7 +30,9 @@ export async function buildServer(opts = {}) {
         : undefined,
     },
     genReqId: () => uuidv4(),
-    requestTimeout: 300000, // 5min for large file uploads
+    // FIX: Railway timeout safety - set less than Railway's 60s (hobby) or 300s (pro)
+    // Railway hobby = 60s timeout, Pro = 300s. Set to 55s for hobby to fail gracefully.
+    requestTimeout: process.env.RAILWAY_STATIC_URL ? 55000 : 290000,
     bodyLimit: 20971520, // 20MB for multimodal payloads
     ...opts,
   });
