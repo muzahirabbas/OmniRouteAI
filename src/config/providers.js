@@ -557,7 +557,7 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/ollama`
       : 'http://localhost:5059/ollama',
     models: [
-      'llama3.3', 'llava', 'moondream', 'qwen2.5-coder', 'deepseek-r1', 'default'
+      'llama3.3', 'deepseek-r1', 'lfm', 'gemma2', 'phi4', 'phi-4:latest', 'qwen2.5-coder', 'llava', 'moondream', 'default'
     ],
     modelFetchEndpoint: '/ollama/models',
     rpmLimit: 999999,

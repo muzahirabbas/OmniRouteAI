@@ -99,11 +99,24 @@ export async function registerRoutes(app) {
     const ollamaUrl = `http://localhost:11434/api/chat`;
     
     // Normalize model: map 'default'/'auto' to actual model
-    const normalizeModel = (m, fallback = 'llama3.3') => 
-      (m && m !== 'default' && m !== 'auto') ? m : fallback;
+    let selectedModel = model;
+    if (!selectedModel || selectedModel === 'default' || selectedModel === 'auto') {
+      try {
+        const tagsRes = await fetch('http://localhost:11434/api/tags');
+        const tagsData = await tagsRes.json();
+        const availableNames = tagsData.models?.map(m => m.name) || [];
+        
+        // Priority order for auto-selection
+        const priorities = ['llama3.3', 'llama3.2', 'llama3.1', 'llama3', 'llama2', 'mistral', 'phi3'];
+        selectedModel = priorities.find(p => availableNames.includes(p)) || availableNames[0] || 'llama3.3';
+        log.info(`Ollama auto-selected model: ${selectedModel}`);
+      } catch (err) {
+        selectedModel = 'llama3.3';
+      }
+    }
     
     const payload = {
-      model: normalizeModel(model),
+      model: selectedModel,
       messages: [{ role: 'user', content: prompt }],
       stream: !!stream,
       ...extra
@@ -121,7 +134,25 @@ export async function registerRoutes(app) {
       });
 
       if (!response.ok) {
-        throw new Error(`Ollama error: ${response.status}`);
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.error || `Ollama error: ${response.status}`;
+        
+        let hint = '';
+        if (response.status === 404) {
+          hint = `Model "${selectedModel}" not found. Try running "ollama pull ${selectedModel}" on your PC.`;
+        } else if (errMsg.toLowerCase().includes('architecture')) {
+          hint = `Your Ollama version might be too old for this model architecture. Try updating Ollama to the latest version.`;
+        } else if (errMsg.toLowerCase().includes('unable to load model') || errMsg.toLowerCase().includes('manifest')) {
+          hint = `Ollama could not load the model files. The model might be corrupted or missing blobs. Try "ollama rm ${selectedModel}" and "ollama pull ${selectedModel}".`;
+        }
+
+        return { 
+          error: errMsg, 
+          hint, 
+          success: false, 
+          provider: 'ollama',
+          model: selectedModel 
+        };
       }
 
       if (stream) {
@@ -132,8 +163,6 @@ export async function registerRoutes(app) {
         });
         
         const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -149,11 +178,20 @@ export async function registerRoutes(app) {
       return {
         output: output,
         provider: 'ollama',
-        model: data.model || model || 'default',
+        model: data.model || selectedModel,
+        tokens: {
+          input: data.prompt_eval_count || 0,
+          output: data.eval_count || 0
+        },
         success: true
       };
     } catch (err) {
-      return { error: err.message, success: false, provider: 'ollama' };
+      return { 
+        error: err.message, 
+        hint: 'Check if Ollama is running (ollama serve).',
+        success: false, 
+        provider: 'ollama' 
+      };
     }
   });
 

@@ -638,6 +638,11 @@ function updatePlaygroundModels(providerName) {
     }
   }
 
+  // Special case for local Ollama: try to fetch actual models from daemon
+  if (providerName === 'ollama_local_bridge' || providerName === 'ollama') {
+    fetchOllamaModelsForPlayground(modelSelect);
+  }
+
   // Always add custom option
   modelSelect.innerHTML += '<option value="custom">Custom...</option>';
 
@@ -648,6 +653,51 @@ function updatePlaygroundModels(providerName) {
   
   // Re-filter results to show full list on next focus
   if (typeof filterPlaygroundModels === 'function') filterPlaygroundModels();
+}
+
+/**
+ * Fetch actual models from local Ollama daemon for the playground dropdown.
+ */
+async function fetchOllamaModelsForPlayground(selectEl) {
+  try {
+    const data = await API.daemonRequest('/ollama/models');
+    if (data.models && data.models.length > 0) {
+      // Find the "Custom..." and "Auto" options to preserve them
+      const hasCustom = selectEl.querySelector('option[value="custom"]');
+      
+      // Filter out duplicates that might already be there from static config
+      const existingValues = new Set(['auto', 'custom']);
+      
+      // Clear and re-populate (preserving Auto/Default)
+      let html = '<option value="auto">Auto Router (Detected Models)</option>';
+      
+      data.models.forEach(m => {
+        if (!existingValues.has(m.name)) {
+          html += `<option value="${m.name}">${m.name}</option>`;
+          existingValues.add(m.name);
+        }
+      });
+      
+      html += '<option value="custom">Custom...</option>';
+      
+      // Only update if we are still on Ollama (user might have switched away)
+      const providerSelect = document.getElementById('playground-provider');
+      if (providerSelect && (providerSelect.value === 'ollama_local_bridge' || providerSelect.value === 'ollama')) {
+        const currentVal = selectEl.value;
+        selectEl.innerHTML = html;
+        // Restore value if it's still valid
+        if (existingValues.has(currentVal)) {
+          selectEl.value = currentVal;
+        } else {
+          selectEl.value = 'auto';
+        }
+        
+        if (typeof filterPlaygroundModels === 'function') filterPlaygroundModels();
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch dynamic Ollama models:', err);
+  }
 }
 
 /**
@@ -1927,8 +1977,12 @@ async function sendOllamaMessage() {
       botMsg.textContent = data.error;
       if (data.hint) {
         const hintEl = document.createElement('div');
-        hintEl.className = 'chat-meta';
-        hintEl.textContent = data.hint;
+        hintEl.className = 'chat-meta hint';
+        hintEl.style.color = 'var(--text-warning)';
+        hintEl.style.marginTop = '0.5rem';
+        hintEl.style.fontSize = '0.85rem';
+        hintEl.style.fontStyle = 'italic';
+        hintEl.innerHTML = `💡 <strong>Hint:</strong> ${data.hint}`;
         botMsg.appendChild(hintEl);
       }
     } else {
