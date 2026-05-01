@@ -313,6 +313,7 @@ return { object: 'list', data: models };
       object: 'chat.completion',
       created,
       model: result.model,
+      provider: result.provider,
       choices,
       usage: {
         prompt_tokens: inputTokens,
@@ -373,6 +374,7 @@ return { object: 'list', data: models };
       created_at: created,
       status: 'completed',
       model: result.model,
+      provider: result.provider,
       output,
       usage: {
         input_tokens: result.tokens?.input || 0,
