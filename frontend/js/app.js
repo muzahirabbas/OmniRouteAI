@@ -373,9 +373,8 @@ function syncProviderDropdowns(providers) {
   ];
 
   providers.sort((a, b) => a.name.localeCompare(b.name));
-
-  const cloudProviders = providers.filter(p => p.type !== 'local_http');
-  const localProviders = providers.filter(p => p.type === 'local_http');
+  
+  const showInactive = document.getElementById('playground-show-inactive')?.checked;
 
   selects.forEach(id => {
     const el = document.getElementById(id);
@@ -383,6 +382,15 @@ function syncProviderDropdowns(providers) {
 
     const currentValue = el.value;
     let html = '';
+    
+    // Filter providers for playground if inactive are hidden
+    let filteredProviders = providers;
+    if (id === 'playground-provider' && !showInactive) {
+      filteredProviders = providers.filter(p => !p.disabled);
+    }
+
+    const cloudProviders = filteredProviders.filter(p => p.type !== 'local_http');
+    const localProviders = filteredProviders.filter(p => p.type === 'local_http');
 
     // Specialized "Auto" or "All" options for specific select boxes
     if (id === 'log-filter-provider') html += '<option value="">All Providers</option>';
@@ -596,6 +604,7 @@ async function saveCustomProvider() {
 function updatePlaygroundModels(providerName) {
   const modelSelect = document.getElementById('playground-model-select');
   const inputGroup = document.getElementById('playground-model-input-group');
+  const modelSearch = document.getElementById('playground-model-search');
   if (!modelSelect) return;
 
   // Clear current options
@@ -615,7 +624,81 @@ function updatePlaygroundModels(providerName) {
 
   // Reset to auto and hide input group
   modelSelect.value = 'auto';
+  if (modelSearch) modelSearch.value = 'Auto/Default';
   if (inputGroup) inputGroup.style.display = 'none';
+  
+  // Re-filter results to show full list on next focus
+  if (typeof filterPlaygroundModels === 'function') filterPlaygroundModels();
+}
+
+/**
+ * Show model results dropdown
+ */
+function showModelResults() {
+  const results = document.getElementById('playground-model-results');
+  if (results) {
+    results.classList.add('active');
+    filterPlaygroundModels();
+  }
+}
+
+/**
+ * Filter models for the custom searchable dropdown
+ */
+function filterPlaygroundModels() {
+  const searchInput = document.getElementById('playground-model-search');
+  const resultsContainer = document.getElementById('playground-model-results');
+  const modelSelect = document.getElementById('playground-model-select');
+  
+  if (!searchInput || !resultsContainer || !modelSelect) return;
+  
+  const query = searchInput.value.toLowerCase().trim();
+  const options = Array.from(modelSelect.options);
+  
+  let html = '';
+  let matchCount = 0;
+  
+  options.forEach(opt => {
+    if (opt.disabled) {
+      html += `<div class="search-result-group">${opt.text}</div>`;
+      return;
+    }
+    
+    if (opt.text.toLowerCase().includes(query) || query === '') {
+      const isSelected = modelSelect.value === opt.value;
+      html += `
+        <div class="search-result-item ${isSelected ? 'selected' : ''}" onclick="selectPlaygroundModel('${opt.value}', '${opt.text}')">
+          <span>${opt.text}</span>
+          ${isSelected ? '<span>✓</span>' : ''}
+        </div>
+      `;
+      matchCount++;
+    }
+  });
+  
+  if (matchCount === 0) {
+    html = '<div class="empty-state">No models found</div>';
+  }
+  
+  resultsContainer.innerHTML = html;
+}
+
+/**
+ * Handle selection from the custom dropdown
+ */
+function selectPlaygroundModel(value, text) {
+  const modelSelect = document.getElementById('playground-model-select');
+  const modelSearch = document.getElementById('playground-model-search');
+  const resultsContainer = document.getElementById('playground-model-results');
+  
+  if (!modelSelect || !modelSearch || !resultsContainer) return;
+  
+  modelSelect.value = value;
+  modelSearch.value = text;
+  resultsContainer.classList.remove('active');
+  
+  // Trigger original change handler
+  handlePlaygroundModelChange();
 }
 
 /**

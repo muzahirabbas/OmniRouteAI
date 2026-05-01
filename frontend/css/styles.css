@@ -498,6 +498,66 @@ select.input {
   cursor: pointer;
 }
 
+/* ─── Searchable Select ───────────────────────────────────────────────── */
+.searchable-select {
+  position: relative;
+  width: 100%;
+}
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: slideUp 0.2s ease;
+}
+
+.search-results.active {
+  display: block;
+}
+
+.search-result-item {
+  padding: 0.6rem 0.85rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-result-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.search-result-item.selected {
+  background: rgba(99,102,241,0.15);
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.search-result-group {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.2);
+  letter-spacing: 0.05em;
+}
+
 /* ─── Providers Grid ──────────────────────────────────────────────────── */
 .providers-grid {
   display: grid;
