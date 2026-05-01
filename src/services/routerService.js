@@ -83,7 +83,8 @@ export async function getAdapter(providerName, providerConfig = null) {
   let adapter;
   switch (providerName) {
     case 'groq': {
-      const modelToCheck = providerConfig?.model || opts?.model;
+      // Use model from providerConfig (passed from transcribe function)
+      const modelToCheck = providerConfig?.model;
       // Only use Whisper adapter if EXACT model name matches whisper-large-v3
       const isWhisperModel = modelToCheck === 'whisper-large-v3';
       if (isWhisperModel) {
@@ -107,9 +108,9 @@ export async function getAdapter(providerName, providerConfig = null) {
       break;
     }
     case 'openai': {
-      const modelToCheck = providerConfig?.model || opts?.model;
+      // Use model from providerConfig (passed from transcribe function)
+      const modelToCheck = providerConfig?.model;
       // Only use Whisper adapter if EXACT model name matches whisper-1
-      // Don't check provider's models list as it may include whisper models
       const isWhisperModel = modelToCheck === 'whisper-1';
       if (isWhisperModel) {
         const mod = await import('../adapters/openaiWhisperAdapter.js');
