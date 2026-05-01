@@ -713,12 +713,14 @@ export async function getProviders() {
         const data = doc.data();
         if (data.name) {
           const staticBase = providersMap[data.name] || {};
+          // Preserve static features - only use Firestore features if static has none
+          const features = staticBase.features?.length > 0 ? staticBase.features : data.features;
           providersMap[data.name] = {
             ...staticBase,
             ...data,
-            // Static type is authoritative — prevents Firestore from
-            // accidentally overwriting type:'local_http' if it was
-            // seeded before that field existed in the schema.
+            // Preserve static features to ensure audio/vision capabilities aren't lost
+            features: features || staticBase.features,
+            // Static type is authoritative
             type: staticBase.type || data.type,
           };
         }
