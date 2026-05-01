@@ -16,7 +16,7 @@ export const STATIC_PROVIDERS = [
       'gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'o3', 'o3-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-5.4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'whisper-1'
     ],
     rpmLimit: 50,
-    features: ['vision', 'audio'],
+    features: ['vision', 'audio', 'tool-calling'],
     supports_reasoning: true,
     reasoning_effort_default: 'none',
   },
@@ -30,7 +30,7 @@ export const STATIC_PROVIDERS = [
       'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-sonnet-4-6-20250514', 'claude-opus-4-6-20250514'
     ],
     rpmLimit: 50,
-    features: ['vision'],
+    features: ['vision', 'tool-calling'],
     supports_reasoning: true,
     thinking_budget_default: 0,
   },
@@ -44,7 +44,7 @@ export const STATIC_PROVIDERS = [
       'gemini-2.0-flash-001', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemma-2-27b-it', 'gemma-4-31b-it', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-06-05'
     ],
     rpmLimit: 15,
-    features: ['vision', 'audio', 'video'],
+    features: ['vision', 'audio', 'video', 'tool-calling'],
     supports_reasoning: true,
     thinking_budget_default: 0,
   },
@@ -58,7 +58,7 @@ export const STATIC_PROVIDERS = [
       'grok-4.20-reasoning', 'grok-4.1-fast-reasoning', 'grok-2', 'grok-3', 'grok-3-mini'
     ],
     rpmLimit: 20,
-    features: [],
+    features: ['vision', 'tool-calling'],
     supports_reasoning: true,
     reasoning_effort_default: 'medium',
   },
@@ -71,7 +71,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'qwen3-235b-a22b', 'qwen2.5-turbo', 'qwen2.5-plus', 'qwen-max', 'qwen-plus', 'qwen-turbo'
     ],
-    rpmLimit: 30
+    rpmLimit: 30,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'openrouter',
@@ -87,7 +88,7 @@ export const STATIC_PROVIDERS = [
       'openrouter/auto'
     ],
     rpmLimit: 100,
-    features: ['vision']
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'groq',
@@ -99,7 +100,7 @@ export const STATIC_PROVIDERS = [
       'llama-3.3-70b-versatile', 'llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it', 'whisper-large-v3'
     ],
     rpmLimit: 30,
-    features: ['vision', 'audio'],
+    features: ['vision', 'tool-calling', 'transcription'],
     vision_models: ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview']
   },
   {
@@ -111,7 +112,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'deepseek-chat', 'deepseek-reasoner'
     ],
-    rpmLimit: 20
+    rpmLimit: 20,
+    features: ['tool-calling']
   },
   {
     name: 'moonshot',
@@ -122,7 +124,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'
     ],
-    rpmLimit: 20
+    rpmLimit: 20,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'together',
@@ -142,7 +145,7 @@ export const STATIC_PROVIDERS = [
       "google/gemma-3n-E4B-it"
     ],
     rpmLimit: 50,
-    features: ['vision'],
+    features: ['vision', 'tool-calling'],
     vision_models: ['meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo', 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8']
   },
   {
@@ -154,7 +157,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'f1-preview', 'accounts/fireworks/models/llama-v3p3-70b-instruct'
     ],
-    rpmLimit: 30
+    rpmLimit: 30,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'hyperbolic',
@@ -165,7 +169,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'meta-llama/Llama-3.2-3B-Instruct', 'deepseek-ai/DeepSeek-V3'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'chutes',
@@ -176,7 +181,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'llama-3.1-8b', 'meta-llama-3.1-8b-instruct'
     ],
-    rpmLimit: 30
+    rpmLimit: 30,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'mistral',
@@ -188,7 +194,7 @@ export const STATIC_PROVIDERS = [
       'pixtral-12b-2409', 'mistral-large-latest', 'mistral-small-latest', 'codestral-latest'
     ],
     rpmLimit: 30,
-    features: ['vision']
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'perplexity',
@@ -199,7 +205,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'sonar-deep-research', 'sonar-pro', 'sonar'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['tool-calling']
   },
   {
     name: 'nvidia',
@@ -211,8 +218,8 @@ export const STATIC_PROVIDERS = [
       'meta/llama-3.3-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct', 'nvidia/llama-3.2-nv-90b-instruct'
     ],
     rpmLimit: 50,
-    features: ['vision'],
-    vision_models: ['nvidia/llama-3.2-nv-90b-instruct']
+    vision_models: ['nvidia/llama-3.2-nv-90b-instruct'],
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'cloudflare',
@@ -224,7 +231,7 @@ export const STATIC_PROVIDERS = [
       '@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/llava-1.5-7b-hf', '@cf/openai/whisper', '@cf/facebook/seamless-ml'
     ],
     rpmLimit: 100,
-    features: ['vision', 'audio'],
+    features: ['vision', 'audio', 'transcription'],
   },
   {
     name: 'huggingface',
@@ -236,7 +243,7 @@ export const STATIC_PROVIDERS = [
       'meta-llama/Llama-3.1-8B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3'
     ],
     rpmLimit: 20,
-    features: ['vision']
+    features: ['vision', 'transcription', 'tool-calling']
   },
   {
     name: 'sambanova',
@@ -248,7 +255,7 @@ export const STATIC_PROVIDERS = [
       'Meta-Llama-3.3-70B-Instruct', 'DeepSeek-V3'
     ],
     rpmLimit: 100,
-    features: ['vision']
+    features: ['tool-calling']
   },
   {
     name: 'modelscope',
@@ -265,7 +272,8 @@ export const STATIC_PROVIDERS = [
       'ZhipuAI/GLM-4-9B-Chat',
       '01ai/Yi-1.5-34B-Chat'
     ],
-    rpmLimit: 20
+    rpmLimit: 20,
+    features: ['tool-calling']
   },
   {
     name: 'cerebras',
@@ -276,7 +284,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'llama3.1-8b', 'llama3.1-70b'
     ],
-    rpmLimit: 100
+    rpmLimit: 100,
+    features: ['tool-calling']
   },
   {
     name: 'cohere',
@@ -288,7 +297,7 @@ export const STATIC_PROVIDERS = [
       'command-a-vision-07-2025', 'command-r-08-2024', 'command-r-plus-08-2024'
     ],
     rpmLimit: 40,
-    features: ['vision'],
+    features: ['tool-calling'],
     vision_models: ['command-a-vision-07-2025']
   },
   {
@@ -300,7 +309,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'meta-llama/Meta-Llama-3.1-405B-Instruct'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['tool-calling']
   },
   {
     name: 'siliconflow',
@@ -311,7 +321,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'deepseek-v3', 'deepseek-r1'
     ],
-    rpmLimit: 100
+    rpmLimit: 100,
+    features: ['tool-calling']
   },
   {
     name: 'nanobanana',
@@ -322,7 +333,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'default'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['tool-calling']
   },
   {
     name: 'inception',
@@ -333,7 +345,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'mercury-2', 'mercury-coder', 'mercury-small'
     ],
-    rpmLimit: 60
+    rpmLimit: 60,
+    features: ['tool-calling']
   },
   {
     name: 'xiaomi',
@@ -344,7 +357,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'mimo-v2-pro', 'MiMo-V2-Flash', 'mimo-v2-omni'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['tool-calling']
   },
   {
     name: 'ollama-cloud',
@@ -355,7 +369,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'llama3.2:1b', 'qwen2.5:cloud', 'llama3.2:3b'
     ],
-    rpmLimit: 50
+    rpmLimit: 50,
+    features: ['tool-calling']
   },
 
   {
@@ -368,7 +383,7 @@ export const STATIC_PROVIDERS = [
       'gemini-1.5-pro', 'gemini-1.5-flash'
     ],
     rpmLimit: 20,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'glm',
@@ -379,7 +394,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'glm-4-plus', 'glm-4-flash'
     ],
-    rpmLimit: 30
+    rpmLimit: 30,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'minimax',
@@ -390,7 +406,8 @@ export const STATIC_PROVIDERS = [
     models: [
       'abab7-chat', 'abab6.5-chat'
     ],
-    rpmLimit: 20
+    rpmLimit: 20,
+    features: ['tool-calling']
   },
   {
     name: 'kilo',
@@ -408,7 +425,7 @@ export const STATIC_PROVIDERS = [
       'meta-llama/llama-3.3-70b-instruct'
     ],
     rpmLimit: 100,
-    features: ['vision'],
+    features: ['vision', 'tool-calling'],
     vision_models: [
       'anthropic/claude-3-5-sonnet',
       'anthropic/claude-3-7-sonnet',
@@ -443,7 +460,7 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/gemini',
     models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'default'],
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'qwen_cli_local',
@@ -456,7 +473,7 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/qwen',
     models: ['qwen3-235b-a22b', 'default'],
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'antigravity_cli_local',
@@ -477,7 +494,7 @@ export const STATIC_PROVIDERS = [
       'default'
     ],
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'kilo_cli_local',
@@ -490,7 +507,7 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/kilo',
     models: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-3-5-sonnet', 'default'],
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'opencode_cli_local',
@@ -578,7 +595,7 @@ export const STATIC_PROVIDERS = [
     ],
     modelFetchEndpoint: '/ollama/models',
     rpmLimit: 999999,
-    features: ['vision']
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'codex_cli_local',
@@ -591,7 +608,7 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/codex',
     models: ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'default'],
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'kiro_cli_local',
@@ -605,7 +622,7 @@ export const STATIC_PROVIDERS = [
     models: ['claude-haiku-4.5', 'claude-sonnet-4.5', 'claude-opus-4.5', 'deepseek-3.2', 'minimax-m2.1', 'minimax-m2.5', 'qwen3-coder-next', 'auto', 'default'],
     defaultModel: 'claude-haiku-4.5',
     rpmLimit: 999999,
-    features: ['vision', 'audio', 'video']
+    features: ['vision', 'audio', 'video', 'tool-calling']
   },
   {
     name: 'grok_cli_local',
@@ -657,7 +674,7 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/cursor',
     models: ['default'],
     rpmLimit: 999999,
-    features: ['vision']
+    features: ['vision', 'tool-calling']
   },
   // OpenCode Zen - Direct API access (no CLI required)
   // Get API key from https://opencode.ai/zen
@@ -692,7 +709,7 @@ export const STATIC_PROVIDERS = [
     rpmLimit: 100,
     requiresAuth: true,
     authEnvVar: 'OPENCODE_ZEN_API_KEY',
-    features: ['vision']
+    features: ['vision', 'tool-calling']
   },
 
   // Audio transcription providers
@@ -704,7 +721,7 @@ export const STATIC_PROVIDERS = [
     endpoint: 'https://api.deepgram.com/v1/listen',
     models: ['nova-2', 'nova-3', 'whisper', 'base', 'enhanced'],
     rpmLimit: 50,
-    features: ['audio'],
+    features: ['audio', 'transcription'],
   },
   {
     name: 'assemblyai',
@@ -714,7 +731,7 @@ export const STATIC_PROVIDERS = [
     endpoint: 'https://api.assemblyai.com/v2/transcript',
     models: ['best', 'nano'],
     rpmLimit: 50,
-    features: ['audio'],
+    features: ['audio', 'transcription'],
   }
 ];
 
