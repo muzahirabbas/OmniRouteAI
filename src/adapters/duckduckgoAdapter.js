@@ -5,6 +5,7 @@
  * Free tier: Unlimited (rate-limited)
  */
 import { BaseAdapter } from './baseAdapter.js';
+import { ProviderError } from '../utils/errors.js';
 
 const DUCKDUCKGO_ENDPOINT = 'https://html.duckduckgo.com/html/';
 
@@ -36,9 +37,7 @@ export class DuckDuckGoAdapter extends BaseAdapter {
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
-        const err = new Error(`DuckDuckGo search error ${res.status}: ${errText}`);
-        err.statusCode = res.status;
-        throw err;
+        throw new ProviderError('duckduckgo', `Search error HTTP ${res.status}: ${errText}`, res.status);
       }
 
       const html = await res.text();
@@ -98,5 +97,12 @@ export class DuckDuckGoAdapter extends BaseAdapter {
 
   async normalizeResponseWrapper(rawResponse) {
     return this.normalizeResponse(rawResponse, rawResponse.query || '');
+  }
+
+  handleError(err) {
+    if (err.name === 'AbortError') {
+      return new ProviderError(this.providerName, 'Request timed out', 504, err);
+    }
+    return new ProviderError(this.providerName, err.message, err.status || 502, err);
   }
 }

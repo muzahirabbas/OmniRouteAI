@@ -6,6 +6,7 @@
  * Requires: API key + Search Engine ID (cx)
  */
 import { BaseAdapter } from './baseAdapter.js';
+import { ProviderError } from '../utils/errors.js';
 
 const GOOGLE_PSE_ENDPOINT = 'https://www.googleapis.com/customsearch/v1';
 
@@ -24,7 +25,7 @@ export class GooglePSEAdapter extends BaseAdapter {
     } = options;
 
     if (!cx) {
-      throw new Error('Google PSE requires a Search Engine ID (cx). Set it in key metadata.');
+      throw new ProviderError('google-pse', 'Google PSE requires a Search Engine ID (cx). Set it in key metadata.', 400);
     }
 
     const params = new URLSearchParams({

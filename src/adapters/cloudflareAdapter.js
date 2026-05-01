@@ -222,7 +222,16 @@ export class CloudflareAdapter extends BaseAdapter {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
 
-    const controller = this.createTimeout(60000);
+    const requestId = options.requestId || 'unknown';
+    const controller = this.createTimeout(45000); // 45s - aligned with other audio adapters
+
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Sending to Cloudflare Workers AI',
+      requestId,
+      model: model || '@cf/openai/whisper',
+      fileSize: fileBuffer.length,
+    }));
 
     try {
       const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model || '@cf/openai/whisper'}`;
@@ -246,6 +255,14 @@ export class CloudflareAdapter extends BaseAdapter {
 
       const data = await response.json();
 
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Cloudflare Workers AI response received',
+        requestId,
+        textLength: data.result?.text?.length || 0,
+        language: data.result?.language,
+      }));
+
       return {
         text: data.result?.text || '',
         duration: null,
@@ -254,6 +271,12 @@ export class CloudflareAdapter extends BaseAdapter {
       };
     } catch (err) {
       this.clearTimeout(controller);
+      console.log(JSON.stringify({
+        level: 'error',
+        msg: 'Cloudflare transcription failed',
+        requestId,
+        error: err.message,
+      }));
       if (err instanceof ProviderError) throw err;
       throw this.handleError(err);
     }

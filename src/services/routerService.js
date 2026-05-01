@@ -400,19 +400,34 @@ export async function route(prompt, opts = {}) {
     if (isAudio  && (!provider.features || !provider.features.includes('audio'))) continue;
     if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
 
-    // For audio transcription, exclude local_http providers - they don't support transcription
-    if ((taskType === 'audio_transcription' || isAudio) && provider.type === 'local_http') {
-      continue;
+    // For audio transcription, only use providers that support transcription
+    // Known transcription providers: openai, groq, deepgram, assemblyai, cloudflare, vertex
+    if (taskType === 'audio_transcription' || (opts.model && opts.model.toLowerCase().includes('whisper'))) {
+      const transcriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare', 'vertex', 'google'];
+      if (!transcriptionProviders.includes(provider.name)) {
+        continue;
+      }
     }
 
-    // Model selection: requested model → provider default → first model in list
-    // For audio transcription, preserve the original whisper model even if not in provider's models list
+    // Model selection: ONLY use providers that have the requested model in their models list
     const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
-    let model = (opts.model && (provider.models?.includes(opts.model) || isWhisperModel)) ? opts.model : null;
-    if (!model) {
-      model = (provider.default_model && provider.models?.includes(provider.default_model))
-        ? provider.default_model
-        : provider.models?.[0] || 'default';
+    
+    // For audio transcription, the model must be in the provider's models list
+    // OR the provider must be a known transcription provider (they handle whisper models specially)
+    const knownTranscriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare', 'vertex', 'google'];
+    const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
+    
+    let model = null;
+    if (opts.model && provider.models?.includes(opts.model)) {
+      model = opts.model;
+    } else if (opts.model && isWhisperModel && isKnownTranscriptionProvider) {
+      // Whisper model requested but not in this provider's models - use provider's default
+      model = provider.default_model || provider.models?.[0] || 'default';
+    } else if (!opts.model) {
+      model = provider.default_model || provider.models?.[0] || 'default';
+    } else {
+      // Model requested but not in this provider's models list - SKIP this provider
+      continue;
     }
 
     // ─── Vision-aware model selection ─────────────────────────────────

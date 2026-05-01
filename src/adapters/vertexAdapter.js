@@ -73,8 +73,17 @@ export class VertexAdapter extends BaseAdapter {
 
     const signingInput = `${header}.${payload}`;
 
-    // Sign with RSA-SHA256 using Node.js crypto
-    const { createSign } = await import('node:crypto');
+    let createSign;
+    try {
+      const crypto = await import('node:crypto').catch(() => null);
+      if (!crypto || !crypto.createSign) {
+        throw new ProviderError(this.providerName, 'Crypto module not available for JWT signing', 500);
+      }
+      createSign = crypto.createSign;
+    } catch (importErr) {
+      throw new ProviderError(this.providerName, `Failed to import crypto module: ${importErr.message}`, 500);
+    }
+
     const signer = createSign('RSA-SHA256');
     signer.update(signingInput);
     const signature = signer.sign(sa.private_key, 'base64url');

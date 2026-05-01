@@ -8,26 +8,7 @@
  * - Return normalized format: { output: string, tokens: { input, output }, raw: object }
  */
 
-import http from 'http';
-import https from 'https';
-
 const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 60000; // 60s
-
-// Connection pooling for better performance
-const KEEP_ALIVE_CONFIG = {
-  keepAlive: true,
-  keepAliveMsecs: 1000,
-  maxSockets: 50,
-  maxFreeSockets: 10,
-  timeout: 60000,
-};
-
-const sharedHttpAgent = new http.Agent(KEEP_ALIVE_CONFIG);
-const sharedHttpsAgent = new https.Agent(KEEP_ALIVE_CONFIG);
-
-function getAgent(url) {
-  return url.startsWith('https') ? sharedHttpsAgent : sharedHttpAgent;
-}
 
 export class BaseAdapter {
   constructor(providerName) {
@@ -108,41 +89,6 @@ export class BaseAdapter {
     }
 
     return cleaned;
-  }
-
-  async makeRequest(url, options = {}, timeoutMs = 60000) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
-    const maxRetries = options.retries ?? 3;
-    let lastError;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url, {
-          ...options,
-          agent: getAgent(url),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        return response;
-      } catch (err) {
-        lastError = err;
-        const isLastAttempt = attempt === maxRetries;
-        const isRetryable = err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.message.includes('timeout');
-        
-        if (isLastAttempt || !isRetryable) {
-          clearTimeout(timeoutId);
-          throw err;
-        }
-        
-        const delay = 1_000 * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    clearTimeout(timeoutId);
-    throw lastError;
   }
 
   /**
