@@ -89,14 +89,20 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       messages = [{ role: 'user', content }];
     }
 
+    const isStrictProvider = ['nvidia', 'fireworks', 'nebius', 'siliconflow', 'hyperbolic', 'chutes', 'nanobanana', 'opencode_zen', 'cerebras', 'sambanova', 'huggingface', 'mistral', 'cohere', 'perplexity', 'deepgram', 'assemblyai'].includes(this.providerName);
+    const supportsAdvancedOpenAI = !isStrictProvider;
+
     const body = {
       model,
       messages,
       stream,
-      ...(options.modalities ? { modalities: options.modalities } : {}),
-      ...(options.audio ? { audio: options.audio } : {}),
-      ...(options.reasoningEffort ? { reasoning: { effort: options.reasoningEffort } } : {}),
     };
+
+    if (supportsAdvancedOpenAI) {
+      if (options.modalities) body.modalities = options.modalities;
+      if (options.audio) body.audio = options.audio;
+      if (options.reasoningEffort) body.reasoning_effort = options.reasoningEffort;
+    }
 
     // Add temperature if provided
     if (options.temperature !== undefined) {
@@ -169,14 +175,16 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       body.seed = options.seed;
     }
 
-    // Add max_completion_tokens (for o1/o3 models)
-    if (options.max_completion_tokens !== undefined) {
-      body.max_completion_tokens = options.max_completion_tokens;
-    }
+    if (supportsAdvancedOpenAI) {
+      // Add max_completion_tokens (for o1/o3 models)
+      if (options.max_completion_tokens !== undefined) {
+        body.max_completion_tokens = options.max_completion_tokens;
+      }
 
-    // Add prediction
-    if (options.prediction) {
-      body.prediction = options.prediction;
+      // Add prediction
+      if (options.prediction) {
+        body.prediction = options.prediction;
+      }
     }
     
     // Add metadata
