@@ -30,7 +30,7 @@ export async function buildServer(opts = {}) {
         : undefined,
     },
     genReqId: () => uuidv4(),
-    requestTimeout: 120000,
+    requestTimeout: 300000, // 5min for large file uploads
     bodyLimit: 20971520, // 20MB for multimodal payloads
     ...opts,
   });
