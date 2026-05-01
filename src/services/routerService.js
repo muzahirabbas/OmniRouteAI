@@ -400,10 +400,11 @@ export async function route(prompt, opts = {}) {
     if (isAudio  && (!provider.features || !provider.features.includes('audio'))) continue;
     if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
 
-    // For audio transcription, only use providers that support transcription
-    // Known transcription providers: openai, groq, deepgram, assemblyai, cloudflare, vertex
+    // For audio transcription, only use providers that have transcription adapters
+    // Only these providers have transcribe() methods implemented:
+    // openai (whisper-1), groq (whisper-large-v3), deepgram, assemblyai, cloudflare
     if (taskType === 'audio_transcription' || (opts.model && opts.model.toLowerCase().includes('whisper'))) {
-      const transcriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare', 'vertex', 'google'];
+      const transcriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare'];
       if (!transcriptionProviders.includes(provider.name)) {
         continue;
       }
@@ -414,7 +415,7 @@ export async function route(prompt, opts = {}) {
     
     // For audio transcription, the model must be in the provider's models list
     // OR the provider must be a known transcription provider (they handle whisper models specially)
-    const knownTranscriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare', 'vertex', 'google'];
+    const knownTranscriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare'];
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
     let model = null;
