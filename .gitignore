@@ -5,6 +5,7 @@
 
 # Dependencies
 node_modules/
+scratch/
 local-daemon/node_modules/
 
 # Build artifacts

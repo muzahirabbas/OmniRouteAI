@@ -612,7 +612,7 @@ export async function routeAndExecute(prompt, opts = {}) {
           if (isStreamNotSupported && !opts._streamRetryAttempt) {
             // Fallback to non-streaming
             streamFallbacked = true;
-            const fallbackResult = await adapter.sendRequest(prompt, model, apiKey, {
+            const fallbackRaw = await adapter.sendRequest(prompt, model, apiKey, {
               requestId:    opts.requestId,
               taskType,
               systemPrompt: opts.systemPrompt,
@@ -626,7 +626,13 @@ export async function routeAndExecute(prompt, opts = {}) {
               tool_choice:    opts.tool_choice,
               reasoningEffort: opts.reasoningEffort,
             });
-            result = fallbackResult;
+            const fallbackNormalized = await adapter.normalizeResponse(fallbackRaw);
+            if (opts.onChunk) {
+              if (fallbackNormalized.thinking) opts.onChunk({ reasoning: fallbackNormalized.thinking, provider: provider.name, model });
+              if (fallbackNormalized.output) opts.onChunk({ content: fallbackNormalized.output, provider: provider.name, model });
+              if (fallbackNormalized.tool_calls && fallbackNormalized.tool_calls.length > 0) opts.onChunk({ tool_calls: fallbackNormalized.tool_calls, provider: provider.name, model });
+            }
+            result = fallbackNormalized;
           } else {
             throw streamErr;
           }
