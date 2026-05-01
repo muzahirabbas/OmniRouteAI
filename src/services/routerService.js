@@ -218,7 +218,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'hyperbolic':
     case 'chutes':
     case 'nanobanana':
-    case 'opencode_zen': {
+    case 'opencode_zen':
+    case 'kilo': {
       // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
@@ -229,6 +230,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         chutes:      'https://llm.chutes.ai/v1/chat/completions',
         nanobanana:  'https://api.nanobananaapi.ai/v1/chat/completions',
         opencode_zen: 'https://opencode.ai/zen/v1/chat/completions',
+        kilo:        'https://api.kilo.ai/api/gateway/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;

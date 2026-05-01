@@ -375,6 +375,30 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 20
   },
+  {
+    name: 'kilo',
+    priority: 1,
+    weight: 15,
+    status: 'active',
+    endpoint: 'https://api.kilo.ai/api/gateway/chat/completions',
+    models: [
+      'anthropic/claude-3-5-sonnet',
+      'anthropic/claude-3-7-sonnet',
+      'openai/gpt-4o',
+      'openai/gpt-4o-mini',
+      'google/gemini-1.5-pro',
+      'google/gemini-2.0-flash',
+      'meta-llama/llama-3.3-70b-instruct'
+    ],
+    rpmLimit: 100,
+    features: ['vision'],
+    vision_models: [
+      'anthropic/claude-3-5-sonnet',
+      'anthropic/claude-3-7-sonnet',
+      'openai/gpt-4o',
+      'google/gemini-1.5-pro'
+    ]
+  },
 
   // Served by OmniRouteAI-Local daemon on http://localhost:5059
   // Enable via Firestore by setting status: 'active'
