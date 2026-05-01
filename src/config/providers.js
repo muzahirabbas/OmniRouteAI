@@ -447,7 +447,8 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/claude`
       : 'http://localhost:5059/claude',
     models: ['claude-opus-4.5', 'claude-sonnet-4.5', 'claude-3-5-sonnet', 'default'],
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'gemini_cli_local',
@@ -541,7 +542,8 @@ export const STATIC_PROVIDERS = [
       'default'
     ],
     defaultModel: 'minimax-m2.5-free',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'zai_cli_local',
@@ -554,7 +556,8 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/zai',
     models: ['glm-4-flash', 'glm-4', 'glm-3-turbo', 'default'],
     defaultModel: 'glm-4-flash',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['tool-calling']
   },
   {
     name: 'cline_cli_local',
@@ -566,7 +569,8 @@ export const STATIC_PROVIDERS = [
       ? `${process.env.LOCAL_DAEMON_URL}/cline`
       : 'http://localhost:5059/cline',
     models: ['default'],
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'kimi_cli_local',
@@ -579,7 +583,8 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/kimi',
     models: ['kimi-k2.5', 'kimi-k1.5', 'default'],
     defaultModel: 'kimi-k1.5',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'ollama_local_bridge',
@@ -635,7 +640,8 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/grok',
     models: ['grok-2', 'grok-2-vision-12-19', 'grok-beta', 'default'],
     defaultModel: 'grok-2',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'copilot_cli_local',
@@ -648,7 +654,8 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/copilot',
     models: ['claude-sonnet-4-5', 'gpt-4o', 'gpt-4o-mini', 'default'],
     defaultModel: 'default',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'qoder_cli_local',
@@ -661,7 +668,8 @@ export const STATIC_PROVIDERS = [
       : 'http://localhost:5059/qoder',
     models: ['lite', 'efficient', 'auto', 'performance', 'ultimate'],
     defaultModel: 'lite',
-    rpmLimit: 999999
+    rpmLimit: 999999,
+    features: ['vision', 'tool-calling']
   },
   {
     name: 'cursor_cli_local',
