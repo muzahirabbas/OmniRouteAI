@@ -335,6 +335,10 @@ async function refreshProviders(force = false) {
             <span class="provider-meta-value" style="color: var(--text-accent); font-family: monospace; font-size: 0.75rem;">${escapeHTML(p.default_model || '—')}</span>
           </div>
         </div>
+        <div class="capabilities-container">
+          ${(p.features || []).map(f => `<span class="capability-tag tag-${f}">${escapeHTML(f)}</span>`).join('')}
+          ${p.supports_reasoning ? '<span class="capability-tag tag-reasoning">reasoning</span>' : ''}
+        </div>
         <div class="provider-actions">
           <button class="btn btn-sm btn-secondary"
             data-provider='${escapeHTML(JSON.stringify(p))}'
