@@ -251,6 +251,23 @@ export const STATIC_PROVIDERS = [
     features: ['vision']
   },
   {
+    name: 'modelscope',
+    priority: 2,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api-inference.modelscope.cn/v1',
+    models: [
+      'Qwen/Qwen2.5-72B-Instruct',
+      'Qwen/Qwen2.5-Coder-32B-Instruct',
+      'Qwen/Qwen2.5-Math-72B-Instruct',
+      'deepseek-ai/DeepSeek-V3',
+      'deepseek-ai/DeepSeek-R1',
+      'ZhipuAI/GLM-4-9B-Chat',
+      '01ai/Yi-1.5-34B-Chat'
+    ],
+    rpmLimit: 20
+  },
+  {
     name: 'cerebras',
     priority: 1,
     weight: 20,
