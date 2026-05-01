@@ -571,6 +571,8 @@ select.input {
   border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
 }
 
 .provider-card:hover {
@@ -594,7 +596,8 @@ select.input {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  flex: 1;
 }
 
 .provider-meta-row {

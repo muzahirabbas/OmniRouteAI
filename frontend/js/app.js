@@ -330,9 +330,10 @@ async function refreshProviders(force = false) {
             <span>API Keys</span>
             <span class="provider-meta-value">${escapeHTML(String(p.keyCount || 0))} registered</span>
           </div>
-        </div>
-        <div class="provider-models">
-          ${(p.models || []).map((m) => `<span class="model-tag">${escapeHTML(m)}</span>`).join('')}
+          <div class="provider-meta-row" style="margin-top: 0.25rem; border-top: 1px solid var(--border-subtle); padding-top: 0.5rem;">
+            <span>Default Model</span>
+            <span class="provider-meta-value" style="color: var(--text-accent); font-family: monospace; font-size: 0.75rem;">${escapeHTML(p.default_model || '—')}</span>
+          </div>
         </div>
         <div class="provider-actions">
           <button class="btn btn-sm btn-secondary"
