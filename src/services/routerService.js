@@ -425,28 +425,25 @@ export async function route(prompt, opts = {}) {
 
     // Model selection: ONLY use providers that have the requested model in their models list
     const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
-    
-    // For audio transcription, the model must be in the provider's models list
-    // OR the provider must be a known transcription provider (they handle whisper models specially)
     const knownTranscriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare'];
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
-    // For audio transcription with whisper models, ALWAYS use the requested model
-    // regardless of whether it's in the Firestore models list (which may be incomplete)
     let model = null;
+    const isAutoRequest = !opts.model || opts.model === 'auto' || opts.model === 'default';
+
     if (isWhisperModel && isKnownTranscriptionProvider) {
       // For known transcription providers with whisper model, always use the requested whisper model
-      // The adapters know which actual model to use (whisper-1 for openai, whisper-large-v3 for groq, etc.)
       model = opts.model;
     } else if (opts.model && provider.models?.includes(opts.model)) {
       model = opts.model;
-    } else if (!opts.model) {
+    } else if (isAutoRequest) {
+      // Handle 'auto' or 'default' by picking provider's default model
       model = provider.default_model || provider.models?.[0] || 'default';
     } else {
       // Model requested but not in this provider's models list - SKIP this provider
       continue;
     }
-
+    
     // ─── Vision-aware model selection ─────────────────────────────────
     // If request contains images AND this provider has a vision_models list,
     // ensure the selected model is vision-capable. If not, swap to one that is.
