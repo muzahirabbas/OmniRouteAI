@@ -231,10 +231,15 @@ export class CloudflareAdapter extends BaseAdapter {
       requestId,
       model: model || '@cf/openai/whisper',
       fileSize: fileBuffer.length,
+      accountIdPreview: accountId ? accountId.substring(0, 8) + '...' : 'MISSING',
+      hasApiKey: !!options.apiKey,
     }));
 
     try {
       const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model || '@cf/openai/whisper'}`;
+
+      // CRITICAL FIX: Cloudflare expects BASE64-encoded audio, not an array of bytes
+      const audioBase64 = fileBuffer.toString('base64');
 
       const response = await fetch(url, {
         method: 'POST',
@@ -242,7 +247,7 @@ export class CloudflareAdapter extends BaseAdapter {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${options.apiKey}`,
         },
-        body: JSON.stringify({ audio: Array.from(fileBuffer) }),
+        body: JSON.stringify({ audio: audioBase64 }),
         signal: controller.signal,
       });
 
