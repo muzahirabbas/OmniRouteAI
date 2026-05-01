@@ -68,6 +68,16 @@ export async function audioRoutes(app) {
       const mimeType = parts.file.mimetype || 'audio/wav';
       const filename = parts.file.filename || 'audio.wav';
 
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Transcription request received',
+        requestId: request.requestId,
+        fileSize: fileBuffer.length,
+        mimeType,
+        model: parts.model,
+        provider: parts.provider,
+      }));
+
       const result = await transcribe(fileBuffer, {
         model: parts.model,
         language: parts.language,
@@ -95,6 +105,14 @@ export async function audioRoutes(app) {
         input: result.tokens.input,
         output: result.tokens.output,
       });
+
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Transcription request completed',
+        requestId: request.requestId,
+        latency,
+        provider: result.provider,
+      }));
 
       return reply.send({
         text: result.text,

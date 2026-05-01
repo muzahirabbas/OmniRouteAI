@@ -1,7 +1,7 @@
 import { BaseAdapter } from './baseAdapter.js';
 import { ProviderError } from '../utils/errors.js';
 
-const DEFAULT_TIMEOUT = 60000;
+const DEFAULT_TIMEOUT = 45000; // 45s - shorter than client timeout
 const GROQ_WHISPER_ENDPOINT = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 export class GroqWhisperAdapter extends BaseAdapter {
@@ -25,11 +25,21 @@ export class GroqWhisperAdapter extends BaseAdapter {
 
   async transcribe(fileBuffer, model, options = {}) {
     const controller = this.createTimeout(DEFAULT_TIMEOUT);
+    const requestId = options.requestId || 'unknown';
+    
+    // Log starting API request
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Sending to Groq Whisper API',
+      requestId,
+      model: model || 'whisper-large-v3',
+      fileSize: fileBuffer.length,
+    }));
 
     try {
       const formData = new FormData();
       const filename = options.filename || 'audio.wav';
-      const mimeType = options.mimeType || 'audio/wav';
+      const mimeType = this.sanitizeMimeType(options.mimeType || 'audio/wav');
 
       formData.append('file', new Blob([fileBuffer], { type: mimeType }), filename);
       formData.append('model', model || 'whisper-large-v3');
@@ -61,6 +71,16 @@ export class GroqWhisperAdapter extends BaseAdapter {
       }
 
       const data = await response.json();
+      
+      // Log API response received
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Groq Whisper API response received',
+        requestId,
+        textLength: data.text?.length || 0,
+        duration: data.duration,
+        language: data.language,
+      }));
 
       return {
         text: data.text || '',
@@ -70,7 +90,6 @@ export class GroqWhisperAdapter extends BaseAdapter {
       };
     } catch (err) {
       this.clearTimeout(controller);
-      if (err instanceof ProviderError) throw err;
       throw this.handleError(err);
     }
   }

@@ -19,21 +19,31 @@ const bullmqRedis = new IoRedis(REDIS_URL, {
   enableReadyCheck: false,    // Strongly recommended by Upstash to avoid connection stall checks
   family: 0,                  // CRITICAL: Required for Railway IPv6 routing to Upstash
   tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+  connectTimeout: 10000,       // 10s connection timeout
+  enableOfflineQueue: true,    // Queue commands while offline
+  keepAlive: 300000,          // 5min TCP keep-alive
+  noDelay: true,              // Disable Nagle's algorithm
+  socketIdleTimeout: 300000,   // 5min before idle socket close
   retryStrategy: (times) => {
     _redisConnectAttempts = times;
     
-    if (times > MAX_CONNECT_ATTEMPTS) {
+    // For initial connection, stop after MAX_CONNECT_ATTEMPTS
+    // But allow background reconnection attempts indefinitely
+    if (times > MAX_CONNECT_ATTEMPTS && times <= 15) {
       console.warn(JSON.stringify({
         level: 'warn',
-        msg: 'Redis connection failed after multiple attempts - using in-memory fallback',
+        msg: 'Redis connection failed after multiple attempts - using in-memory fallback, will continue retrying in background',
         attempts: times,
       }));
-      return null; // Stop retrying
     }
     
-    // Exponential backoff: max 30s
-    return Math.min(times * 200, 30000);
+    // Exponential backoff with jitter: max 30s
+    const jitter = Math.random() * 1000;
+    return Math.min(times * 200 + jitter, 30000);
   },
+  // Automatically retry on connection errors
+  autoResubscribe: true,
+  autoResendUnfulfilledCommands: true,
 });
 
 bullmqRedis.on('error', (err) => {
@@ -66,6 +76,40 @@ bullmqRedis.on('close', () => {
     }));
   }
 });
+
+// ─── Connection Health Monitoring ───────────────────────────────────
+let _healthCheckInterval = null;
+
+export function startHealthCheck(intervalMs = 30000) {
+  if (_healthCheckInterval) return;
+  
+  _healthCheckInterval = setInterval(async () => {
+    try {
+      if (_redisConnected) {
+        const result = await bullmqRedis.ping();
+        if (result !== 'PONG') {
+          console.warn(JSON.stringify({
+            level: 'warn',
+            msg: 'Redis health check failed - ping did not return PONG',
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        msg: 'Redis health check failed',
+        error: err.message,
+      }));
+    }
+  }, intervalMs);
+}
+
+export function stopHealthCheck() {
+  if (_healthCheckInterval) {
+    clearInterval(_healthCheckInterval);
+    _healthCheckInterval = null;
+  }
+}
 
 /**
  * Gracefully close Redis connections on shutdown.
@@ -593,9 +637,42 @@ export function getClient() {
 /**
  * Create a duplicate connection (needed for BullMQ worker).
  * BullMQ requires maxRetriesPerRequest to be null.
+ * Includes enhanced keep-alive and reconnection settings.
  */
 export function createDuplicate() {
-  return bullmqRedis.duplicate({ maxRetriesPerRequest: null });
+  return bullmqRedis.duplicate({
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    family: 0,
+    tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+    connectTimeout: 10000,
+    enableOfflineQueue: true,
+    keepAlive: 300000,
+    noDelay: true,
+    socketIdleTimeout: 300000,
+    autoResubscribe: true,
+    autoResendUnfulfilledCommands: true,
+  });
+}
+
+/**
+ * Create a worker-optimized connection with BullMQ-specific settings.
+ * Use this for BullMQ workers to ensure proper stalled job handling.
+ */
+export function createWorkerConnection() {
+  return bullmqRedis.duplicate({
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    family: 0,
+    tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+    connectTimeout: 10000,
+    enableOfflineQueue: true,
+    keepAlive: 300000,
+    noDelay: true,
+    socketIdleTimeout: 300000,
+    autoResubscribe: true,
+    autoResendUnfulfilledCommands: true,
+  });
 }
 
 export default bullmqRedis;

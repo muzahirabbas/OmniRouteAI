@@ -1,7 +1,7 @@
 import { BaseAdapter } from './baseAdapter.js';
 import { ProviderError } from '../utils/errors.js';
 
-const DEFAULT_TIMEOUT = 60000;
+const DEFAULT_TIMEOUT = 45000; // 45s - shorter than client timeout
 const DEEPGRAM_ENDPOINT = 'https://api.deepgram.com/v1/listen';
 
 export class DeepgramAdapter extends BaseAdapter {
@@ -19,6 +19,16 @@ export class DeepgramAdapter extends BaseAdapter {
 
   async transcribe(fileBuffer, model, options = {}) {
     const controller = this.createTimeout(DEFAULT_TIMEOUT);
+    const requestId = options.requestId || 'unknown';
+    
+    // Log starting API request
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Sending to Deepgram API',
+      requestId,
+      model: model || 'nova-2',
+      fileSize: fileBuffer.length,
+    }));
 
     try {
       const params = new URLSearchParams();
@@ -52,6 +62,16 @@ export class DeepgramAdapter extends BaseAdapter {
         end: w.end,
       })) || [];
 
+      // Log API response received
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Deepgram API response received',
+        requestId,
+        textLength: result?.transcript?.length || 0,
+        duration: result?.duration,
+        language: result?.language,
+      }));
+
       return {
         text: result?.transcript || '',
         duration: result?.duration || null,
@@ -60,7 +80,6 @@ export class DeepgramAdapter extends BaseAdapter {
       };
     } catch (err) {
       this.clearTimeout(controller);
-      if (err instanceof ProviderError) throw err;
       throw this.handleError(err);
     }
   }

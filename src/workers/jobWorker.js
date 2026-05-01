@@ -1,23 +1,22 @@
 import { Worker } from 'bullmq';
-import { createDuplicate, closeRedis } from '../config/redis.js';
+import { createDuplicate, closeRedis, startHealthCheck, stopHealthCheck } from '../config/redis.js';
 import { routeAndExecute } from '../services/routerService.js';
 import http from 'http';
 
-/**
- * BullMQ worker for `chat-completions` queue.
- * Processes NON-STREAMING chat completion jobs.
- *
- * Each job contains: { prompt, model, taskType, systemPrompt, requestId }
- * Returns:           { output, provider, model, tokens, keyUsed }
- *
- * IMPORTANT: This worker does NOT implement custom retry logic.
- * routerService.routeAndExecute() is the SINGLE source of retry truth:
- *   - It handles up to 3 attempts internally
- *   - It does key rotation, provider failover, and circuit breaker logic
- *   - Workers must call it once and trust the result (or the thrown error)
- *
- * BullMQ's own retry (attempts) is set to 1 — no BullMQ-level retries.
- */
+// Worker configuration with better stall handling
+const WORKER_OPTIONS = {
+  connection: createDuplicate(),
+  concurrency: parseInt(process.env.WORKER_CONCURRENCY, 10) || 50,
+  limiter: {
+    max: parseInt(process.env.WORKER_MAX_JOBS_PER_MIN, 10) || 1000,
+    duration: 60000,
+  },
+  // BullMQ stall handling - prevent jobs from getting stuck
+  stalledInterval: 30000,      // Check for stalled jobs every 30s
+  lockDuration: 120000,        // 2min lock duration (must exceed max job duration)
+  maxStalledCount: 2,          // Max stall attempts before job moves to failed
+};
+
 const worker = new Worker(
   'chat-completions',
   async (job) => {
@@ -43,6 +42,7 @@ const worker = new Worker(
       msg:       'Processing job',
       jobId:     job.id,
       requestId,
+      attempt:   job.attemptsMade,
     }));
 
     // Single call — routeAndExecute handles all retry/failover internally
@@ -84,21 +84,16 @@ const worker = new Worker(
 
     return result;
   },
-  {
-    connection: createDuplicate(),
-    concurrency: parseInt(process.env.WORKER_CONCURRENCY, 10) || 50,
-    limiter: {
-      max: parseInt(process.env.WORKER_MAX_JOBS_PER_MIN, 10) || 1000,
-      duration: 60000,
-    },
-  },
+  WORKER_OPTIONS,
 );
 
+// ─── Enhanced Worker Event Handlers ──────────────────────────────────
 worker.on('failed', (job, err) => {
   console.error(JSON.stringify({
     level: 'error',
     msg:   'Worker job failed',
     jobId: job?.id,
+    attempt: job?.attemptsMade,
     error: err.message,
   }));
 });
@@ -111,13 +106,43 @@ worker.on('error', (err) => {
   }));
 });
 
+worker.on('stalled', (jobId) => {
+  console.warn(JSON.stringify({
+    level: 'warn',
+    msg:   'Worker job stalled',
+    jobId,
+  }));
+});
+
+worker.on('active', (job) => {
+  console.log(JSON.stringify({
+    level: 'info',
+    msg:   'Worker job active',
+    jobId: job.id,
+    requestId: job.data?.requestId,
+  }));
+});
+
+// Handle Redis connection issues
+worker.on('closing', (msg) => {
+  console.log(JSON.stringify({
+    level: 'info',
+    msg:   'Worker closing',
+    details: msg,
+  }));
+});
+
 console.log(JSON.stringify({
   level:       'info',
   msg:         'BullMQ worker started',
   queue:       'chat-completions',
-  concurrency: 5,
+  concurrency: 50,
   retryPolicy: 'handled by routerService (max 3 attempts)',
+  stallHandling: 'enabled (30s interval, 120s lock)',
 }));
+
+// Start Redis health check
+startHealthCheck(30000);
 
 // ─── Railway Health Check Server ──────────────────────────────────────
 // Railway requires containers to bind to $PORT to pass health checks.
@@ -151,11 +176,13 @@ const shutdown = async (signal) => {
   }));
 
   try {
-    // 1. Close health server
+    // 1. Stop health check interval
+    stopHealthCheck();
+    // 2. Close health server
     healthServer.close();
-    // 2. Stop accepting new jobs and wait for current ones (up to 30s)
+    // 3. Stop accepting new jobs and wait for current ones (up to 30s)
     await worker.close();
-    // 3. Close the global Redis connections
+    // 4. Close the global Redis connections
     await closeRedis();
     console.log(JSON.stringify({ level: 'info', msg: 'Worker and Redis closed successfully' }));
     process.exit(0);

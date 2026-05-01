@@ -751,17 +751,30 @@ export async function routeAndExecute(prompt, opts = {}) {
  * @param {string}   [opts.language] - Language code
  * @param {string}   [opts.response_format] - Response format
  * @param {string[]} [opts.timestamp_granularities] - Timestamp granularities
+ * @param {string}   [opts.requestId] - Request ID for logging
  * @returns {Promise<{text, duration, words?, language, provider, model, tokens, keyUsed}>}
  */
 export async function transcribe(fileBuffer, opts = {}) {
   const MAX_ATTEMPTS = 3;
-
+  const TRANSCRIPTION_TIMEOUT = 45000; // 45s internal timeout (shorter than 60s client timeout)
+  
   const usedKeys = [];
   const providerFailCount = {};
   const failedProviders = [];
   let lastError;
 
   const estimatedInputTokens = Math.ceil(fileBuffer.length / 100);
+  
+  // Log audio received
+  console.log(JSON.stringify({
+    level: 'info',
+    msg: 'Audio received for transcription',
+    requestId: opts.requestId,
+    fileSize: fileBuffer.length,
+    fileType: opts.mimeType || 'unknown',
+    model: opts.model,
+    provider: opts.provider,
+  }));
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let routeResult;
@@ -782,6 +795,16 @@ export async function transcribe(fileBuffer, opts = {}) {
     usedKeys.push(apiKey);
 
     try {
+      // Log starting transcription
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Starting transcription',
+        requestId: opts.requestId,
+        provider: provider.name,
+        model,
+        attempt: attempt + 1,
+      }));
+      
       // For openai provider with whisper-1 model, pass model in config to get correct adapter
       // For groq provider with whisper-large-v3 model, pass model in config to get correct adapter
       const shouldPassModel = 
@@ -790,13 +813,37 @@ export async function transcribe(fileBuffer, opts = {}) {
       const providerConfigForAdapter = { ...provider, model: shouldPassModel ? model : undefined };
       const adapter = await getAdapter(provider.name, providerConfigForAdapter);
 
-      const transcriptionResult = await adapter.transcribe(fileBuffer, model, {
+      // Wrap transcription in timeout
+      const transcriptionPromise = adapter.transcribe(fileBuffer, model, {
         ...opts,
         apiKey,
         requestId: opts.requestId,
         mimeType: opts.mimeType,
         filename: opts.filename,
       });
+
+      const transcriptionResult = await Promise.race([
+        transcriptionPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new ProviderError(
+            provider.name, 
+            `Transcription timed out after ${TRANSCRIPTION_TIMEOUT}ms`, 
+            504, 
+            model
+          )), TRANSCRIPTION_TIMEOUT)
+        ),
+      ]);
+
+      // Log transcription completed
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Transcription completed',
+        requestId: opts.requestId,
+        provider: provider.name,
+        model,
+        textLength: transcriptionResult.text?.length || 0,
+        duration: transcriptionResult.duration,
+      }));
 
       await recordProviderResult(provider.name, true);
 
@@ -824,6 +871,17 @@ export async function transcribe(fileBuffer, opts = {}) {
         lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
       }
 
+      // Log transcription failed
+      console.log(JSON.stringify({
+        level: 'warn',
+        msg: 'Transcription failed',
+        requestId: opts.requestId,
+        provider: provider.name,
+        model,
+        error: lastError.message,
+        attempt: attempt + 1,
+      }));
+
       if (provider.type !== 'local_http') {
         await recordKeyFailure(provider.name, apiKey).catch(() => {});
       }
@@ -840,5 +898,11 @@ export async function transcribe(fileBuffer, opts = {}) {
     }
   }
 
+  console.log(JSON.stringify({
+    level: 'error',
+    msg: 'All transcription attempts failed',
+    requestId: opts.requestId,
+  }));
+  
   throw lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
 }
