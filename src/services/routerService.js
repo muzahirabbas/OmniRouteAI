@@ -354,8 +354,14 @@ export async function route(prompt, opts = {}) {
     }
     
     // ─── PRIORITIZE providers that have the requested model ───
-    const providersWithModel = activeProviders.filter(p => p.models?.includes(opts.model));
-    const providersWithoutModel = activeProviders.filter(p => !p.models?.includes(opts.model));
+    let providersWithModel = activeProviders.filter(p => p.models?.includes(opts.model));
+    let providersWithoutModel = activeProviders.filter(p => !p.models?.includes(opts.model));
+    
+    // If provider is explicitly specified, filter both lists to only that provider
+    if (providerOverride && providerOverride !== 'auto') {
+      providersWithModel = providersWithModel.filter(p => p.name === providerOverride);
+      providersWithoutModel = providersWithoutModel.filter(p => p.name === providerOverride);
+    }
     
     // Weighted random within each group, then merge: providers WITH model first
     const shuffle = arr => arr.sort(() => Math.random() - 0.5);
