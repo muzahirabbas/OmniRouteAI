@@ -418,7 +418,6 @@ export async function route(prompt, opts = {}) {
         continue;
       }
     }
-    }
 
     // Model selection: ONLY use providers that have the requested model in their models list
     const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
