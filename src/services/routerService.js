@@ -418,12 +418,15 @@ export async function route(prompt, opts = {}) {
     const knownTranscriptionProviders = ['openai', 'groq', 'deepgram', 'assemblyai', 'cloudflare'];
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
+    // For audio transcription with whisper models, ALWAYS use the requested model
+    // regardless of whether it's in the Firestore models list (which may be incomplete)
     let model = null;
-    if (opts.model && provider.models?.includes(opts.model)) {
+    if (isWhisperModel && isKnownTranscriptionProvider) {
+      // For known transcription providers with whisper model, always use the requested whisper model
+      // The adapters know which actual model to use (whisper-1 for openai, whisper-large-v3 for groq, etc.)
       model = opts.model;
-    } else if (opts.model && isWhisperModel && isKnownTranscriptionProvider) {
-      // Whisper model requested but not in this provider's models - use provider's default
-      model = provider.default_model || provider.models?.[0] || 'default';
+    } else if (opts.model && provider.models?.includes(opts.model)) {
+      model = opts.model;
     } else if (!opts.model) {
       model = provider.default_model || provider.models?.[0] || 'default';
     } else {
