@@ -174,13 +174,13 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       body.max_completion_tokens = options.max_completion_tokens;
     }
 
-    // Add prediction (OpenAI only)
-    if (options.prediction && this.providerName === 'openai') {
+    // Add prediction
+    if (options.prediction) {
       body.prediction = options.prediction;
     }
     
-    // Add metadata (OpenAI only)
-    if (options.metadata && this.providerName === 'openai') {
+    // Add metadata
+    if (options.metadata) {
       body.metadata = options.metadata;
     }
 
