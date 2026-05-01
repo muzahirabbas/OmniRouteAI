@@ -233,15 +233,17 @@ export async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
     }
-    case 'deepgram':
-    case 'assemblyai': {
-      const mod = await import(`../adapters/${providerName}Adapter.js`);
-      // Adapter class names: DeepgramAdapter, AssemblyAIAdapter
-      const className = providerName.charAt(0).toUpperCase() + providerName.slice(1) + 'Adapter';
-      adapter = new mod[className]();
+    case 'deepgram': {
+      const mod = await import('../adapters/deepgramAdapter.js');
+      adapter = new mod.DeepgramAdapter();
       break;
     }
-    case 'vertex': {
+    case 'assemblyai': {
+      const mod = await import('../adapters/assemblyaiAdapter.js');
+      adapter = new mod.AssemblyAIAdapter();
+      break;
+    }
+    case 'cloudflare': {
       const mod = await import('../adapters/vertexAdapter.js');
       adapter = new mod.VertexAdapter();
       break;
@@ -913,9 +915,12 @@ export async function transcribe(fileBuffer, opts = {}) {
       
       // For openai provider with whisper-1 model, pass model in config to get correct adapter
       // For groq provider with whisper-large-v3 model, pass model in config to get correct adapter
+      // For assemblyai and cloudflare, always pass model as they use different adapters
       const shouldPassModel = 
         (provider.name === 'openai' && model === 'whisper-1') ||
-        (provider.name === 'groq' && model === 'whisper-large-v3');
+        (provider.name === 'groq' && model === 'whisper-large-v3') ||
+        (provider.name === 'assemblyai') ||
+        (provider.name === 'cloudflare');
       const providerConfigForAdapter = { ...provider, model: shouldPassModel ? model : undefined };
       const adapter = await getAdapter(provider.name, providerConfigForAdapter);
 
