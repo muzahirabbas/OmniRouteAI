@@ -501,7 +501,31 @@ select.input {
 /* ─── Searchable Select ───────────────────────────────────────────────── */
 .searchable-select {
   position: relative;
-  width: 100%;
+}
+
+.search-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  display: none;
+  line-height: 1;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  z-index: 5;
+}
+
+.search-clear.active {
+  display: block;
+}
+
+.search-clear:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.1);
 }
 
 .search-results {

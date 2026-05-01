@@ -615,12 +615,26 @@ function updatePlaygroundModels(providerName) {
   // Clear current options
   modelSelect.innerHTML = '<option value="auto">Auto/Default</option>';
 
-  if (providerName !== 'auto' && window.allProviders) {
-    const provider = window.allProviders.find(p => p.name === providerName);
-    if (provider && provider.models && provider.models.length) {
-      provider.models.sort().forEach(m => {
+  if (window.allProviders) {
+    if (providerName === 'auto') {
+      // Collect all unique models from all active providers
+      const allModels = new Set();
+      window.allProviders.forEach(p => {
+        if (!p.disabled && p.models) {
+          p.models.forEach(m => allModels.add(m));
+        }
+      });
+      
+      Array.from(allModels).sort().forEach(m => {
         modelSelect.innerHTML += `<option value="${m}">${m}</option>`;
       });
+    } else {
+      const provider = window.allProviders.find(p => p.name === providerName);
+      if (provider && provider.models && provider.models.length) {
+        provider.models.sort().forEach(m => {
+          modelSelect.innerHTML += `<option value="${m}">${m}</option>`;
+        });
+      }
     }
   }
 
@@ -657,7 +671,15 @@ function filterPlaygroundModels() {
   
   if (!searchInput || !resultsContainer || !modelSelect) return;
   
+  const clearBtn = document.getElementById('playground-model-clear');
   const query = searchInput.value.toLowerCase().trim();
+  
+  // Toggle clear button
+  if (clearBtn) {
+    if (query !== '') clearBtn.classList.add('active');
+    else clearBtn.classList.remove('active');
+  }
+
   const options = Array.from(modelSelect.options);
   
   let html = '';
@@ -704,6 +726,20 @@ function selectPlaygroundModel(value, text) {
   
   // Trigger original change handler
   handlePlaygroundModelChange();
+}
+
+/**
+ * Clear the model search input
+ */
+function clearPlaygroundModelSearch() {
+  const modelSearch = document.getElementById('playground-model-search');
+  const modelSelect = document.getElementById('playground-model-select');
+  if (!modelSearch || !modelSelect) return;
+  
+  modelSearch.value = '';
+  modelSelect.value = 'auto';
+  filterPlaygroundModels();
+  modelSearch.focus();
 }
 
 /**
