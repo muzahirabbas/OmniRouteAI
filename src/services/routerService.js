@@ -830,6 +830,17 @@ export async function transcribe(fileBuffer, opts = {}) {
     const { provider, model, apiKey, taskType } = routeResult;
     usedKeys.push(apiKey);
 
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Route selected provider for transcription',
+      requestId: opts.requestId,
+      providerName: provider.name,
+      providerType: provider.type,
+      model,
+      hasApiKey: !!apiKey,
+      attempt: attempt + 1,
+    }));
+
     try {
       // Log starting transcription
       console.log(JSON.stringify({
@@ -939,6 +950,9 @@ export async function transcribe(fileBuffer, opts = {}) {
     msg: 'All transcription attempts failed',
     requestId: opts.requestId,
     error: lastError?.message,
+    attempts: MAX_ATTEMPTS,
+    failedProviders: failedProviders,
+    usedKeysCount: usedKeys.length,
   }));
   
   // FIX: Add audio-specific error context
