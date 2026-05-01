@@ -14,11 +14,10 @@ import { getSearchProviders } from '../config/searchProviders.js';
 import { rateLimiters } from '../utils/rateLimiter.js';
 
 export async function searchRoutes(app) {
-  app.addHook('onRequest', (request, reply, done) => {
+  app.addHook('onRequest', async (request, reply) => {
     if (request.url.includes('/search') && request.method !== 'OPTIONS') {
-      return rateLimiters.search(request, reply, done);
+      return rateLimiters.search(request, reply);
     }
-    done();
   });
   // Tool definitions for OpenClaw integration
   app.get('/v1/tools', async () => {
@@ -145,7 +144,7 @@ export async function searchRoutes(app) {
   };
 
   app.post('/v1/search', async (request, reply) => {
-    const requestId = request.headers['x-request-id'] || uuidv4();
+    const requestId = request.requestId;
     const startTime = Date.now();
 
     const normalized = normalizeSearchInput(request.body);
@@ -177,7 +176,7 @@ export async function searchRoutes(app) {
   });
 
   app.post('/:provider/v1/search', async (request, reply) => {
-    const requestId = request.headers['x-request-id'] || uuidv4();
+    const requestId = request.requestId;
     const providerName = request.params.provider;
 
     const { getSearchProviders } = await import('../config/searchProviders.js');

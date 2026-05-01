@@ -25,11 +25,13 @@ function getQueue() {
  * Enqueue a chat completion job.
  *
  * @param {object} data - { prompt, model, taskType, requestId }
+ * @param {object} [opts={}] - BullMQ job options (e.g., { priority: 2 })
  * @returns {Promise<string>} job ID
  */
-export async function enqueue(data) {
+export async function enqueue(data, opts = {}) {
   const job = await getQueue().add('chat-completion', data, {
     jobId: data.requestId, // Use request ID as job ID for easy lookup
+    ...opts,
   });
   return job.id;
 }

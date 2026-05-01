@@ -37,9 +37,9 @@ async function getPreviousResponse(previousResponseId) {
 // Helper to store response for later retrieval
 async function storeResponse(responseId, response) {
   try {
-    const { get } = await import('../config/redis.js');
+    const { setex } = await import('../config/redis.js');
     const key = `response:${responseId}`;
-    await get().setex(key, 86400, JSON.stringify(response));
+    await setex(key, 86400, JSON.stringify(response));
   } catch (err) {
     console.warn('Failed to store response:', err.message);
   }
@@ -438,6 +438,18 @@ return { object: 'list', data: models };
 
     const promptLength = getPromptTextLength(prompt);
 
+    // Validate prompt is not empty (must have prompt, messages, or input)
+    if (promptLength === 0 && (!messages || messages.length === 0)) {
+      reply.code(400).send({
+        error: {
+          message: 'No input provided. Include "messages", "prompt", or "input" in the request body.',
+          type: 'invalid_request_error',
+          code: 'missing_input',
+        },
+      });
+      return;
+    }
+
     if (promptLength > 100000) {
       console.error(`[VALIDATION] prompt too long: ${promptLength} chars`);
       const err = new Error('prompt exceeds maximum length of 100000 characters');
@@ -688,7 +700,7 @@ return { object: 'list', data: models };
         return responseObj;
       }
       
-      return toOpenAIResponse(result, requestId, false);
+      return toOpenAIResponse(result, requestId, include_reasoning, false);
     } catch (err) {
       console.error(JSON.stringify({
         level: 'error',
@@ -825,6 +837,7 @@ setCached(processedPrompt, model, task_type, system_prompt, {
           system_prompt:           { type: 'string', maxLength: 4000 },
           stream:                  { type: 'boolean', default: false },
           noContext:               { type: 'boolean', default: false },
+          no_context:              { type: 'boolean', default: false },
           temperature:             { type: 'number', minimum: 0, maximum: 2 },
           top_p:                   { type: 'number', minimum: 0, maximum: 1 },
           max_tokens:              { type: 'integer', minimum: 1 },
@@ -957,6 +970,7 @@ priority:               { type: 'string', enum: ['low', 'normal', 'high', 'criti
           system_prompt:           { type: 'string', maxLength: 4000 },
           stream:                  { type: 'boolean', default: false },
           noContext:               { type: 'boolean', default: false },
+          no_context:              { type: 'boolean', default: false },
           temperature:             { type: 'number', minimum: 0, maximum: 2 },
           top_p:                   { type: 'number', minimum: 0, maximum: 1 },
           max_tokens:              { type: 'integer', minimum: 1 },
@@ -1043,15 +1057,33 @@ priority:               { type: 'string', enum: ['low', 'normal', 'high', 'criti
     const results = await Promise.allSettled(
       requests.map(async (req, idx) => {
         try {
-          const result = await routeAndExecute(req.body.prompt || req.body.messages, {
-            model: req.body.model,
-            provider: req.body.provider,
-            taskType: req.body.task_type,
-            systemPrompt: req.body.system_prompt,
+          // Normalize each sub-request through the same input pipeline
+          const subInput = normalizeInput(req.body || {});
+          const subPrompt = subInput.prompt;
+          const subMessages = subInput.messages;
+          const subOptions = {
+            messages: subMessages,
+            temperature: subInput.temperature,
+            top_p: subInput.top_p,
+            max_tokens: subInput.max_tokens,
+            max_completion_tokens: subInput.max_completion_tokens,
+            response_format: subInput.response_format,
+            tools: subInput.tools,
+            tool_choice: subInput.tool_choice,
+            reasoningEffort: subInput.reasoning_effort,
+          };
+
+          const result = await routeAndExecute(subPrompt, {
+            model: subInput.model,
+            provider: subInput.provider === 'auto' ? null : subInput.provider,
+            taskType: subInput.task_type,
+            systemPrompt: subInput.system_prompt,
+            noContext: subInput.noContext,
             stream: false,
             requestId: `${request.requestId}-batch-${idx}`,
+            ...subOptions,
           });
-          return { custom_id: req.custom_id, response: result, error: null };
+          return { custom_id: req.custom_id, response: toOpenAIResponse(result, `${request.requestId}-batch-${idx}`, false, false), error: null };
         } catch (err) {
           return { custom_id: req.custom_id, response: null, error: err.message };
         }

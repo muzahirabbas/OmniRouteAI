@@ -1,4 +1,4 @@
-import { get, setex, incrWithTTL, del, evalLua } from '../config/redis.js';
+import { get, setex, incrWithTTL, del, evalLua, isRedisAvailable } from '../config/redis.js';
 import { getProviders } from '../config/providers.js';
 
 const LUA_CHECK_CIRCUIT_BREAKER = `
@@ -240,7 +240,7 @@ async function checkCircuitBreaker(name, ttl = CIRCUIT_BREAKER_TTL) {
 
   const successKey = `provider:${name}:success`;
   const failKey = `provider:${name}:fail`;
-  const disabledKey = `provider:${name}:disabled`;
+  const disabledKey = `provider:disabled:${name}`;
 
   try {
 const result = await evalLua(

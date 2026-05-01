@@ -243,7 +243,7 @@ export async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.AssemblyAIAdapter();
       break;
     }
-    case 'cloudflare': {
+    case 'vertex': {
       const mod = await import('../adapters/vertexAdapter.js');
       adapter = new mod.VertexAdapter();
       break;
@@ -270,7 +270,9 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'codex_cli_local':
     case 'kiro_cli_local':
     case 'grok_cli_local':
-    case 'copilot_cli_local': {
+    case 'copilot_cli_local':
+    case 'qoder_cli_local':
+    case 'cursor_cli_local': {
       const mod = await import('../adapters/localHttpAdapter.js');
       const toolName = providerName.split('_')[0]; // zai, cline, kimi, claude, etc.
       const daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';

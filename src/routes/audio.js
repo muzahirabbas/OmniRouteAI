@@ -37,8 +37,8 @@ export async function audioRoutes(app) {
     });
   });
 
-  // POST /v1/audio/transcriptions - Speech to Text
-  app.post('/v1/audio/transcriptions', async (request, reply) => {
+  // ─── Common transcription handler ───────────────────────────────────
+  const handleTranscription = async (request, reply, providerOverride = null) => {
     const startTime = Date.now();
 
     console.log(JSON.stringify({
@@ -46,6 +46,7 @@ export async function audioRoutes(app) {
       msg: 'HANDLER_ENTERED - Audio transcription',
       requestId: request.requestId,
       contentType: request.headers['content-type'],
+      providerOverride,
     }));
 
     let fileBuffer = null;
@@ -154,6 +155,9 @@ export async function audioRoutes(app) {
         });
       }
 
+      // Use providerOverride from URL param, or body field
+      const effectiveProvider = providerOverride || parts.provider || undefined;
+
       console.log(JSON.stringify({
         level: 'info',
         msg: 'Transcription request received',
@@ -161,7 +165,7 @@ export async function audioRoutes(app) {
         fileSize: fileBuffer.length,
         mimeType,
         model: parts.model,
-        provider: parts.provider,
+        provider: effectiveProvider,
       }));
 
       const result = await transcribe(fileBuffer, {
@@ -172,7 +176,7 @@ export async function audioRoutes(app) {
         mimeType,
         filename: parts.file.filename || 'audio.wav',
         requestId: request.requestId,
-        provider: parts.provider,
+        provider: effectiveProvider,
       });
 
       const latency = Date.now() - startTime;
@@ -185,15 +189,7 @@ export async function audioRoutes(app) {
         latency,
       }));
 
-      // FIX: Send response FIRST, then log asynchronously
-      return reply.send({
-        text: result.text,
-        duration: result.duration,
-        words: result.words || [],
-        language: result.language,
-      });
-
-      // FIX: Async logging after response sent
+      // FIX: Schedule async logging BEFORE the return statement (was dead code after return)
       setImmediate(async () => {
         try {
           await logRequest({
@@ -219,6 +215,13 @@ export async function audioRoutes(app) {
         }
       });
 
+      return reply.send({
+        text: result.text,
+        duration: result.duration,
+        words: result.words || [],
+        language: result.language,
+      });
+
     } catch (err) {
       const latency = Date.now() - startTime;
       const errorMsg = err.message || 'Unknown error';
@@ -232,14 +235,7 @@ export async function audioRoutes(app) {
         errorCode,
       }));
 
-      // FIX: Send error response immediately, then log async
-      const errorResponse = (err instanceof ProviderError)
-        ? { error: { message: errorMsg, type: 'server_error', code: String(errorCode) } }
-        : { error: { message: errorMsg, type: 'server_error' } };
-
-      return reply.code(err instanceof ProviderError ? errorCode : 500).send(errorResponse);
-
-      // Async error logging
+      // FIX: Schedule async error logging BEFORE the return statement (was dead code after return)
       setImmediate(async () => {
         try {
           await logRequest({
@@ -261,7 +257,45 @@ export async function audioRoutes(app) {
           }));
         }
       });
+
+      const errorResponse = (err instanceof ProviderError)
+        ? { error: { message: errorMsg, type: 'server_error', code: String(errorCode) } }
+        : { error: { message: errorMsg, type: 'server_error' } };
+
+      return reply.code(err instanceof ProviderError ? errorCode : 500).send(errorResponse);
     }
+  };
+
+  // POST /v1/audio/transcriptions - Speech to Text
+  app.post('/v1/audio/transcriptions', async (request, reply) => {
+    return handleTranscription(request, reply);
+  });
+
+  // POST /:provider/v1/audio/transcriptions - Provider-specific Speech to Text
+  app.post('/:provider/v1/audio/transcriptions', async (request, reply) => {
+    const providerName = request.params.provider;
+    return handleTranscription(request, reply, providerName);
+  });
+
+  // CORS Preflight for audio endpoints
+  app.options('/v1/audio/transcriptions', async (request, reply) => {
+    reply.raw.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
+      'Access-Control-Max-Age': '86400',
+    });
+    reply.raw.end();
+  });
+
+  app.options('/:provider/v1/audio/transcriptions', async (request, reply) => {
+    reply.raw.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
+      'Access-Control-Max-Age': '86400',
+    });
+    reply.raw.end();
   });
 
   // POST /v1/audio/translations - Translation
