@@ -690,14 +690,7 @@ export async function routeAndExecute(prompt, opts = {}) {
 
       await recordProviderResult(provider.name, true);
 
-      // TRACE LOGGING: Capture raw provider result for debugging "null result" or empty output issues
-      console.log(JSON.stringify({
-        level:    'debug',
-        msg:      'Provider response trace',
-        provider: provider.name,
-        output:   normalized.output,
-        raw:      normalized.raw,
-      }));
+
 
       const tokens = normalized.tokens || {};
       if (!tokens.input || tokens.input === 0) {
@@ -818,28 +811,12 @@ export async function transcribe(fileBuffer, opts = {}) {
 
   const estimatedInputTokens = Math.ceil(fileBuffer.length / 1024);
   
-  // Log audio received
-  console.log(JSON.stringify({
-    level: 'info',
-    msg: 'Audio received for transcription',
-    requestId: opts.requestId,
-    fileSize: fileBuffer.length,
-    fileType: opts.mimeType || 'unknown',
-    model: opts.model,
-    provider: opts.provider,
-  }));
+
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let routeResult;
 
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'Transcription attempt',
-      requestId: opts.requestId,
-      attempt: attempt + 1,
-      failedProviders,
-      usedKeys,
-    }));
+
 
     try {
       routeResult = await route('', {

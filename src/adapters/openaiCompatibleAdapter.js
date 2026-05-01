@@ -420,14 +420,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     const controller = this.createTimeout(options.timeout || 45000);
     const requestId = options.requestId || 'unknown';
 
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'Sending to OpenAI-compatible Audio API',
-      requestId,
-      endpoint: audioEndpoint,
-      model: model || 'whisper-1',
-      fileSize: fileBuffer.length,
-    }));
+
 
     try {
       const formData = new FormData();

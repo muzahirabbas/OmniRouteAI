@@ -22,13 +22,7 @@ export class DeepgramAdapter extends BaseAdapter {
     const requestId = options.requestId || 'unknown';
     
     // Log starting API request
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'Sending to Deepgram API',
-      requestId,
-      model: model || 'nova-2',
-      fileSize: fileBuffer.length,
-    }));
+
 
     try {
       const params = new URLSearchParams();

@@ -27,14 +27,7 @@ export class OpenAIWhisperAdapter extends BaseAdapter {
     const controller = this.createTimeout(DEFAULT_TIMEOUT);
     const requestId = options.requestId || 'unknown';
     
-    // Log starting API request
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'Sending to OpenAI Whisper API',
-      requestId,
-      model: model || 'whisper-1',
-      fileSize: fileBuffer.length,
-    }));
+
 
     try {
       const formData = new FormData();
@@ -72,15 +65,7 @@ export class OpenAIWhisperAdapter extends BaseAdapter {
 
       const data = await response.json();
       
-      // Log API response received
-      console.log(JSON.stringify({
-        level: 'info',
-        msg: 'OpenAI Whisper API response received',
-        requestId,
-        textLength: data.text?.length || 0,
-        duration: data.duration,
-        language: data.language,
-      }));
+
 
       return {
         text: data.text || '',
