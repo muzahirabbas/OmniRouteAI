@@ -196,6 +196,18 @@ export async function getLeastUsedKeyExcluding(provider, excludeKeys = []) {
   const rpmPrefix      = `rpm:${provider}:`;
   const rpmLimit       = getDefaultRpmLimit(provider);
 
+  // Debug: check if keys exist in Redis
+  const { getClient, get } = await import('../config/redis.js');
+  const client = getClient();
+  const keysInSet = await client.zrange(sortedSetKey, 0, -1);
+  console.log(JSON.stringify({
+    level: 'debug',
+    msg: 'Key selection debug',
+    provider,
+    keysInRedisSet: keysInSet,
+    excludeKeys,
+  }));
+
   const result = await evalLua(
     LUA_GET_LEAST_USED_KEY_EXCLUDING,
     1,

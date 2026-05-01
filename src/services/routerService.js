@@ -813,6 +813,15 @@ export async function transcribe(fileBuffer, opts = {}) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let routeResult;
 
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Transcription attempt',
+      requestId: opts.requestId,
+      attempt: attempt + 1,
+      failedProviders,
+      usedKeys,
+    }));
+
     try {
       routeResult = await route('', {
         model: opts.model,
@@ -821,13 +830,51 @@ export async function transcribe(fileBuffer, opts = {}) {
         excludeProviders: failedProviders,
         excludeKeys: usedKeys,
       });
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Route returned successfully',
+        requestId: opts.requestId,
+        provider: routeResult?.provider?.name,
+        model: routeResult?.model,
+        hasApiKey: !!routeResult?.apiKey,
+      }));
     } catch (err) {
       // FIX: Save the error to lastError before breaking
       lastError = err;
+      console.log(JSON.stringify({
+        level: 'error',
+        msg: 'Route failed',
+        requestId: opts.requestId,
+        error: err.message,
+        stack: err.stack,
+      }));
+      break;
+    }
+
+    if (!routeResult || !routeResult.provider) {
+      console.log(JSON.stringify({
+        level: 'error',
+        msg: 'Route returned null provider',
+        requestId: opts.requestId,
+        routeResult,
+      }));
+      lastError = new Error('No provider returned from route');
       break;
     }
 
     const { provider, model, apiKey, taskType } = routeResult;
+    
+    if (!apiKey) {
+      console.log(JSON.stringify({
+        level: 'warn',
+        msg: 'No API key for provider, adding to failed',
+        requestId: opts.requestId,
+        provider: provider.name,
+      }));
+      failedProviders.push(provider.name);
+      continue;
+    }
+    
     usedKeys.push(apiKey);
 
     console.log(JSON.stringify({

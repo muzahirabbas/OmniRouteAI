@@ -139,6 +139,14 @@ export async function buildServer(opts = {}) {
 
       keysSnapshot.forEach(doc => {
         const data = doc.data();
+        console.log(JSON.stringify({
+          level: 'debug',
+          msg: 'Key document from Firestore',
+          docId: doc.id,
+          provider: data.provider,
+          hasKey: !!data.key,
+          isDisabled: data.is_disabled,
+        }));
         if (data.provider && data.key) {
           if (!keysByProvider[data.provider]) keysByProvider[data.provider] = [];
           keysByProvider[data.provider].push(data.key);
@@ -146,6 +154,13 @@ export async function buildServer(opts = {}) {
           if (data.metadata) metadataOps.push(setKeyMetadata(data.provider, data.key, data.metadata));
         }
       });
+
+      console.log(JSON.stringify({
+        level: 'info',
+        msg: 'Keys loaded from Firestore by provider',
+        providers: Object.keys(keysByProvider),
+        keysPerProvider: Object.fromEntries(Object.entries(keysByProvider).map(([k, v]) => [k, v.length])),
+      }));
 
       await Promise.all([
         // NX flag: only adds keys not already in Redis, preserves usage scores
