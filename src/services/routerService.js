@@ -400,6 +400,11 @@ export async function route(prompt, opts = {}) {
     if (isAudio  && (!provider.features || !provider.features.includes('audio'))) continue;
     if (isVideo  && (!provider.features || !provider.features.includes('video'))) continue;
 
+    // For audio transcription, exclude local_http providers - they don't support transcription
+    if ((taskType === 'audio_transcription' || isAudio) && provider.type === 'local_http') {
+      continue;
+    }
+
     // Model selection: requested model → provider default → first model in list
     // For audio transcription, preserve the original whisper model even if not in provider's models list
     const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
