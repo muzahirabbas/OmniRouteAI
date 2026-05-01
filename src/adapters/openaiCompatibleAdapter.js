@@ -409,6 +409,71 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     return { output, tokens, thinking: reasoning, tool_calls: toolCalls, finish_reason: finishReason, raw: rawResponse };
   }
 
+  /**
+   * Transcribe audio using OpenAI-compatible Whisper API.
+   * Derives /v1/audio/transcriptions from the base endpoint.
+   */
+  async transcribe(fileBuffer, model, options = {}) {
+    // Derive audio endpoint from chat endpoint
+    // https://api.groq.com/openai/v1/chat/completions -> https://api.groq.com/openai/v1/audio/transcriptions
+    const audioEndpoint = this.endpoint.replace('/chat/completions', '/audio/transcriptions');
+    const controller = this.createTimeout(options.timeout || 45000);
+    const requestId = options.requestId || 'unknown';
+
+    console.log(JSON.stringify({
+      level: 'info',
+      msg: 'Sending to OpenAI-compatible Audio API',
+      requestId,
+      endpoint: audioEndpoint,
+      model: model || 'whisper-1',
+      fileSize: fileBuffer.length,
+    }));
+
+    try {
+      const formData = new FormData();
+      // Node.js 18+ fetch supports Blobs in FormData
+      const blob = new Blob([fileBuffer], { type: options.mimeType || 'audio/mpeg' });
+      formData.append('file', blob, options.filename || 'audio.mp3');
+      formData.append('model', model || 'whisper-1');
+      
+      if (options.language) formData.append('language', options.language);
+      if (options.response_format) formData.append('response_format', options.response_format);
+      if (options.prompt) formData.append('prompt', options.prompt);
+      if (options.temperature !== undefined) formData.append('temperature', String(options.temperature));
+
+      const response = await fetch(audioEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${options.apiKey}`,
+          // Note: Do NOT set Content-Type header when using FormData; fetch will set it with boundary
+        },
+        body: formData,
+        signal: controller.signal,
+      });
+
+      this.clearTimeout(controller);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
+      }
+
+      const data = await response.json();
+      
+      return {
+        text: data.text || '',
+        duration: data.duration || null,
+        words: data.words || null,
+        language: data.language || null,
+        raw: data,
+      };
+    } catch (err) {
+      this.clearTimeout(controller);
+      if (err instanceof ProviderError) throw err;
+      throw this.handleError(err);
+    }
+  }
+
   handleError(err) {
     if (err.name === 'AbortError') {
       return new ProviderError(this.providerName, 'Request timed out', 504, err);
