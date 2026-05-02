@@ -1,6 +1,7 @@
 import { buildServer } from './server.js';
 import { closeRedis } from './config/redis.js';
 import './cron/dailyReset.js'; // Start cron job on boot
+import './cron/syncJob.js'; // Start sync cron job on boot
 
 // FIX: Add unhandled rejection handler to prevent silent failures
 process.on('unhandledRejection', (reason, promise) => {
