@@ -28,6 +28,7 @@ import { getStats, aggregateDaily, getKeyStatsHistory } from '../services/statsS
 import { flushLogs } from '../services/loggingService.js';
 import { createRateLimiter } from '../utils/rateLimiter.js';
 import { invalidateAdapterCache } from '../services/routerService.js';
+import { disableSearchProvider } from '../services/searchRouterService.js';
 
 /**
  * Mask an API key for safe logging.
@@ -316,7 +317,23 @@ export async function adminRoutes(app) {
       const providers = [];
       snapshot.forEach(doc => providers.push(doc.data()));
 
-      await del('providers:list');
+      await Promise.all([
+        del('providers:list'),
+        del('search:providers:list')
+      ]);
+
+      // Refresh Search Providers from Firestore
+      const searchSnapshot = await Promise.race([db.collection('search_providers').get(), timeout(10000)]);
+      const searchProviders = [];
+      searchSnapshot.forEach(doc => searchProviders.push(doc.data()));
+
+      await Promise.all(searchProviders.map(async (sp) => {
+        if (!sp.name) return;
+        await resetSearchProviderKeys(sp.name);
+        if (sp.status === 'inactive') {
+          await disableSearchProvider(sp.name, 3600 * 24);
+        }
+      }));
 
       await Promise.all(providers.map(async (provider) => {
         if (!provider.name) return;
@@ -354,12 +371,39 @@ export async function adminRoutes(app) {
         ...metadataPromises
       ]);
 
+      // Sync Search API Keys
+      const searchKeysSnapshot = await Promise.race([db.collection('search_api_keys').get(), timeout(10000)]);
+      const searchKeysByProvider = {};
+      const disabledSearchKeys = [];
+      const searchMetadataPromises = [];
+
+      searchKeysSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.provider && data.key) {
+          if (!searchKeysByProvider[data.provider]) searchKeysByProvider[data.provider] = [];
+          searchKeysByProvider[data.provider].push(data.key);
+          if (data.is_disabled) {
+            disabledSearchKeys.push({ provider: data.provider, key: data.key });
+          }
+          if (data.metadata) {
+            searchMetadataPromises.push(setSearchKeyMetadata(data.provider, data.key, data.metadata));
+          }
+        }
+      });
+
+      await Promise.all([
+        ...Object.entries(searchKeysByProvider).map(([pName, pKeys]) => registerSearchKeys(pName, pKeys)),
+        ...disabledSearchKeys.map(dk => disableSearchKey(dk.provider, dk.key, 31536000)),
+        ...searchMetadataPromises
+      ]);
+
       invalidateAdapterCache('all');
 
       return {
         success: true,
-        providersRefreshed: providers.length,
-        keysReloaded: Object.values(keysByProvider).reduce((sum, ks) => sum + ks.length, 0),
+        providersRefreshed: providers.length + searchProviders.length,
+        keysReloaded: Object.values(keysByProvider).reduce((sum, ks) => sum + ks.length, 0) + 
+                      Object.values(searchKeysByProvider).reduce((sum, ks) => sum + ks.length, 0),
         adaptersInvalidated: true,
         timestamp: new Date().toISOString(),
       };

@@ -1314,6 +1314,7 @@ async function refreshProvidersFromDb() {
     // Refresh the local views too
     refreshOverview(true);
     refreshProviders(true);
+    refreshSearchProviders(true);
   } catch (err) {
     showToast('error', err.message);
   } finally {
