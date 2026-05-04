@@ -13,7 +13,7 @@ export class DeepgramAdapter extends BaseAdapter {
   buildHeaders(apiKey, options = {}) {
     return {
       Authorization: `Token ${apiKey}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/octet-stream', // Binary audio data
     };
   }
 
@@ -21,12 +21,17 @@ export class DeepgramAdapter extends BaseAdapter {
     const controller = this.createTimeout(DEFAULT_TIMEOUT);
     const requestId = options.requestId || 'unknown';
     
-    // Log starting API request
-
-
     try {
+      // Map generic Whisper model names to Deepgram's internal model names
+      let dgModel = model || 'nova-2';
+      if (dgModel.includes('whisper')) {
+        // Deepgram supports whisper-tiny, whisper-base, whisper-small, whisper-medium, whisper-large
+        // Map whisper-1 or whisper-large-v3 to whisper-large
+        dgModel = dgModel === 'whisper-1' || dgModel.includes('large') ? 'whisper-large' : 'whisper-medium';
+      }
+
       const params = new URLSearchParams();
-      params.append('model', model || 'nova-2');
+      params.append('model', dgModel);
       params.append('punctuate', 'true');
       params.append('diarize', 'false');
 

@@ -42,6 +42,9 @@ export class AnthropicAdapter extends BaseAdapter {
       headers['X-OmniRoute-Request-ID'] = options.requestId;
     }
     
+    // Add beta headers for prompt caching and PDF support
+    headers['anthropic-beta'] = 'prompt-caching-2024-07-31,pdfs-2024-09-25';
+    
     return headers;
   }
 
@@ -58,7 +61,7 @@ export class AnthropicAdapter extends BaseAdapter {
       // Handle multimodal array
       if (Array.isArray(prompt)) {
         content = prompt
-          .filter(p => typeof p === 'string' || p.type === 'text' || p.type === 'image')
+          .filter(p => typeof p === 'string' || p.type === 'text' || p.type === 'image' || p.type === 'document' || p.type === 'pdf')
           .map(p => {
             if (typeof p === 'string') return { type: 'text', text: p };
             if (p.type === 'text') return p;
@@ -69,6 +72,16 @@ export class AnthropicAdapter extends BaseAdapter {
                   type: 'base64', 
                   media_type: this.sanitizeMimeType(p.media_type), 
                   data: p.data 
+                }
+              };
+            }
+            if (p.type === 'document' || p.type === 'pdf') {
+              return {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: p.data
                 }
               };
             }
@@ -114,7 +127,14 @@ export class AnthropicAdapter extends BaseAdapter {
     }
 
     if (options.systemPrompt) {
-      body.system = options.systemPrompt;
+      // Use array format with cache_control for Prompt Caching
+      body.system = [
+        {
+          type: 'text',
+          text: options.systemPrompt,
+          cache_control: { type: 'ephemeral' }
+        }
+      ];
     }
     return body;
   }

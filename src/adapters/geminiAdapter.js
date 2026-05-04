@@ -63,6 +63,14 @@ export class GeminiAdapter extends BaseAdapter {
                    };
                  }
               }
+              if (p.type === 'document' || p.type === 'pdf') {
+                 return {
+                   inlineData: {
+                     mimeType: 'application/pdf',
+                     data: p.data
+                   }
+                 };
+              }
               return null;
            }).filter(Boolean);
         }
@@ -79,10 +87,10 @@ export class GeminiAdapter extends BaseAdapter {
         parts = prompt.map(p => {
           if (typeof p === 'string') return { text: p };
           if (p.type === 'text') return { text: p.text };
-          if (p.type === 'image' || p.type === 'audio' || p.type === 'video') {
+          if (p.type === 'image' || p.type === 'audio' || p.type === 'video' || p.type === 'document' || p.type === 'pdf') {
             return {
               inlineData: {
-                mimeType: this.sanitizeMimeType(p.media_type),
+                mimeType: (p.type === 'document' || p.type === 'pdf') ? 'application/pdf' : this.sanitizeMimeType(p.media_type),
                 data: p.data
               }
             };
@@ -104,8 +112,15 @@ export class GeminiAdapter extends BaseAdapter {
         : {}),
     };
 
-    if (options.response_format?.type === 'json_object') {
-      generationConfig.responseMimeType = 'application/json';
+    if (options.response_format) {
+      if (options.response_format.type === 'json_object') {
+        generationConfig.responseMimeType = 'application/json';
+      } else if (options.response_format.type === 'json_schema') {
+        generationConfig.responseMimeType = 'application/json';
+        if (options.response_format.json_schema && options.response_format.json_schema.schema) {
+          generationConfig.responseSchema = options.response_format.json_schema.schema;
+        }
+      }
     }
 
     const body = { contents, generationConfig };

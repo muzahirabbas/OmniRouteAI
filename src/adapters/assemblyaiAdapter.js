@@ -69,6 +69,7 @@ export class AssemblyAIAdapter extends BaseAdapter {
           audio_url: audioUrl,
           language_detection: options.language ? false : true,
           language_code: options.language || undefined,
+          speech_models: ["universal-3-pro", "universal-2"], // Required for newer accounts/models
         }),
         signal: controller.signal,
       });

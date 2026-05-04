@@ -18,6 +18,7 @@ export class SerperAdapter extends BaseAdapter {
       maxResults = 5,
       country = 'us',
       searchLang = 'en',
+      type = 'search', // search, news, images, places
       signal,
     } = options;
 
@@ -28,11 +29,12 @@ export class SerperAdapter extends BaseAdapter {
       hl: searchLang,
     };
 
+    const endpoint = `https://google.serper.dev/${type}`;
     const controller = this.createTimeout(30000);
     const finalSignal = signal || controller.signal;
 
     try {
-      const res = await fetch(SERPER_ENDPOINT, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

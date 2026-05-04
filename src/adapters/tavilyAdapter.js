@@ -19,6 +19,7 @@ export class TavilyAdapter extends BaseAdapter {
       searchDepth = 'basic',
       includeAnswer = true,
       includeRawContent = false,
+      topic = 'general',
       signal,
     } = options;
 
@@ -29,6 +30,7 @@ export class TavilyAdapter extends BaseAdapter {
       search_depth: searchDepth,
       include_answer: includeAnswer,
       include_raw_content: includeRawContent,
+      topic,
     };
 
     const controller = this.createTimeout(30000);

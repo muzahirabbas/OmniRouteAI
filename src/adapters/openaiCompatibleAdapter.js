@@ -121,7 +121,12 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
 
     // Add response_format (json_object, json_schema)
     if (options.response_format) {
-      body.response_format = options.response_format;
+      const format = { ...options.response_format };
+      // Force strict mode for JSON schemas
+      if (format.type === 'json_schema' && format.json_schema) {
+        format.json_schema.strict = true;
+      }
+      body.response_format = format;
     }
 
     // Add tools for function calling
@@ -132,6 +137,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
             ...t,
             function: {
               ...t.function,
+              strict: true,
               parameters: this.cleanSchema(t.function.parameters)
             }
           };
@@ -439,6 +445,16 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       
       if (options.language) formData.append('language', options.language);
       if (options.response_format) formData.append('response_format', options.response_format);
+      
+      // Add timestamp_granularities for word-level or segment-level timestamps
+      if (options.timestamp_granularities) {
+        if (Array.isArray(options.timestamp_granularities)) {
+          options.timestamp_granularities.forEach(tg => formData.append('timestamp_granularities[]', tg));
+        } else {
+          formData.append('timestamp_granularities[]', options.timestamp_granularities);
+        }
+      }
+      
       if (options.prompt) formData.append('prompt', options.prompt);
       if (options.temperature !== undefined) formData.append('temperature', String(options.temperature));
 

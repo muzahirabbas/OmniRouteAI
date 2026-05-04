@@ -236,7 +236,12 @@ export class CloudflareAdapter extends BaseAdapter {
     }));
 
     try {
-      const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model || '@cf/openai/whisper'}`;
+      // Map generic Whisper model names to Cloudflare's specific model
+      const cfModel = (model && (model.includes('whisper') || model === 'auto'))
+        ? '@cf/openai/whisper'
+        : (model || '@cf/openai/whisper');
+
+      const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${cfModel}`;
 
       // CRITICAL FIX: Cloudflare expects BASE64-encoded audio, not an array of bytes
       const audioBase64 = fileBuffer.toString('base64');
@@ -255,6 +260,18 @@ export class CloudflareAdapter extends BaseAdapter {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
+        
+        // Enhance 401 logging with specific permission hints
+        if (response.status === 401) {
+          console.log(JSON.stringify({
+            level: 'error',
+            msg: 'Cloudflare Authentication Failed (401)',
+            requestId,
+            hint: 'Verify API Token has "Workers AI: Read/Edit" permissions and Account ID is correct.',
+            accountId: accountId.substring(0, 8) + '...',
+          }));
+        }
+
         throw new ProviderError(this.providerName, `HTTP ${response.status}: ${errorBody}`, response.status);
       }
 

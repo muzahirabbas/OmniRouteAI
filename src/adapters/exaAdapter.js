@@ -18,6 +18,8 @@ export class ExaAdapter extends BaseAdapter {
       maxResults = 5,
       useAutoprompt = true,
       type = 'neural',
+      includeText = true,
+      includeHighlights = false,
       signal,
     } = options;
 
@@ -26,8 +28,14 @@ export class ExaAdapter extends BaseAdapter {
       numResults: maxResults,
       use_autoprompt: useAutoprompt,
       type,
-      text: { maxCharacters: 500 },
     };
+    
+    if (includeText || includeHighlights) {
+      body.contents = {
+        text: includeText ? { maxCharacters: 4000 } : undefined,
+        highlights: includeHighlights ? { numSentences: 3 } : undefined,
+      };
+    }
 
     const controller = this.createTimeout(30000);
     const finalSignal = signal || controller.signal;
