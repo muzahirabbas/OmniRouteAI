@@ -784,6 +784,27 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'GITHUB_TOKEN',
     features: ['vision', 'tool-calling'],
+  },
+  {
+    name: 'ovhcloud',
+    priority: 2,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
+    models: [
+      'Meta-Llama-3_3-70B-Instruct',
+      'Meta-Llama-3_1-8B-Instruct',
+      'DeepSeek-R1-Distill-Llama-70B',
+      'Qwen3-32B',
+      'Qwen3-Coder-30B-A3B-Instruct',
+      'Qwen2.5-VL-72B-Instruct',
+      'Mixtral-8x7B-Instruct-v0.1',
+      'Mistral-Nemo-Instruct-2407',
+    ],
+    rpmLimit: 400,
+    requiresAuth: true,
+    authEnvVar: 'OVH_AI_ENDPOINTS_TOKEN',
+    features: ['vision', 'tool-calling'],
   }
 ];
 

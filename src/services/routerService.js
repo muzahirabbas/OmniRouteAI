@@ -222,7 +222,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'modelscope':
     case 'kilo':
     case 'vercel-ai-gateway':
-    case 'github-models': {
+    case 'github-models':
+    case 'ovhcloud': {
       // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
@@ -237,6 +238,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         kilo:        'https://api.kilo.ai/api/gateway/chat/completions',
         'vercel-ai-gateway': 'https://ai-gateway.vercel.sh/v1/chat/completions',
         'github-models': 'https://models.github.ai/inference/chat/completions',
+        ovhcloud:    'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
