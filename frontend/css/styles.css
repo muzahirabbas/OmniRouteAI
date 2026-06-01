@@ -1607,3 +1607,16 @@ audio.chat-response-media {
   outline-offset: 2px;
 }
 .toggle-label { white-space: nowrap; }
+
+/* ─── Filter Group ─────────────────────────────────────────────────────── */
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.filter-group-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.filter-group .input { min-width: 130px; }

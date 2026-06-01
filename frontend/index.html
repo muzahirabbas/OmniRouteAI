@@ -121,6 +121,14 @@
             <span class="toggle-track"><span class="toggle-thumb"></span></span>
             <span class="toggle-label">Hide disabled</span>
           </label>
+          <div class="filter-group">
+            <span class="filter-group-label">Type</span>
+            <select id="providers-type-filter" class="input" onchange="applyProvidersFilter()">
+              <option value="all">All</option>
+              <option value="cli">CLI (Local)</option>
+              <option value="cloud">Cloud</option>
+            </select>
+          </div>
           <button type="button" class="btn btn-secondary" onclick="openAddCustomProviderModal()">➕ Add Custom</button>
           <button type="button" class="btn btn-secondary" id="seed-defaults-btn" onclick="seedProviders()">🌱 Seed Defaults</button>
           <button type="button" class="btn btn-ghost" onclick="refreshProviders(true)">↻ Refresh</button>

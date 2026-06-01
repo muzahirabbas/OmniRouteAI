@@ -319,7 +319,7 @@ function renderProvidersList(providers) {
   }
 
   if (!providers.length) {
-    container.innerHTML = '<div class="empty-state">All providers are currently disabled. Toggle off to show them.</div>';
+    container.innerHTML = '<div class="empty-state">No providers match the current filter.</div>';
     return;
   }
 
@@ -382,13 +382,25 @@ function renderProvidersList(providers) {
 }
 
 /**
- * Filter the rendered providers list based on the "Hide disabled" toggle.
- * Called from refreshProviders and from the toggle's onchange handler.
+ * Filter the rendered providers list based on the "Hide disabled" toggle
+ * and the "Type" filter (All / CLI / Cloud). Called from refreshProviders
+ * and from either control's onchange handler.
  */
 function applyProvidersFilter() {
   const hideDisabled = document.getElementById('providers-hide-disabled')?.checked;
-  const all = window.allProviders || [];
-  const filtered = hideDisabled ? all.filter(p => !p.disabled) : all;
+  const typeFilter   = document.getElementById('providers-type-filter')?.value || 'all';
+  const all          = window.allProviders || [];
+
+  let filtered = all;
+  if (typeFilter === 'cli') {
+    filtered = filtered.filter(p => p.type === 'local_http');
+  } else if (typeFilter === 'cloud') {
+    filtered = filtered.filter(p => p.type !== 'local_http');
+  }
+  if (hideDisabled) {
+    filtered = filtered.filter(p => !p.disabled);
+  }
+
   renderProvidersList(filtered);
 }
 
