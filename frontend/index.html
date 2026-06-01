@@ -116,6 +116,11 @@
       <div class="page-header">
         <h2>Providers</h2>
         <div class="header-actions">
+          <label class="toggle-switch" title="Hide disabled providers">
+            <input type="checkbox" id="providers-hide-disabled" onchange="applyProvidersFilter()">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">Hide disabled</span>
+          </label>
           <button type="button" class="btn btn-secondary" onclick="openAddCustomProviderModal()">➕ Add Custom</button>
           <button type="button" class="btn btn-secondary" id="seed-defaults-btn" onclick="seedProviders()">🌱 Seed Defaults</button>
           <button type="button" class="btn btn-ghost" onclick="refreshProviders(true)">↻ Refresh</button>

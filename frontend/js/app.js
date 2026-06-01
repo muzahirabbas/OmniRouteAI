@@ -300,70 +300,96 @@ async function refreshProviders(force = false) {
     // Dynamically update all select dropdowns that list providers
     syncProviderDropdowns(providers);
 
-    if (!providers.length) {
-      container.innerHTML = '<div class="empty-state">No providers. Click "Seed Defaults" to add default providers.</div>';
-      return;
-    }
-
-    container.innerHTML = providers.map((p) => `
-      <div class="provider-card">
-        <div class="provider-header">
-          <span class="provider-name">${escapeHTML(p.name)}</span>
-          <span class="badge ${p.disabled ? 'badge-error' : 'badge-success'}">
-            ${p.disabled ? 'Disabled' : 'Active'}
-          </span>
-        </div>
-        <div class="provider-meta">
-          <div class="provider-meta-row">
-            <span>Priority</span>
-            <span class="provider-meta-value">${escapeHTML(String(p.priority))}</span>
-          </div>
-          <div class="provider-meta-row">
-            <span>Weight</span>
-            <span class="provider-meta-value">${escapeHTML(String(p.weight))}</span>
-          </div>
-          <div class="provider-meta-row">
-            <span>Error Rate</span>
-            <span class="provider-meta-value ${p.errorRate > 30 ? 'text-error' : ''}">${escapeHTML(String(p.errorRate))}%</span>
-          </div>
-          <div class="provider-meta-row">
-            <span>API Keys</span>
-            <span class="provider-meta-value">${escapeHTML(String(p.keyCount || 0))} registered</span>
-          </div>
-          <div class="provider-meta-row" style="margin-top: 0.25rem; border-top: 1px solid var(--border-subtle); padding-top: 0.5rem;">
-            <span>Default Model</span>
-            <span class="provider-meta-value" style="color: var(--text-accent); font-family: monospace; font-size: 0.75rem;">${escapeHTML(p.default_model || '—')}</span>
-          </div>
-        </div>
-        <div class="capabilities-container">
-          ${(p.features || []).map(f => `<span class="capability-tag tag-${f}">${escapeHTML(f)}</span>`).join('')}
-          ${p.supports_reasoning ? '<span class="capability-tag tag-reasoning">reasoning</span>' : ''}
-        </div>
-        <div class="provider-actions">
-          <button class="btn btn-sm btn-secondary"
-            data-provider='${escapeHTML(JSON.stringify(p))}'
-            onclick="const p = JSON.parse(this.dataset.provider); openEditProviderModal(p.name, p.priority, p.weight, p.models, p.default_model || '')">
-            ✏️ Edit
-          </button>
-          <button class="btn btn-sm ${p.disabled ? 'btn-primary' : 'btn-danger'}"
-            data-name="${escapeHTML(p.name)}"
-            data-action="toggle"
-            data-disabled="${!p.disabled}"
-            onclick="toggleProvider(this.dataset.name, this.dataset.disabled === 'true')">
-            ${p.disabled ? '✅ Enable' : '🚫 Disable'}
-          </button>
-          <button class="btn btn-sm btn-danger"
-            data-name="${escapeHTML(p.name)}"
-            data-action="delete"
-            onclick="deleteProvider(this.dataset.name)">
-            🗑️ Delete
-          </button>
-        </div>
-      </div>
-    `).join('');
+    applyProvidersFilter();
   } catch (err) {
     container.innerHTML = `<div class="empty-state">Failed to load: ${escapeHTML(err.message)}</div>`;
   }
+}
+
+/**
+ * Render the providers list markup for a given array of providers.
+ */
+function renderProvidersList(providers) {
+  const container = document.getElementById('providers-list');
+  const all = window.allProviders || [];
+
+  if (!all.length) {
+    container.innerHTML = '<div class="empty-state">No providers. Click "Seed Defaults" to add default providers.</div>';
+    return;
+  }
+
+  if (!providers.length) {
+    container.innerHTML = '<div class="empty-state">All providers are currently disabled. Toggle off to show them.</div>';
+    return;
+  }
+
+  container.innerHTML = providers.map((p) => `
+    <div class="provider-card">
+      <div class="provider-header">
+        <span class="provider-name">${escapeHTML(p.name)}</span>
+        <span class="badge ${p.disabled ? 'badge-error' : 'badge-success'}">
+          ${p.disabled ? 'Disabled' : 'Active'}
+        </span>
+      </div>
+      <div class="provider-meta">
+        <div class="provider-meta-row">
+          <span>Priority</span>
+          <span class="provider-meta-value">${escapeHTML(String(p.priority))}</span>
+        </div>
+        <div class="provider-meta-row">
+          <span>Weight</span>
+          <span class="provider-meta-value">${escapeHTML(String(p.weight))}</span>
+        </div>
+        <div class="provider-meta-row">
+          <span>Error Rate</span>
+          <span class="provider-meta-value ${p.errorRate > 30 ? 'text-error' : ''}">${escapeHTML(String(p.errorRate))}%</span>
+        </div>
+        <div class="provider-meta-row">
+          <span>API Keys</span>
+          <span class="provider-meta-value">${escapeHTML(String(p.keyCount || 0))} registered</span>
+        </div>
+        <div class="provider-meta-row" style="margin-top: 0.25rem; border-top: 1px solid var(--border-subtle); padding-top: 0.5rem;">
+          <span>Default Model</span>
+          <span class="provider-meta-value" style="color: var(--text-accent); font-family: monospace; font-size: 0.75rem;">${escapeHTML(p.default_model || '—')}</span>
+        </div>
+      </div>
+      <div class="capabilities-container">
+        ${(p.features || []).map(f => `<span class="capability-tag tag-${f}">${escapeHTML(f)}</span>`).join('')}
+        ${p.supports_reasoning ? '<span class="capability-tag tag-reasoning">reasoning</span>' : ''}
+      </div>
+      <div class="provider-actions">
+        <button class="btn btn-sm btn-secondary"
+          data-provider='${escapeHTML(JSON.stringify(p))}'
+          onclick="const p = JSON.parse(this.dataset.provider); openEditProviderModal(p.name, p.priority, p.weight, p.models, p.default_model || '')">
+          ✏️ Edit
+        </button>
+        <button class="btn btn-sm ${p.disabled ? 'btn-primary' : 'btn-danger'}"
+          data-name="${escapeHTML(p.name)}"
+          data-action="toggle"
+          data-disabled="${!p.disabled}"
+          onclick="toggleProvider(this.dataset.name, this.dataset.disabled === 'true')">
+          ${p.disabled ? '✅ Enable' : '🚫 Disable'}
+        </button>
+        <button class="btn btn-sm btn-danger"
+          data-name="${escapeHTML(p.name)}"
+          data-action="delete"
+          onclick="deleteProvider(this.dataset.name)">
+          🗑️ Delete
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/**
+ * Filter the rendered providers list based on the "Hide disabled" toggle.
+ * Called from refreshProviders and from the toggle's onchange handler.
+ */
+function applyProvidersFilter() {
+  const hideDisabled = document.getElementById('providers-hide-disabled')?.checked;
+  const all = window.allProviders || [];
+  const filtered = hideDisabled ? all.filter(p => !p.disabled) : all;
+  renderProvidersList(filtered);
 }
 
 /**
