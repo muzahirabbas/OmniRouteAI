@@ -238,7 +238,7 @@ export const STATIC_PROVIDERS = [
     priority: 4,
     weight: 5,
     status: 'active',
-    endpoint: 'https://api-inference.huggingface.co/models/',
+    endpoint: 'https://router.huggingface.co/v1/chat/completions',
     models: [
       'meta-llama/Llama-3.1-8B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3'
     ],
@@ -365,7 +365,7 @@ export const STATIC_PROVIDERS = [
     priority: 3,
     weight: 10,
     status: 'active',
-    endpoint: 'https://ollama.com/api',
+    endpoint: 'https://ollama.com/v1/chat/completions',
     models: [
       'llama3.2:1b', 'qwen2.5:cloud', 'llama3.2:3b'
     ],
