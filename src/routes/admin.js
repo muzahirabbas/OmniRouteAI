@@ -26,7 +26,7 @@ import {
 } from '../services/searchKeyService.js';
 import { getStats, aggregateDaily, getKeyStatsHistory } from '../services/statsService.js';
 import { flushLogs } from '../services/loggingService.js';
-import { createRateLimiter } from '../utils/rateLimiter.js';
+import { rateLimiters } from '../utils/rateLimiter.js';
 import { invalidateAdapterCache } from '../services/routerService.js';
 import { disableSearchProvider } from '../services/searchRouterService.js';
 
@@ -39,23 +39,21 @@ function maskKey(key) {
   return `${key.slice(0, 6)}...${key.slice(-4)}`;
 }
 
-// Rate limiter for admin endpoints: 10 requests per minute per IP
-const adminRateLimiter = createRateLimiter({
-  windowMs: 60000,
-  maxRequests: 10,
-  keyPrefix: 'ratelimit:admin:',
-});
+// Rate limiting for admin endpoints is applied per HTTP method:
+//   - GETs (reads):  140 req/min per IP
+//   - POST/PUT/DELETE (writes): 30 req/min per IP
+// /simulate-rotation and /test/* are exempt (diagnostic/simulation only).
 
 /**
  * Admin API routes.
  */
 export async function adminRoutes(app) {
-  // Apply rate limiting to all admin routes EXCEPT diagnostic simulations
   app.addHook('onRequest', (request, reply, done) => {
     if (request.url.includes('/simulate-rotation') || request.url.includes('/test/')) {
       return done();
     }
-    return adminRateLimiter(request, reply, done);
+    const limiter = request.method === 'GET' ? rateLimiters.adminRead : rateLimiters.adminWrite;
+    return limiter(request, reply, done);
   });
 
   // ─── System Health ────────────────────────────────────────────────────

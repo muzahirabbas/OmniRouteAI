@@ -89,6 +89,20 @@ export const rateLimiters = {
     keyPrefix: 'ratelimit:admin:',
   }),
 
+  // Read-only admin endpoints (140 req/min)
+  adminRead: createRateLimiter({
+    windowMs: 60000,
+    maxRequests: 140,
+    keyPrefix: 'ratelimit:admin:read:',
+  }),
+
+  // Mutating admin endpoints (30 req/min)
+  adminWrite: createRateLimiter({
+    windowMs: 60000,
+    maxRequests: 30,
+    keyPrefix: 'ratelimit:admin:write:',
+  }),
+
   // Moderate rate limit for API endpoints (30 req/min)
   api: createRateLimiter({
     windowMs: 60000,
