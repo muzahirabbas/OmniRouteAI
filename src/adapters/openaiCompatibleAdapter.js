@@ -242,7 +242,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
    * No buffering — chunks are forwarded to options.onChunk immediately.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const controller = this.createTimeout();
+    const controller = this.createTimeout(this.streamTimeout);
     const signal = options.abortSignal 
       ? AbortSignal.any([controller.signal, options.abortSignal])
       : controller.signal;

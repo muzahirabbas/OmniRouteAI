@@ -9,6 +9,8 @@
  */
 
 const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 60000; // 60s
+const DEFAULT_STREAM_TIMEOUT = 1800000; // 30m
+
 
 export class BaseAdapter {
   constructor(providerName) {
@@ -17,6 +19,7 @@ export class BaseAdapter {
     }
     this.providerName = providerName;
     this.timeout = DEFAULT_TIMEOUT;
+    this.streamTimeout = DEFAULT_STREAM_TIMEOUT;
   }
 
   /**

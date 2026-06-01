@@ -202,7 +202,7 @@ export class GeminiAdapter extends BaseAdapter {
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
     const url = `${this.baseUrl}/${model}:streamGenerateContent?alt=sse`;
-    const controller = this.createTimeout();
+    const controller = this.createTimeout(this.streamTimeout);
     const signal = options.abortSignal 
       ? AbortSignal.any([controller.signal, options.abortSignal])
       : controller.signal;
