@@ -224,7 +224,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'vercel-ai-gateway':
     case 'github-models':
     case 'ovhcloud':
-    case 'nscale': {
+    case 'nscale':
+    case 'aion-labs': {
       // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
@@ -241,6 +242,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         'github-models': 'https://models.github.ai/inference/chat/completions',
         ovhcloud:    'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
         nscale:      'https://inference.api.nscale.com/v1/chat/completions',
+        'aion-labs': 'https://api.aionlabs.ai/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;

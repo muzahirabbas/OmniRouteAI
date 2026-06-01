@@ -823,6 +823,22 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'NSCALE_API_KEY',
     features: ['tool-calling'],
+  },
+  {
+    name: 'aion-labs',
+    priority: 3,
+    weight: 3,
+    status: 'active',
+    endpoint: 'https://api.aionlabs.ai/v1/chat/completions',
+    models: [
+      'aion-2.0',
+      'aion-1.0',
+      'aion-1.0-mini',
+    ],
+    rpmLimit: 20,
+    requiresAuth: true,
+    authEnvVar: 'AION_LABS_API_KEY',
+    features: [],
   }
 ];
 
