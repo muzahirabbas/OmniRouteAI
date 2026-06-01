@@ -839,6 +839,25 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'AION_LABS_API_KEY',
     features: [],
+  },
+  {
+    name: 'llm7',
+    priority: 3,
+    weight: 3,
+    status: 'active',
+    endpoint: 'https://api.llm7.io/v1/chat/completions',
+    models: [
+      'deepseek-r1-0528',
+      'deepseek-v3-0324',
+      'gemini-2.5-flash-lite',
+      'gpt-4o-mini',
+      'mistral-small-3.1-24b',
+      'qwen2.5-coder-32b',
+    ],
+    rpmLimit: 30,
+    requiresAuth: true,
+    authEnvVar: 'LLM7_API_KEY',
+    features: ['vision', 'tool-calling'],
   }
 ];
 
