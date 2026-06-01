@@ -761,6 +761,29 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'VERCEL_AI_GATEWAY_API_KEY',
     features: ['vision', 'tool-calling'],
+  },
+  {
+    name: 'github-models',
+    priority: 2,
+    weight: 8,
+    status: 'active',
+    endpoint: 'https://models.github.ai/inference/chat/completions',
+    models: [
+      'gpt-5',
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-4o',
+      'o4-mini',
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'meta-llama/llama-4-maverick-17b-128e-instruct',
+      'meta-llama/llama-3.3-70b-instruct',
+      'deepseek-r1',
+      'mistralai/mistral-small-3.1-24b-instruct',
+    ],
+    rpmLimit: 50,
+    requiresAuth: true,
+    authEnvVar: 'GITHUB_TOKEN',
+    features: ['vision', 'tool-calling'],
   }
 ];
 
