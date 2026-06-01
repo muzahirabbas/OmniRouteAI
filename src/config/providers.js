@@ -858,6 +858,21 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'LLM7_API_KEY',
     features: ['vision', 'tool-calling'],
+  },
+  {
+    name: 'ai21',
+    priority: 4,
+    weight: 2,
+    status: 'active',
+    endpoint: 'https://api.ai21.com/studio/v1/chat/completions',
+    models: [
+      'jamba-large-1.7',
+      'jamba-mini-2',
+    ],
+    rpmLimit: 200,
+    requiresAuth: true,
+    authEnvVar: 'AI21_API_KEY',
+    features: ['tool-calling'],
   }
 ];
 

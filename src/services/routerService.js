@@ -226,7 +226,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'ovhcloud':
     case 'nscale':
     case 'aion-labs':
-    case 'llm7': {
+    case 'llm7':
+    case 'ai21': {
       // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
@@ -245,6 +246,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         nscale:      'https://inference.api.nscale.com/v1/chat/completions',
         'aion-labs': 'https://api.aionlabs.ai/v1/chat/completions',
         llm7:        'https://api.llm7.io/v1/chat/completions',
+        ai21:        'https://api.ai21.com/studio/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
