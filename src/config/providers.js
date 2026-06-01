@@ -805,6 +805,24 @@ export const STATIC_PROVIDERS = [
     requiresAuth: true,
     authEnvVar: 'OVH_AI_ENDPOINTS_TOKEN',
     features: ['vision', 'tool-calling'],
+  },
+  {
+    name: 'nscale',
+    priority: 2,
+    weight: 5,
+    status: 'active',
+    endpoint: 'https://inference.api.nscale.com/v1/chat/completions',
+    models: [
+      'meta-llama/Llama-3.3-70B-Instruct',
+      'Qwen3-Coder-30B-A3B-Instruct',
+      'deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
+      'openai/gpt-oss-120b',
+      'Qwen3-32B',
+    ],
+    rpmLimit: 30,
+    requiresAuth: true,
+    authEnvVar: 'NSCALE_API_KEY',
+    features: ['tool-calling'],
   }
 ];
 
