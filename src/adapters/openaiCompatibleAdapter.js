@@ -420,7 +420,22 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     // Extract finish reason
     const finishReason = rawResponse.choices?.[0]?.finish_reason || 'stop';
     const tokens = await extractTokens(rawResponse, output);
-    return { output, tokens, thinking: reasoning, tool_calls: toolCalls, finish_reason: finishReason, raw: rawResponse };
+    const normalized = { output, tokens, thinking: reasoning, tool_calls: toolCalls, finish_reason: finishReason, raw: rawResponse };
+
+    // Vercel AI Gateway exposes per-request metadata under `providerMetadata.gateway`
+    // or top-level `gateway`. Pass through cost, provider, BYOK, and generation id.
+    const gw = rawResponse.providerMetadata?.gateway || rawResponse.gateway;
+    if (gw) {
+      normalized.gateway = {
+        cost:         gw.cost,
+        marketCost:   gw.marketCost,
+        providerName: gw.provider_name,
+        isByok:       gw.is_byok,
+        generationId: gw.generationId,
+      };
+    }
+
+    return normalized;
   }
 
   /**

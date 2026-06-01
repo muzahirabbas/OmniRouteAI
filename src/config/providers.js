@@ -740,6 +740,27 @@ export const STATIC_PROVIDERS = [
     models: ['best', 'nano'],
     rpmLimit: 50,
     features: ['audio', 'transcription'],
+  },
+  {
+    name: 'vercel-ai-gateway',
+    priority: 1,
+    weight: 15,
+    status: 'active',
+    endpoint: 'https://ai-gateway.vercel.sh/v1/chat/completions',
+    models: [
+      'openai/gpt-5.5',
+      'anthropic/claude-opus-4.7',
+      'xai/grok-4.3',
+      'google/gemini-3.1-pro-preview',
+      'meta-llama/llama-4-maverick',
+      'deepseek-ai/deepseek-r1',
+      'qwen/qwen3-coder-480b-a35b',
+      'mistralai/mistral-large-3',
+    ],
+    rpmLimit: 100,
+    requiresAuth: true,
+    authEnvVar: 'VERCEL_AI_GATEWAY_API_KEY',
+    features: ['vision', 'tool-calling'],
   }
 ];
 

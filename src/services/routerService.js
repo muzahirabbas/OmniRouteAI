@@ -220,7 +220,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'nanobanana':
     case 'opencode_zen':
     case 'modelscope':
-    case 'kilo': {
+    case 'kilo':
+    case 'vercel-ai-gateway': {
       // OpenAI-compatible chat completions inference providers
       const mod = await import('../adapters/inferenceAdapter.js');
       const endpoints = {
@@ -233,6 +234,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         opencode_zen: 'https://opencode.ai/zen/v1/chat/completions',
         modelscope:  'https://api-inference.modelscope.cn/v1/chat/completions',
         kilo:        'https://api.kilo.ai/api/gateway/chat/completions',
+        'vercel-ai-gateway': 'https://ai-gateway.vercel.sh/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
