@@ -10,8 +10,10 @@ import { extractTokens } from '../services/statsService.js';
 export class CloudflareAdapter extends BaseAdapter {
   constructor() {
     super('cloudflare');
-    this.accountId = process.env.CF_ACCOUNT_ID;
-    this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/ai/run`;
+  }
+
+  _resolveAccountId(metadata) {
+    return metadata?.accountId || process.env.CF_ACCOUNT_ID;
   }
 
   /**
@@ -66,7 +68,7 @@ export class CloudflareAdapter extends BaseAdapter {
    * Send a non-streaming request to Cloudflare Workers AI.
    */
   async sendRequest(prompt, model, apiKey, options = {}) {
-    const accountId = options.metadata?.accountId || this.accountId;
+    const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
@@ -89,6 +91,15 @@ export class CloudflareAdapter extends BaseAdapter {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
+        if (response.status === 401) {
+          console.log(JSON.stringify({
+            level: 'error',
+            msg: 'Cloudflare Authentication Failed (401)',
+            requestId: options.requestId,
+            hint: 'Verify API Token has "Workers AI: Read/Edit" permissions and Account ID is correct.',
+            accountId: accountId ? accountId.substring(0, 8) + '...' : 'MISSING',
+          }));
+        }
         throw new ProviderError(
           this.providerName,
           `HTTP ${response.status}: ${errorBody}`,
@@ -108,7 +119,7 @@ export class CloudflareAdapter extends BaseAdapter {
    * Send a streaming request to Cloudflare Workers AI.
    */
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    const accountId = options.metadata?.accountId || this.accountId;
+    const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
@@ -133,6 +144,15 @@ export class CloudflareAdapter extends BaseAdapter {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
+        if (response.status === 401) {
+          console.log(JSON.stringify({
+            level: 'error',
+            msg: 'Cloudflare Authentication Failed (401)',
+            requestId: options.requestId,
+            hint: 'Verify API Token has "Workers AI: Read/Edit" permissions and Account ID is correct.',
+            accountId: accountId ? accountId.substring(0, 8) + '...' : 'MISSING',
+          }));
+        }
         throw new ProviderError(
           this.providerName,
           `HTTP ${response.status}: ${errorBody}`,
@@ -217,7 +237,7 @@ export class CloudflareAdapter extends BaseAdapter {
    * Model: @cf/openai/whisper
    */
   async transcribe(fileBuffer, model, options = {}) {
-    const accountId = options.metadata?.accountId || this.accountId;
+    const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
       throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
     }
@@ -236,15 +256,18 @@ export class CloudflareAdapter extends BaseAdapter {
     }));
 
     try {
-      // Map generic Whisper model names to Cloudflare's specific model
+      const wantsBase64 = !!(model && model.includes('large-v3-turbo'));
       const cfModel = (model && (model.includes('whisper') || model === 'auto'))
-        ? '@cf/openai/whisper'
+        ? (wantsBase64 ? '@cf/openai/whisper-large-v3-turbo' : '@cf/openai/whisper')
         : (model || '@cf/openai/whisper');
 
       const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${cfModel}`;
 
-      // CRITICAL FIX: Cloudflare expects BASE64-encoded audio, not an array of bytes
-      const audioBase64 = fileBuffer.toString('base64');
+      // @cf/openai/whisper expects a byte array (0-255 ints);
+      // @cf/openai/whisper-large-v3-turbo expects a base64 string.
+      const body = cfModel === '@cf/openai/whisper-large-v3-turbo'
+        ? JSON.stringify({ audio: fileBuffer.toString('base64') })
+        : JSON.stringify({ audio: Array.from(new Uint8Array(fileBuffer)) });
 
       const response = await fetch(url, {
         method: 'POST',
@@ -252,7 +275,7 @@ export class CloudflareAdapter extends BaseAdapter {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${options.apiKey}`,
         },
-        body: JSON.stringify({ audio: audioBase64 }),
+        body,
         signal: controller.signal,
       });
 

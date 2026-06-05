@@ -923,6 +923,9 @@ export async function transcribe(fileBuffer, opts = {}) {
         (provider.name === 'cloudflare');
       const providerConfigForAdapter = { ...provider, model: shouldPassModel ? model : undefined };
       const adapter = await getAdapter(provider.name, providerConfigForAdapter);
+      const transcriptionMetadata = (provider.type === 'vertex' || provider.type === 'cloudflare' || provider.name === 'google_pse')
+        ? (await getKeyMetadata(provider.name, apiKey)) || {}
+        : {};
 
       // Wrap transcription in timeout
       const transcriptionPromise = adapter.transcribe(fileBuffer, model, {
@@ -931,6 +934,7 @@ export async function transcribe(fileBuffer, opts = {}) {
         requestId: opts.requestId,
         mimeType: opts.mimeType,
         filename: opts.filename,
+        metadata: transcriptionMetadata,
       });
 
       const transcriptionResult = await Promise.race([
