@@ -227,7 +227,12 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'modelscope':
     case 'kilo':
     case 'vercel-ai-gateway':
-    case 'github-models':
+    case 'github-models': {
+      // GitHub Models rejects `metadata` unless `store=true`; GithubModelsAdapter strips it.
+      const ghMod = await import('../adapters/githubModelsAdapter.js');
+      adapter = new ghMod.GithubModelsAdapter();
+      break;
+    }
     case 'ovhcloud':
     case 'nscale':
     case 'aion-labs':
@@ -246,7 +251,6 @@ export async function getAdapter(providerName, providerConfig = null) {
         modelscope:  'https://api-inference.modelscope.cn/v1/chat/completions',
         kilo:        'https://api.kilo.ai/api/gateway/chat/completions',
         'vercel-ai-gateway': 'https://ai-gateway.vercel.sh/v1/chat/completions',
-        'github-models': 'https://models.github.ai/inference/chat/completions',
         ovhcloud:    'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
         nscale:      'https://inference.api.nscale.com/v1/chat/completions',
         'aion-labs': 'https://api.aionlabs.ai/v1/chat/completions',
