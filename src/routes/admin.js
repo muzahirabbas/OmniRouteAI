@@ -830,6 +830,12 @@ export async function adminRoutes(app) {
       if (providerName === 'google') modelsUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
       else if (providerName === 'huggingface') modelsUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation';
       else if (providerName === 'ollama-cloud') modelsUrl = 'https://ollama.com/api/tags';
+      else if (providerName === 'cloudflare') {
+        const keyMetadata = await getKeyMetadata(providerName, apiKey);
+        const accountId = keyMetadata?.accountId;
+        if (!accountId) throw new Error('No Cloudflare Account ID stored for this API key. Edit the key in the API Keys tab to add one.');
+        modelsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search?per_page=200`;
+      }
       else if (modelsUrl.includes('/chat/completions')) modelsUrl = modelsUrl.replace('/chat/completions', '/models');
 
       if (!modelsUrl && providerName !== 'ollama_local_bridge') throw new Error(`URL mystery for ${providerName}`);
@@ -846,7 +852,10 @@ export async function adminRoutes(app) {
       data = await res.json();
       
       let ids = [];
-      if (Array.isArray(data.result)) ids = data.result.map(m => m.name || m.id).filter(id => id.startsWith('@cf/'));
+      if (providerName === 'cloudflare' && Array.isArray(data.result)) {
+        ids = data.result.map(m => m.name).filter(name => name && name.startsWith('@cf/'));
+      }
+      else if (Array.isArray(data.result)) ids = data.result.map(m => m.name || m.id).filter(id => id.startsWith('@cf/'));
       else if (Array.isArray(data.data)) ids = data.data.map(m => m.id || m.name);
       else if (Array.isArray(data.models)) ids = data.models.map(m => (m.name || m.id || '').split('/').pop()).filter(id => id && id.length > 2);
       else if (Array.isArray(data) && providerName === 'huggingface') ids = data.map(m => m.id);
