@@ -232,6 +232,8 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 100,
     features: ['vision', 'audio', 'transcription'],
+    requiresKeyMetadata: true,
+    metadataFields: ['accountId'],
   },
   {
     name: 'huggingface',
@@ -383,7 +385,9 @@ export const STATIC_PROVIDERS = [
       'gemini-1.5-pro', 'gemini-1.5-flash'
     ],
     rpmLimit: 20,
-    features: ['vision', 'audio', 'video', 'tool-calling']
+    features: ['vision', 'audio', 'video', 'tool-calling'],
+    requiresKeyMetadata: true,
+    metadataFields: ['projectId', 'region'],
   },
   {
     name: 'glm',

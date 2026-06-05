@@ -72,7 +72,7 @@ export class CloudflareAdapter extends BaseAdapter {
   async sendRequest(prompt, model, apiKey, options = {}) {
     const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
-      throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
+      throw new ProviderError(this.providerName, 'Cloudflare accountId missing in key metadata (set it in API Keys tab)');
     }
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
@@ -123,7 +123,7 @@ export class CloudflareAdapter extends BaseAdapter {
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
     const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
-      throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
+      throw new ProviderError(this.providerName, 'Cloudflare accountId missing in key metadata (set it in API Keys tab)');
     }
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
@@ -241,7 +241,7 @@ export class CloudflareAdapter extends BaseAdapter {
   async transcribe(fileBuffer, model, options = {}) {
     const accountId = this._resolveAccountId(options.metadata);
     if (!accountId) {
-      throw new ProviderError(this.providerName, 'CF_ACCOUNT_ID not configured');
+      throw new ProviderError(this.providerName, 'Cloudflare accountId missing in key metadata (set it in API Keys tab)');
     }
 
     const requestId = options.requestId || 'unknown';

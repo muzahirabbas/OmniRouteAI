@@ -4,6 +4,11 @@ import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure, getKeyMeta
 import { estimateTokens } from './statsService.js';
 import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
 
+// Providers whose API keys carry per-key metadata required to build a
+// request URL (e.g., Cloudflare Account ID, Vertex project/region).
+// Single source of truth — do not hardcode the list inline at call sites.
+const PROVIDERS_REQUIRING_KEY_METADATA = new Set(['cloudflare', 'vertex', 'google_pse']);
+
 /**
  * Router service — provider selection, adapter dispatch, retry/failover.
  *
@@ -590,7 +595,7 @@ export async function routeAndExecute(prompt, opts = {}) {
 
     try {
       const adapter = await getAdapter(provider.name, provider);
-      const metadata = (provider.type === 'vertex' || provider.type === 'cloudflare' || provider.name === 'google_pse')
+      const metadata = PROVIDERS_REQUIRING_KEY_METADATA.has(provider.name)
         ? await getKeyMetadata(provider.name, apiKey)
         : null;
 
@@ -923,7 +928,7 @@ export async function transcribe(fileBuffer, opts = {}) {
         (provider.name === 'cloudflare');
       const providerConfigForAdapter = { ...provider, model: shouldPassModel ? model : undefined };
       const adapter = await getAdapter(provider.name, providerConfigForAdapter);
-      const transcriptionMetadata = (provider.type === 'vertex' || provider.type === 'cloudflare' || provider.name === 'google_pse')
+      const transcriptionMetadata = PROVIDERS_REQUIRING_KEY_METADATA.has(provider.name)
         ? (await getKeyMetadata(provider.name, apiKey)) || {}
         : {};
 
