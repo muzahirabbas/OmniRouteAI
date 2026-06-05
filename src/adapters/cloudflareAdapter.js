@@ -5,7 +5,9 @@ import { extractTokens } from '../services/statsService.js';
 /**
  * Cloudflare Workers AI adapter.
  * Endpoint: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}
- * Requires CF_ACCOUNT_ID env var.
+ * Account ID is resolved per-request from key metadata (stored when the key
+ * is added via the admin UI). No env-var fallback — every request must carry
+ * its own accountId so multi-account setups route correctly.
  */
 export class CloudflareAdapter extends BaseAdapter {
   constructor() {
@@ -13,7 +15,7 @@ export class CloudflareAdapter extends BaseAdapter {
   }
 
   _resolveAccountId(metadata) {
-    return metadata?.accountId || process.env.CF_ACCOUNT_ID;
+    return metadata?.accountId;
   }
 
   /**
