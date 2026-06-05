@@ -334,6 +334,7 @@ curl -X POST https://your-backend.com/v1/chat/completions \
 | `cloudflare` | @cf/meta/llama-3.1-8b-instruct | 10K requests/day |
 | `ollama-cloud` | llama3.2:1b | Free |
 | `deepseek` | deepseek-chat | Free |
+| `cline_api` | minimax/minimax-m3, google/gemma-4-31b-it:free, anthropic/claude-sonnet-4-6 | Free tier + paid |
 
 ### Search Providers (NEW!)
 

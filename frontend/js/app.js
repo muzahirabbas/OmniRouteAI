@@ -44,6 +44,18 @@ const PROVIDER_INFO = {
     ],
     website: 'https://cline.com'
   },
+  cline_api: {
+    title: 'Cline API',
+    description: 'Direct HTTP access to Anthropic, OpenAI, Google, MiniMax and more through a single Cline API key. Several free models available.',
+    setup: [
+      '1. Sign in at app.cline.bot',
+      '2. Settings > API Keys > Create API Key',
+      '3. Paste the key into the Cline API card above',
+      '4. Default free model: minimax/minimax-m3',
+      '5. Use the "Fetch models" admin button to pull the full ~340-model catalog'
+    ],
+    website: 'https://docs.cline.bot/api'
+  },
   opencode: {
     title: 'OpenCode',
     description: 'Direct CLI - no auth needed, works out of the box',

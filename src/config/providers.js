@@ -723,6 +723,40 @@ export const STATIC_PROVIDERS = [
     authEnvVar: 'OPENCODE_ZEN_API_KEY',
     features: ['vision', 'tool-calling']
   },
+  // Cline API - Direct HTTP access to a multi-provider gateway.
+  // Get API key at https://app.cline.bot (Settings > API Keys).
+  // See https://docs.cline.bot/api for the full model catalog and endpoints.
+  {
+    name: 'cline_api',
+    priority: 1,
+    weight: 10,
+    status: 'active',
+    endpoint: 'https://api.cline.bot/api/v1/chat/completions',
+    models: [
+      // Free models (no credits required)
+      'minimax/minimax-m3',
+      'deepseek/deepseek-v4-flash',
+      'xiaomi/mimo-v2.5',
+      'nvidia/nemotron-3-ultra-550b-a55b:free',
+      'google/gemma-4-31b-it:free',
+      'google/gemma-4-26b-a4b-it:free',
+      'openai/gpt-oss-120b:free',
+      'openai/gpt-oss-20b:free',
+      'z-ai/glm-4.5-air:free',
+      'liquid/lfm-2.5-1.2b-instruct:free',
+      'liquid/lfm-2.5-1.2b-thinking:free',
+      'poolside/laguna-xs.2:free',
+      'poolside/laguna-m.1:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
+      'nvidia/nemotron-3-nano-30b-a3b:free',
+      'nvidia/nemotron-nano-9b-v2:free',
+      'nvidia/nemotron-nano-12b-v2-vl:free',
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
+    ],
+    defaultModel: 'minimax/minimax-m3',
+    rpmLimit: 50,
+    features: ['vision', 'tool-calling']
+  },
 
   // Audio transcription providers
   {

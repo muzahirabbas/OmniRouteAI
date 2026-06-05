@@ -863,6 +863,7 @@ export async function adminRoutes(app) {
         modelsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search?per_page=200`;
       }
       else if (providerName === 'github-models') modelsUrl = 'https://models.github.ai/catalog/models';
+      else if (providerName === 'cline_api') modelsUrl = 'https://api.cline.bot/api/v1/ai/cline/models';
       else if (modelsUrl.includes('/chat/completions')) modelsUrl = modelsUrl.replace('/chat/completions', '/models');
 
       if (!modelsUrl && providerName !== 'ollama_local_bridge') throw new Error(`URL mystery for ${providerName}`);

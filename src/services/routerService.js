@@ -280,6 +280,11 @@ export async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.OllamaCloudAdapter();
       break;
     }
+    case 'cline_api': {
+      const mod = await import('../adapters/clineAdapter.js');
+      adapter = new mod.ClineApiAdapter();
+      break;
+    }
     case 'ollama_local_bridge': {
       const mod = await import('../adapters/ollamaLocalBridgeAdapter.js');
       adapter = new mod.OllamaLocalBridgeAdapter();
