@@ -923,9 +923,25 @@ function removeProviderModel(modelId) {
   const modelSelect = document.getElementById('edit-provider-default-model');
   const currentDefault = modelSelect.value;
   renderProviderModelControls(modelSelect, window._currentEditingModels, currentDefault);
-  
+
   // Also refresh discovery list if icons/status needs to update
   if (typeof filterDiscoveredModels === 'function') filterDiscoveredModels();
+}
+
+function removeAllProviderModels() {
+  if (!Array.isArray(window._currentEditingModels) || window._currentEditingModels.length === 0) {
+    showToast('info', 'No models to remove');
+    return;
+  }
+  const count = window._currentEditingModels.length;
+  if (!confirm(`Remove all ${count} active model${count === 1 ? '' : 's'} for this provider? This will not be saved until you click "Save Changes".`)) {
+    return;
+  }
+  window._currentEditingModels = [];
+  const modelSelect = document.getElementById('edit-provider-default-model');
+  renderProviderModelControls(modelSelect, window._currentEditingModels, '');
+  if (typeof filterDiscoveredModels === 'function') filterDiscoveredModels();
+  showToast('success', `Cleared ${count} model${count === 1 ? '' : 's'}`);
 }
 
 function addProviderModel() {
