@@ -1,6 +1,7 @@
 import { incrWithTTL, get, keys, del } from '../config/redis.js';
 import { getDb } from '../config/firestore.js';
 import { estimateTokens as estimateTokensFallback } from './tokenService.js';
+import { keyId } from '../utils/hash.js';
 
 /**
  * Stats service.
@@ -379,6 +380,7 @@ export async function getKeyStatsHistory(provider, days = 7) {
       keysSnapshot.forEach(keyDoc => {
         const kd = keyDoc.data();
         keys.push({
+          id:              keyId(kd.api_key),
           apiKey:          kd.api_key,
           tokensIn:        kd.tokens_in || 0,
           tokensOut:       kd.tokens_out || 0,

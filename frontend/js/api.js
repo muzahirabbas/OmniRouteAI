@@ -398,14 +398,14 @@ const API = {
     });
   },
 
-  async removeKey(provider, key) {
-    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}`, {
+  async removeKey(provider, id) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
   },
 
-  async toggleKey(provider, key, disabled) {
-    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(key)}/toggle`, {
+  async toggleKey(provider, id, disabled) {
+    return this.request(`/api/admin/keys/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/toggle`, {
       method: 'POST',
       body: JSON.stringify({ disabled }),
     });

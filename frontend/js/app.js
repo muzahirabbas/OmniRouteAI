@@ -1122,10 +1122,12 @@ async function refreshKeys(force = false) {
     if (historyData?.history) {
       historyData.history.forEach(day => {
         day.keys?.forEach(k => {
-          if (!historyMap[k.apiKey]) historyMap[k.apiKey] = { totalIn: 0, totalOut: 0, totalReq: 0 };
-          historyMap[k.apiKey].totalIn += k.tokensIn || 0;
-          historyMap[k.apiKey].totalOut += k.tokensOut || 0;
-          historyMap[k.apiKey].totalReq += k.requests || 0;
+          const histKey = k.id || k.apiKey;
+          if (!histKey) return;
+          if (!historyMap[histKey]) historyMap[histKey] = { totalIn: 0, totalOut: 0, totalReq: 0 };
+          historyMap[histKey].totalIn += k.tokensIn || 0;
+          historyMap[histKey].totalOut += k.tokensOut || 0;
+          historyMap[histKey].totalReq += k.requests || 0;
         });
       });
     }
@@ -1143,7 +1145,7 @@ async function refreshKeys(force = false) {
         metaLabel = `<div class="form-hint" style="font-size: 0.7rem; color: var(--color-success);">Project: ${escapeHTML(k.metadata.projectId)} | Region: ${escapeHTML(region)}</div>`;
       }
 
-      const hist = historyMap[k.fullKey];
+      const hist = historyMap[k.id];
       const histLabel = hist ? `<div class="form-hint" style="font-size: 0.65rem; color: var(--text-muted);">7d: ${escapeHTML(String(hist.totalReq))} req, ${escapeHTML(String(hist.totalIn.toLocaleString()))}/${escapeHTML(String(hist.totalOut.toLocaleString()))} tok</div>` : '';
 
       return `
@@ -1161,10 +1163,13 @@ async function refreshKeys(force = false) {
           </span></td>
           <td>
             <button class="btn btn-sm ${k.disabled ? 'btn-primary' : 'btn-danger'}"
-              onclick="toggleKey('${escapeHTML(provider)}', '${escapeHTML(k.fullKey)}', ${!k.disabled})">
+              data-key-action="toggle" data-provider="${escapeHTML(provider)}" data-key-id="${escapeHTML(k.id)}"
+              onclick="toggleKey('${escapeHTML(provider)}', '${escapeHTML(k.id)}', ${!k.disabled})">
               ${k.disabled ? 'Enable' : 'Disable'}
             </button>
-            <button class="btn btn-sm btn-ghost" onclick="removeKey('${escapeHTML(provider)}', '${escapeHTML(k.fullKey)}')">🗑</button>
+            <button class="btn btn-sm btn-ghost"
+              data-key-action="remove" data-provider="${escapeHTML(provider)}" data-key-id="${escapeHTML(k.id)}"
+              onclick="removeKey('${escapeHTML(provider)}', '${escapeHTML(k.id)}')">🗑</button>
           </td>
         </tr>
       `;
@@ -1253,14 +1258,14 @@ async function addKey() {
   }
 }
 
-async function removeKey(provider, key) {
+async function removeKey(provider, id) {
   if (!confirm('Remove this API key?')) return;
 
-  const btn = document.querySelector(`button[onclick*="removeKey('${provider}', '"]`);
+  const btn = document.querySelector(`button[data-key-action="remove"][data-key-id="${CSS.escape(id)}"][data-provider="${CSS.escape(provider)}"]`);
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
   try {
-    await API.removeKey(provider, key);
+    await API.removeKey(provider, id);
     showToast('success', 'Key removed');
     refreshKeys();
   } catch (err) {
@@ -1270,12 +1275,12 @@ async function removeKey(provider, key) {
   }
 }
 
-async function toggleKey(provider, key, disabled) {
-  const btn = document.querySelector(`button[onclick*="toggleKey('${provider}', '"]`);
+async function toggleKey(provider, id, disabled) {
+  const btn = document.querySelector(`button[data-key-action="toggle"][data-key-id="${CSS.escape(id)}"][data-provider="${CSS.escape(provider)}"]`);
   if (btn) { btn.disabled = true; }
 
   try {
-    await API.toggleKey(provider, key, disabled);
+    await API.toggleKey(provider, id, disabled);
     showToast('success', `Key ${disabled ? 'disabled' : 'enabled'}`);
     refreshKeys();
   } catch (err) {

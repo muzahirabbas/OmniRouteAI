@@ -23,3 +23,20 @@ export function hashPrompt(prompt, model = '', taskType = '', systemPrompt = '')
   const input = `${promptStr}|${model}|${taskType}|${systemPrompt}`;
   return createHash('sha256').update(input).digest('hex');
 }
+
+/**
+ * Stable, opaque identifier for a provider API key. Safe to send to clients.
+ *
+ * Derived from a SHA-256 of the full key; first 12 hex chars (48 bits of
+ * entropy) is more than enough to avoid collisions for any realistic key
+ * count. Deterministic, so the same id is derivable in GET, DELETE,
+ * toggle, and history handlers without ever sending the secret to the
+ * frontend.
+ *
+ * @param {string} key
+ * @returns {string} 12-char hex id, or '' if key is empty
+ */
+export function keyId(key) {
+  if (!key) return '';
+  return createHash('sha256').update(String(key)).digest('hex').slice(0, 12);
+}

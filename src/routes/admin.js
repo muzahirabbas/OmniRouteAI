@@ -8,13 +8,13 @@ import {
   getProviderHealth,
   resetProviderCircuitBreaker,
 } from '../services/providerService.js';
-import { 
-  registerKeys, 
-  isKeyDisabled, 
-  disableKey, 
-  resetProviderKeys, 
-  getKeyMetadata, 
-  setKeyMetadata 
+import {
+  registerKeys,
+  isKeyDisabled,
+  disableKey,
+  resetProviderKeys,
+  getKeyMetadata,
+  setKeyMetadata
 } from '../services/keyService.js';
 import {
   registerSearchKeys,
@@ -27,6 +27,7 @@ import {
 import { getStats, aggregateDaily, getKeyStatsHistory } from '../services/statsService.js';
 import { flushLogs } from '../services/loggingService.js';
 import { rateLimiters } from '../utils/rateLimiter.js';
+import { keyId } from '../utils/hash.js';
 import { invalidateAdapterCache } from '../services/routerService.js';
 import { disableSearchProvider } from '../services/searchRouterService.js';
 
@@ -37,6 +38,20 @@ import { disableSearchProvider } from '../services/searchRouterService.js';
 function maskKey(key) {
   if (!key || key.length < 10) return '***';
   return `${key.slice(0, 6)}...${key.slice(-4)}`;
+}
+
+/**
+ * Resolve a key id back to the full key by scanning the provider's
+ * sorted set. O(N) per call but N is small (number of keys per
+ * provider, typically <10), and avoids maintaining a separate index.
+ */
+async function resolveKeyById(provider, id) {
+  if (!provider || !id) return null;
+  const members = await zrange(`provider:${provider}:keys`, 0, -1);
+  for (const member of members) {
+    if (keyId(member) === id) return member;
+  }
+  return null;
 }
 
 // Rate limiting for admin endpoints is applied per HTTP method:
@@ -429,6 +444,7 @@ export async function adminRoutes(app) {
           getKeyMetadata(provider, key)
         ]);
         return {
+          id: keyId(key),
           key: maskKey(key),
           usage,
           rpm: parseInt(rpmRaw || '0', 10),
@@ -537,20 +553,30 @@ export async function adminRoutes(app) {
     return { success: true, provider };
   });
 
-  app.delete('/api/admin/keys/:provider/:key', async (request) => {
-    const { provider, key } = request.params;
+  app.delete('/api/admin/keys/:provider/:id', async (request, reply) => {
+    const { provider, id } = request.params;
+    const key = await resolveKeyById(provider, id);
+    if (!key) {
+      reply.code(404);
+      return { success: false, error: 'Key not found' };
+    }
     await zrem(`provider:${provider}:keys`, key);
     try {
       const db = getDb();
       const snapshot = await db.collection('api_keys').where('provider', '==', provider).where('key', '==', key).limit(1).get();
       if (!snapshot.empty) await snapshot.docs[0].ref.delete();
     } catch {}
-    return { success: true, provider };
+    return { success: true, provider, id };
   });
 
-  app.post('/api/admin/keys/:provider/:key/toggle', async (request) => {
-    const { provider, key } = request.params;
+  app.post('/api/admin/keys/:provider/:id/toggle', async (request, reply) => {
+    const { provider, id } = request.params;
     const { disabled } = request.body || {};
+    const key = await resolveKeyById(provider, id);
+    if (!key) {
+      reply.code(404);
+      return { success: false, error: 'Key not found' };
+    }
     try {
       const db = getDb();
       const snapshot = await db.collection('api_keys').where('provider', '==', provider).where('key', '==', key).limit(1).get();
@@ -560,7 +586,7 @@ export async function adminRoutes(app) {
       } else {
         await del(`key:disabled:${provider}:${key}`);
       }
-      return { success: true, provider, key: maskKey(key), disabled };
+      return { success: true, provider, id, key: maskKey(key), disabled };
     } catch (err) {
       return { success: false, error: err.message };
     }
