@@ -73,7 +73,7 @@ const PROVIDER_INFO = {
     description: 'OpenCode\'s model gateway - direct API access',
     setup: [
       '1. Get API key: https://opencode.ai/zen',
-      '2. Add to .env: OPENCODE_ZEN_API_KEY=your_key',
+      '2. Add the key via the API Keys page (provider: opencode_zen)',
       '3. Free models: minimax-m2.5-free, mimo-v2-pro-free',
       '4. Paid models: GPT-5, Claude, Gemini, Kimi, etc.'
     ],

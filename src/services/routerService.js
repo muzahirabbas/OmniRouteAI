@@ -217,6 +217,12 @@ export async function getAdapter(providerName, providerConfig = null) {
       adapter = new mod.MinimaxAdapter();
       break;
     }
+    case 'github-models': {
+      // GitHub Models rejects `metadata` unless `store=true`; GithubModelsAdapter strips it.
+      const ghMod = await import('../adapters/githubModelsAdapter.js');
+      adapter = new ghMod.GithubModelsAdapter();
+      break;
+    }
     case 'fireworks':
     case 'nebius':
     case 'siliconflow':
@@ -227,12 +233,6 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'modelscope':
     case 'kilo':
     case 'vercel-ai-gateway':
-    case 'github-models': {
-      // GitHub Models rejects `metadata` unless `store=true`; GithubModelsAdapter strips it.
-      const ghMod = await import('../adapters/githubModelsAdapter.js');
-      adapter = new ghMod.GithubModelsAdapter();
-      break;
-    }
     case 'ovhcloud':
     case 'nscale':
     case 'aion-labs':
