@@ -248,7 +248,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         chutes:      'https://llm.chutes.ai/v1/chat/completions',
         nanobanana:  'https://api.nanobananaapi.ai/v1/chat/completions',
         opencode_zen: 'https://opencode.ai/zen/v1/chat/completions',
-        modelscope:  'https://api-inference.modelscope.cn/v1/chat/completions',
+        modelscope:  'https://api-inference.modelscope.ai/v1/chat/completions',
         kilo:        'https://api.kilo.ai/api/gateway/chat/completions',
         'vercel-ai-gateway': 'https://ai-gateway.vercel.sh/v1/chat/completions',
         ovhcloud:    'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',

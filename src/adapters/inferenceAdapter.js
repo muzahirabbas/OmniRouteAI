@@ -14,7 +14,7 @@ import { ProviderError } from '../utils/errors.js';
  * - Kilo: https://api.kilo.ai/api/gateway/chat/completions
  * - OpenCode Zen: https://opencode.ai/zen/v1/chat/completions
  * - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/chat/completions
- * - ModelScope: https://api-inference.modelscope.cn/v1/chat/completions
+ * - ModelScope: https://api-inference.modelscope.ai/v1/chat/completions
  * - OVHcloud, Nscale, Aion-Labs, LLM7, AI21, etc.
  */
 export class InferenceAdapter extends OpenAICompatibleAdapter {
