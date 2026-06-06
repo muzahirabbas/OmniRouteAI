@@ -784,21 +784,6 @@ export async function routeAndExecute(prompt, opts = {}) {
         lastError = new ProviderError(provider.name, err.message, err.statusCode || 500, model, err);
       }
 
-      // DEBUG: log original error so it's visible in Railway logs and persists
-      // even when the final "all providers exhausted" error replaces it.
-      console.log(JSON.stringify({
-        level: 'error',
-        msg: 'nous-debug: original adapter error',
-        provider: provider.name,
-        model,
-        errMessage: err.message,
-        errStatus: err.status || err.statusCode,
-        errName: err.name,
-        errCode: err.code,
-        errCause: err.cause?.message || err.cause?.code || null,
-        attempt,
-      }));
-
       // Record key failure (may auto-disable key if threshold exceeded)
       // Skip for local_http providers — their "key" is a virtual session identifier,
       // not a real Redis-tracked key. Calling recordKeyFailure on it pollutes the sorted set.
@@ -849,16 +834,7 @@ export async function routeAndExecute(prompt, opts = {}) {
   }
 
 // All attempts exhausted
-   let finalErr = lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
-
-   // Preserve the original error message in the final error so the caller can see
-   // what actually went wrong (e.g. network failure, 4xx from provider) instead of
-   // the generic "all providers exhausted" message.
-   if (lastError && lastError.message && !finalErr.message.includes(lastError.message)) {
-     finalErr = new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
-     finalErr.message = `${finalErr.message} (last: ${lastError.message})`;
-     finalErr.lastErrorMessage = lastError.message;
-   }
+   const finalErr = lastError || new AllProvidersExhaustedError(opts.provider || 'omniroute', opts.model || 'unknown');
 
    if (opts.stream && opts.onError) {
      opts.onError(finalErr);
