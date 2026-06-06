@@ -12,6 +12,7 @@ import {
   registerKeys,
   isKeyDisabled,
   disableKey,
+  removeKey,
   resetProviderKeys,
   getKeyMetadata,
   setKeyMetadata
@@ -560,7 +561,8 @@ export async function adminRoutes(app) {
       reply.code(404);
       return { success: false, error: 'Key not found' };
     }
-    await zrem(`provider:${provider}:keys`, key);
+    // Wipe key from sorted set, disabled flag, failure counter, and metadata in one go
+    await removeKey(provider, key);
     try {
       const db = getDb();
       const snapshot = await db.collection('api_keys').where('provider', '==', provider).where('key', '==', key).limit(1).get();
@@ -813,12 +815,16 @@ export async function adminRoutes(app) {
   });
 
   app.post('/api/admin/providers', async (request) => {
-    const { name, type, endpoint, apiKey, models, priority, weight } = request.body;
+    const { name, type, endpoint, apiKey, models, priority, weight, keyMetadata } = request.body;
     if (!name || !endpoint) throw new Error('Name and endpoint required');
     const providerData = { name, type, endpoint, priority: priority || 50, weight: weight || 10, status: 'active', models: models || [], rpmLimit: 50, isCustom: true };
     await getDb().collection('providers').doc(name).set(providerData, { merge: true });
     if (apiKey) {
-      await getDb().collection('api_keys').add({ provider: name, key: apiKey, is_disabled: false, created_at: new Date(), metadata: { isCustomProvider: true } });
+      await getDb().collection('api_keys').add({ provider: name, key: apiKey, is_disabled: false, created_at: new Date(), metadata: keyMetadata || { isCustomProvider: true } });
+      await registerKeys(name, [apiKey]);
+      if (keyMetadata && Object.keys(keyMetadata).length > 0) {
+        await setKeyMetadata(name, apiKey, keyMetadata);
+      }
     }
     await del('providers:list');
     return { success: true, provider: providerData };

@@ -574,8 +574,6 @@ return { object: 'list', data: models };
               created: Math.floor(Date.now() / 1000),
               model: result.model,
               provider: result.provider,
-              done: true,
-              tokens: result.tokens,
               choices: [{
                 index: 0,
                 delta: {

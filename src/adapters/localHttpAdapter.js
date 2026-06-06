@@ -173,11 +173,37 @@ export class LocalHttpAdapter extends BaseAdapter {
 
           try {
             const parsed = JSON.parse(data);
-            const deltaContent = parsed.choices?.[0]?.delta?.content || parsed.output || '';
-            if (deltaContent) {
-              fullOutput += deltaContent;
-              if (options.onChunk) {
-                options.onChunk({ content: deltaContent, provider: this.providerName, model });
+            const delta = parsed.choices?.[0]?.delta;
+
+            if (delta) {
+              // Forward role on the first chunk
+              if (delta.role && options.onChunk) {
+                options.onChunk({ role: delta.role, provider: this.providerName, model });
+              }
+              // Forward tool_calls deltas (OpenAI streaming tool-call format)
+              if (delta.tool_calls && delta.tool_calls.length > 0 && options.onChunk) {
+                options.onChunk({ tool_calls: delta.tool_calls, provider: this.providerName, model });
+              }
+              // Forward reasoning deltas (OpenRouter-style reasoning_content)
+              if (delta.reasoning && options.onChunk) {
+                options.onChunk({ reasoning: delta.reasoning, provider: this.providerName, model });
+              }
+              // Forward content
+              const deltaContent = delta.content || parsed.output || '';
+              if (deltaContent) {
+                fullOutput += deltaContent;
+                if (options.onChunk) {
+                  options.onChunk({ content: deltaContent, provider: this.providerName, model });
+                }
+              }
+            } else {
+              // Fallback: top-level output field from CLI daemons
+              const deltaContent = parsed.output || '';
+              if (deltaContent) {
+                fullOutput += deltaContent;
+                if (options.onChunk) {
+                  options.onChunk({ content: deltaContent, provider: this.providerName, model });
+                }
               }
             }
           } catch (e) {}

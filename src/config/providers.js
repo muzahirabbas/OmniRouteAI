@@ -720,7 +720,6 @@ export const STATIC_PROVIDERS = [
     defaultModel: 'minimax-m2.5-free',
     rpmLimit: 100,
     requiresAuth: true,
-    authEnvVar: 'OPENCODE_ZEN_API_KEY',
     features: ['vision', 'tool-calling']
   },
   // Cline API - Direct HTTP access to a multi-provider gateway.
@@ -797,7 +796,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 100,
     requiresAuth: true,
-    authEnvVar: 'VERCEL_AI_GATEWAY_API_KEY',
     features: ['vision', 'tool-calling'],
   },
   {
@@ -820,7 +818,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 50,
     requiresAuth: true,
-    authEnvVar: 'GITHUB_TOKEN',
     features: ['vision', 'tool-calling'],
   },
   {
@@ -841,7 +838,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 400,
     requiresAuth: true,
-    authEnvVar: 'OVH_AI_ENDPOINTS_TOKEN',
     features: ['vision', 'tool-calling'],
   },
   {
@@ -859,7 +855,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 30,
     requiresAuth: true,
-    authEnvVar: 'NSCALE_API_KEY',
     features: ['tool-calling'],
   },
   {
@@ -875,7 +870,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 20,
     requiresAuth: true,
-    authEnvVar: 'AION_LABS_API_KEY',
     features: [],
   },
   {
@@ -894,7 +888,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 30,
     requiresAuth: true,
-    authEnvVar: 'LLM7_API_KEY',
     features: ['vision', 'tool-calling'],
   },
   {
@@ -909,7 +902,6 @@ export const STATIC_PROVIDERS = [
     ],
     rpmLimit: 200,
     requiresAuth: true,
-    authEnvVar: 'AI21_API_KEY',
     features: ['tool-calling'],
   }
 ];

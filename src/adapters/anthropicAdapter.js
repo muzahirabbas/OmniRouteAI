@@ -42,8 +42,8 @@ export class AnthropicAdapter extends BaseAdapter {
       headers['X-OmniRoute-Request-ID'] = options.requestId;
     }
     
-    // Add beta headers for prompt caching and PDF support
-    headers['anthropic-beta'] = 'prompt-caching-2024-07-31,pdfs-2024-09-25';
+    // Add beta headers for prompt caching, PDF support, interleaved thinking, and fine-grained tool streaming
+    headers['anthropic-beta'] = 'prompt-caching-2024-07-31,pdfs-2024-09-25,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14';
     
     return headers;
   }
@@ -222,6 +222,14 @@ export class AnthropicAdapter extends BaseAdapter {
           try {
             const parsed = JSON.parse(data);
 
+            // ── error event: provider returned an error mid-stream ─────
+            if (parsed.type === 'error' && parsed.error) {
+              const errStatus = parsed.error.status_code || parsed.error.status || 502;
+              const errMsg = parsed.error.message || JSON.stringify(parsed.error);
+              this.clearTimeout(controller);
+              throw new ProviderError(this.providerName, errMsg, errStatus, model);
+            }
+
             // ── message_start: input tokens ─────────────────────────
             if (parsed.type === 'message_start' && parsed.message?.usage?.input_tokens) {
               inputTokens = parsed.message.usage.input_tokens;
@@ -312,7 +320,7 @@ export class AnthropicAdapter extends BaseAdapter {
           input:  inputTokens  || await estimateTokens(prompt),
           output: outputTokens || await estimateTokens(fullOutput),
         },
-        raw: { streaming: true, provider: 'anthropic', model },
+        raw: { streaming: true, provider: this.providerName, model },
       };
     } catch (err) {
       this.clearTimeout(controller);
@@ -328,13 +336,18 @@ export class AnthropicAdapter extends BaseAdapter {
   async normalizeResponse(rawResponse) {
     if (!rawResponse) return { output: '', tokens: { input: 0, output: 0, reasoning: 0 }, thinking: null, tool_calls: [], finish_reason: 'stop', raw: {} };
     
-    // Extract thinking content if present (for Claude 3.7+ with thinking mode)
+    // Extract thinking content if present (for Claude 3.7+ with thinking mode).
+    // Anthropic returns thinking as its own content block with type === 'thinking'
+    // and a `thinking` field on the block (not a property of text blocks).
     let thinkingContent = '';
     const output = rawResponse.content
-      ?.filter((c) => c.type === 'text')
-      .map((c) => {
-        if (c.thinking) thinkingContent = c.thinking;
-        return c.text;
+      ?.map((c) => {
+        if (c.type === 'thinking') {
+          if (typeof c.thinking === 'string') thinkingContent = c.thinking;
+          return '';
+        }
+        if (c.type === 'text') return c.text || '';
+        return '';
       })
       .join('') || '';
 

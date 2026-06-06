@@ -89,7 +89,13 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       messages = [{ role: 'user', content }];
     }
 
-    const isStrictProvider = ['nvidia', 'fireworks', 'nebius', 'siliconflow', 'hyperbolic', 'chutes', 'nanobanana', 'opencode_zen', 'cerebras', 'sambanova', 'huggingface', 'mistral', 'cohere', 'perplexity', 'deepgram', 'assemblyai'].includes(this.providerName);
+    const isStrictProvider = [
+      'nvidia', 'fireworks', 'nebius', 'siliconflow', 'hyperbolic', 'chutes',
+      'nanobanana', 'opencode_zen', 'cerebras', 'sambanova', 'huggingface',
+      'mistral', 'cohere', 'perplexity', 'deepgram', 'assemblyai',
+      'kilo', 'vercel-ai-gateway', 'ollama', 'ollama-cloud', 'glm',
+      'modelscope', 'ovhcloud', 'nscale', 'aion-labs', 'llm7', 'ai21',
+    ].includes(this.providerName);
     const supportsAdvancedOpenAI = !isStrictProvider;
 
     const body = {
@@ -137,7 +143,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
             ...t,
             function: {
               ...t.function,
-              strict: true,
+              ...(supportsAdvancedOpenAI ? { strict: true } : {}),
               parameters: this.cleanSchema(t.function.parameters)
             }
           };
@@ -191,11 +197,11 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       if (options.prediction) {
         body.prediction = options.prediction;
       }
-    }
-    
-    // Add metadata
-    if (options.metadata) {
-      body.metadata = options.metadata;
+
+      // Add metadata (some providers reject unknown top-level fields)
+      if (options.metadata) {
+        body.metadata = options.metadata;
+      }
     }
 
     if (options.systemPrompt) {
@@ -415,8 +421,28 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
     const output = rawResponse.choices?.[0]?.message?.content || '';
     // Extract reasoning content from OpenRouter/OpenAI-compatible responses
     const reasoning = rawResponse.choices?.[0]?.message?.reasoning || null;
-    // Extract tool calls
-    const toolCalls = rawResponse.choices?.[0]?.message?.tool_calls || [];
+    // Extract tool calls — filter malformed ones and normalize `arguments` to a string
+    const rawToolCalls = rawResponse.choices?.[0]?.message?.tool_calls || [];
+    const toolCalls = rawToolCalls
+      .filter(tc => {
+        if (!tc?.function?.name) {
+          console.warn(`[${this.providerName}] Dropped tool call with missing function name`, tc);
+          return false;
+        }
+        return true;
+      })
+      .map(tc => {
+        const args = tc.function.arguments;
+        const normalizedArgs = (args && typeof args !== 'string') ? JSON.stringify(args) : (args || '');
+        return {
+          id: tc.id || `call_${Math.random().toString(36).slice(2, 10)}`,
+          type: tc.type || 'function',
+          function: {
+            name: tc.function.name,
+            arguments: normalizedArgs,
+          },
+        };
+      });
     // Extract finish reason
     const finishReason = rawResponse.choices?.[0]?.finish_reason || 'stop';
     const tokens = await extractTokens(rawResponse, output);

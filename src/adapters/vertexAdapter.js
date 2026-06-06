@@ -279,6 +279,9 @@ export class VertexAdapter extends BaseAdapter {
     if (mode === 'gemini') url += `?key=${token}`;
 
     const controller = this.createTimeout();
+    const signal = options.abortSignal
+      ? AbortSignal.any([controller.signal, options.abortSignal])
+      : controller.signal;
 
     try {
       const headers = mode === 'gemini'
@@ -289,7 +292,7 @@ export class VertexAdapter extends BaseAdapter {
         method:  'POST',
         headers,
         body:    JSON.stringify(this.buildBody(prompt, options)),
-        signal:  controller.signal,
+        signal,
       });
 
       this.clearTimeout(controller);

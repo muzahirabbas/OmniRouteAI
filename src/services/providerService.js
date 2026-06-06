@@ -113,7 +113,7 @@ export async function getActiveProviders() {
  * @param {Array} providers - providers in a single priority tier
  * @returns {Array} shuffled providers ordered by weighted probability
  */
-function weightedShuffle(providers) {
+export function weightedShuffle(providers) {
   if (providers.length === 0) return [];
   if (providers.length === 1) return [...providers];
 

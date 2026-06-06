@@ -1,5 +1,5 @@
 import { classify, classifySync } from '../utils/classifier.js';
-import { getActiveProviders, recordProviderResult } from './providerService.js';
+import { getActiveProviders, recordProviderResult, weightedShuffle } from './providerService.js';
 import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure, getKeyMetadata } from './keyService.js';
 import { estimateTokens } from './statsService.js';
 import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
@@ -446,10 +446,9 @@ export async function route(prompt, opts = {}) {
 
 // For audio transcription, only use providers that have transcription adapters
     // Only these providers have transcribe() methods implemented and working:
-    // openai (whisper-1), groq (whisper-large-v3), assemblyai, cloudflare
-    // Note: deepgram doesn't support OpenAI Whisper models (403 error)
+    // openai (whisper-1), groq (whisper-large-v3), assemblyai, cloudflare, deepgram
     if (taskType === 'audio_transcription' || (opts.model && opts.model.toLowerCase().includes('whisper'))) {
-      const transcriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare'];
+      const transcriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare', 'deepgram'];
       if (!transcriptionProviders.includes(provider.name)) {
         continue;
       }
@@ -457,7 +456,7 @@ export async function route(prompt, opts = {}) {
 
     // Model selection: ONLY use providers that have the requested model in their models list
     const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
-    const knownTranscriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare'];
+    const knownTranscriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare', 'deepgram'];
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
     let model = null;
@@ -569,7 +568,7 @@ export async function route(prompt, opts = {}) {
  * @returns {Promise<{output, provider, model, tokens, keyUsed}>}
  */
 export async function routeAndExecute(prompt, opts = {}) {
-  const MAX_ATTEMPTS = 3;
+  const MAX_ATTEMPTS = parseInt(process.env.ROUTER_MAX_ATTEMPTS, 10) || 3;
 
   // Track keys used across ALL attempts — NEVER reuse the same key
   const usedKeys = [];
@@ -595,7 +594,10 @@ export async function routeAndExecute(prompt, opts = {}) {
         messages:         opts.messages,  // Pass for vision detection in messages
       });
     } catch (err) {
-      // No providers/keys available
+      // No providers/keys available — preserve the error so the caller can
+      // see the real reason (e.g. unknown provider override) instead of a
+      // generic "All providers exhausted".
+      lastError = err;
       break;
     }
 
@@ -631,15 +633,18 @@ export async function routeAndExecute(prompt, opts = {}) {
             reasoningEffort: opts.reasoningEffort,
           });
         } catch (streamErr) {
-          // Check if error is likely due to streaming not supported (400, 501, or contains "stream")
+          // Only retry as non-streaming when the provider clearly rejected
+          // streaming. A bare 400 should NOT trigger a fallback (most 400s
+          // are real client errors — model not found, bad params, etc.).
           const statusCode = streamErr.statusCode || streamErr.status;
-          const isStreamNotSupported = 
-            statusCode === 400 || 
-            statusCode === 501 || 
-            streamErr.message?.includes('stream') ||
-            streamErr.message?.includes('Streaming') ||
-            streamErr.message?.includes('not supported') ||
-            streamErr.message?.includes('not allowed');
+          const errLower = (streamErr.message || '').toLowerCase();
+          const isStreamNotSupported =
+            statusCode === 501 ||
+            (statusCode === 400 && (
+              errLower.includes('streaming') ||
+              errLower.includes('not supported') ||
+              errLower.includes('not allowed')
+            ));
 
           if (isStreamNotSupported && !opts._streamRetryAttempt) {
             // Fallback to non-streaming
@@ -662,7 +667,23 @@ export async function routeAndExecute(prompt, opts = {}) {
             if (opts.onChunk) {
               if (fallbackNormalized.thinking) opts.onChunk({ reasoning: fallbackNormalized.thinking, provider: provider.name, model });
               if (fallbackNormalized.output) opts.onChunk({ content: fallbackNormalized.output, provider: provider.name, model });
-              if (fallbackNormalized.tool_calls && fallbackNormalized.tool_calls.length > 0) opts.onChunk({ tool_calls: fallbackNormalized.tool_calls, provider: provider.name, model });
+              // Emit tool calls as OpenAI streaming deltas (one chunk per tool,
+              // each carrying the full tool call as a single delta entry). This
+              // matches OpenAI's streaming tool-call format expected by clients.
+              if (fallbackNormalized.tool_calls && fallbackNormalized.tool_calls.length > 0) {
+                fallbackNormalized.tool_calls.forEach((tc, idx) => {
+                  opts.onChunk({
+                    tool_calls: [{
+                      index: idx,
+                      id: tc.id,
+                      type: tc.type,
+                      function: { name: tc.function.name, arguments: tc.function.arguments },
+                    }],
+                    provider: provider.name,
+                    model,
+                  });
+                });
+              }
             }
             result = fallbackNormalized;
           } else {
@@ -774,13 +795,15 @@ export async function routeAndExecute(prompt, opts = {}) {
       // ─── Vision-specific error: skip provider immediately ──────────
       // Vision/image capability errors are model-level, not key-level.
       // Retrying the same provider with a different key will never work.
+      // Use a word-boundary regex on 'vision' so we don't false-positive on
+      // 'supervision', 'division', 'television', 'revision', etc.
       const errMsg = (lastError?.message || '').toLowerCase();
       const isVisionError = (
         errMsg.includes('image content is not supported') ||
         errMsg.includes('image input') ||
         errMsg.includes('does not support image') ||
-        errMsg.includes('vision') ||
-        errMsg.includes('no endpoints found that support image')
+        errMsg.includes('no endpoints found that support image') ||
+        /\bvision\b/.test(errMsg)
       );
       if (isVisionError) {
         if (!failedProviders.includes(provider.name)) {

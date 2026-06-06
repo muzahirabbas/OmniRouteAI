@@ -8,6 +8,8 @@
  * - Return normalized format: { output: string, tokens: { input, output }, raw: object }
  */
 
+import { ProviderError } from '../utils/errors.js';
+
 const DEFAULT_TIMEOUT = parseInt(process.env.PROVIDER_TIMEOUT_MS, 10) || 60000; // 60s
 const DEFAULT_STREAM_TIMEOUT = 1800000; // 30m
 
@@ -166,20 +168,11 @@ export class BaseAdapter {
     * @returns {Error}
     */
    handleError(err) {
-     // Note: subclasses should override this and import ProviderError directly.
-     // This base implementation provides a generic Error wrapper.
      if (err.name === 'AbortError') {
-       const timeoutErr = new Error(`[${this.providerName}] Request timed out`);
-       timeoutErr.statusCode = 504;
-       timeoutErr.cause = err;
-       return timeoutErr;
+       return new ProviderError(this.providerName, 'Request timed out', 504, 'unknown', err);
      }
-
      const statusCode = err.status || err.statusCode || 502;
-     const wrappedErr = new Error(`[${this.providerName}] ${err.message}`);
-     wrappedErr.statusCode = statusCode;
-     wrappedErr.cause = err;
-     return wrappedErr;
+     return new ProviderError(this.providerName, err.message, statusCode, 'unknown', err);
    }
 
    /**

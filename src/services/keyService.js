@@ -321,6 +321,25 @@ export async function getKeyMetadata(provider, key) {
 }
 
 /**
+ * Remove a single API key from a provider — wipes it from the sorted set,
+ * clears its disabled/fail/metadata flags, and (if needed) re-issues the
+ * circuit-breaker check.
+ *
+ * @param {string} provider
+ * @param {string} key
+ */
+export async function removeKey(provider, key) {
+  const { getClient } = await import('../config/redis.js');
+  const client       = getClient();
+  const pipeline     = client.pipeline();
+  pipeline.zrem(`provider:${provider}:keys`, key);
+  pipeline.del(`key:disabled:${provider}:${key}`);
+  pipeline.del(`key:fail:${provider}:${key}`);
+  pipeline.del(`key:metadata:${provider}:${key}`);
+  await pipeline.exec();
+}
+
+/**
  * Reset all key scores for a provider to 0 and clear all disabled flags.
  * Used by the provider refresh endpoint.
  *

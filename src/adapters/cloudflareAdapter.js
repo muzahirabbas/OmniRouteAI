@@ -52,7 +52,16 @@ export class CloudflareAdapter extends BaseAdapter {
             stream: !!stream
           };
         } catch (err) {
-          console.error('[CloudflareAdapter] Image conversion failed:', err);
+          // Don't silently fall through to a text-only request — the caller
+          // asked for an image call, so surface the error to the router so
+          // it can either retry against a vision-capable provider or 400.
+          throw new ProviderError(
+            this.providerName,
+            `Image conversion failed: ${err.message}`,
+            400,
+            'unknown',
+            err,
+          );
         }
       }
       return {
