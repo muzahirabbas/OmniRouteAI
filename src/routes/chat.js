@@ -66,7 +66,19 @@ export async function chatRoutes(app) {
     const allProviders = await getProviders();
     const models = [];
     const seen = new Set();
-    
+
+    // Synthetic "omniauto" model — advertises the router's own auto-route behavior
+    // so any OpenAI-compatible client can pick it from the list and get the
+    // priority/weight provider rotation with each provider's default model.
+    models.push({
+      id:        'omniauto',
+      object:    'model',
+      created:   Math.floor(Date.now() / 1000),
+      owned_by:  'omniroute',
+      features:  ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'],
+    });
+    seen.add('omniauto');
+
     allProviders.forEach(p => {
       if (p.models) {
         p.models.forEach(m => {
@@ -90,6 +102,18 @@ return { object: 'list', data: models };
   // ─── Specific Model Details ─────────────────────────────────────────────
   app.get('/v1/models/:model', async (request, reply) => {
     const { model } = request.params;
+
+    // Synthetic "omniauto" lookup — mirrors the row in /v1/models
+    if (model === 'omniauto') {
+      return {
+        id:        'omniauto',
+        object:    'model',
+        created:   Math.floor(Date.now() / 1000),
+        owned_by:  'omniroute',
+        provider:  'omniroute',
+        features:  ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'],
+      };
+    }
 
     const { getProviders } = await import('../config/providers.js');
     const providers = await getProviders();
@@ -395,11 +419,16 @@ return { object: 'list', data: models };
     // Normalize input based on format - pass URL provider param
     const urlProvider = request.params?.provider || null;
     const input = normalizeInput(request.body, urlProvider);
-    const { prompt, messages, model, provider: providerOverride, task_type, system_prompt, stream, noContext, priority, previous_response_id, store, include_reasoning } = input;
+    const { prompt, messages, model: rawModel, provider: providerOverride, task_type, system_prompt, stream, noContext, priority, previous_response_id, store, include_reasoning } = input;
     const requestPriority = priority || 'normal';
-    
+
+    // Normalize the synthetic "omniauto" alias to the internal "auto" sentinel
+    // so the router treats it as an auto-route request (priority/weight rotation,
+    // each provider's default model). Preserve rawModel for the response shape.
+    const model = rawModel === 'omniauto' ? 'auto' : rawModel;
+
     // Handle "auto" provider - treat as no override to enable auto-selection
-    const effectiveProvider = (providerOverride === 'auto' || !providerOverride) ? null : providerOverride;
+    const effectiveProvider = (providerOverride === 'auto' || !providerOverride || providerOverride === 'omniauto') ? null : providerOverride;
     
     // Additional OpenAI options
     const options = {
@@ -1077,8 +1106,8 @@ priority:               { type: 'string', enum: ['low', 'normal', 'high', 'criti
           };
 
           const result = await routeAndExecute(subPrompt, {
-            model: subInput.model,
-            provider: subInput.provider === 'auto' ? null : subInput.provider,
+            model: subInput.model === 'omniauto' ? 'auto' : subInput.model,
+            provider: (subInput.provider === 'auto' || subInput.provider === 'omniauto' || !subInput.provider) ? null : subInput.provider,
             taskType: subInput.task_type,
             systemPrompt: subInput.system_prompt,
             noContext: subInput.noContext,

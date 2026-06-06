@@ -370,7 +370,7 @@ export async function route(prompt, opts = {}) {
 
   // ─── Validate model exists in ANY active provider BEFORE routing ───
   let searchList;
-  if (opts.model && opts.model !== 'auto') {
+  if (opts.model && opts.model !== 'auto' && opts.model !== 'omniauto') {
     // For audio transcription, we should allow any model since Whisper adapters
     // handle the model validation. Skip this check for audio_transcription.
     const isAudioTranscription = taskType === 'audio_transcription' || 
@@ -398,15 +398,15 @@ export async function route(prompt, opts = {}) {
     let providersWithoutModel = activeProviders.filter(p => !p.models?.includes(opts.model));
     
     // If provider is explicitly specified, filter both lists to only that provider
-    if (providerOverride && providerOverride !== 'auto') {
+    if (providerOverride && providerOverride !== 'auto' && providerOverride !== 'omniauto') {
       providersWithModel = providersWithModel.filter(p => p.name === providerOverride);
       providersWithoutModel = providersWithoutModel.filter(p => p.name === providerOverride);
     }
-    
+
     // Weighted random within each group, then merge: providers WITH model first
     const shuffle = arr => arr.sort(() => Math.random() - 0.5);
     searchList = [...shuffle(providersWithModel), ...shuffle(providersWithoutModel)];
-  } else if (providerOverride && providerOverride !== 'auto') {
+  } else if (providerOverride && providerOverride !== 'auto' && providerOverride !== 'omniauto') {
     const target = activeProviders.find(p => p.name === providerOverride);
     searchList = target ? [target] : [];
   } else {
@@ -462,7 +462,7 @@ export async function route(prompt, opts = {}) {
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
     let model = null;
-    const isAutoRequest = !opts.model || opts.model === 'auto' || opts.model === 'default';
+    const isAutoRequest = !opts.model || opts.model === 'auto' || opts.model === 'default' || opts.model === 'omniauto';
 
     if (isWhisperModel && isKnownTranscriptionProvider) {
       // For known transcription providers with whisper model, always use the requested whisper model
@@ -471,7 +471,8 @@ export async function route(prompt, opts = {}) {
       model = opts.model;
     } else if (isAutoRequest) {
       // Handle 'auto' or 'default' by picking provider's default model
-      model = provider.default_model || provider.models?.[0] || 'default';
+      // (camelCase `defaultModel` is the canonical field in STATIC_PROVIDERS)
+      model = provider.defaultModel || provider.models?.[0] || 'default';
     } else {
       // Model requested but not in this provider's models list - SKIP this provider
       continue;

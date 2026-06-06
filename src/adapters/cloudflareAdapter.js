@@ -268,7 +268,7 @@ export class CloudflareAdapter extends BaseAdapter {
 
     try {
       const wantsBase64 = !!(model && model.includes('large-v3-turbo'));
-      const cfModel = (model && (model.includes('whisper') || model === 'auto'))
+      const cfModel = (model && (model.includes('whisper') || model === 'auto' || model === 'omniauto'))
         ? (wantsBase64 ? '@cf/openai/whisper-large-v3-turbo' : '@cf/openai/whisper')
         : (model || '@cf/openai/whisper');
 
