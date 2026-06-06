@@ -264,7 +264,7 @@ export const STATIC_PROVIDERS = [
     priority: 2,
     weight: 10,
     status: 'active',
-    endpoint: 'https://api-inference.modelscope.cn/v1',
+    endpoint: 'https://api-inference.modelscope.ai/v1',
     models: [
       'Qwen/Qwen2.5-72B-Instruct',
       'Qwen/Qwen2.5-Coder-32B-Instruct',
@@ -901,6 +901,29 @@ export const STATIC_PROVIDERS = [
       'jamba-mini-2',
     ],
     rpmLimit: 200,
+    requiresAuth: true,
+    features: ['tool-calling'],
+  },
+
+  // Nous Portal — OpenAI-compatible gateway from Nous Research.
+  // Get a free API key at https://portal.nousresearch.com (free tier: 45 RPM, 450k TPM).
+  // Two free models + Hermes 4 paid models accessible via a single endpoint.
+  {
+    name: 'nous',
+    priority: 1,
+    weight: 12,
+    status: 'active',
+    endpoint: 'https://inference-api.nousresearch.com/v1/chat/completions',
+    models: [
+      // Free tier (requires account signup, no credits needed)
+      'stepfun/step-3.7-flash:free',
+      'nvidia/nemotron-3-ultra:free',
+      // Hermes 4 (paid, very cheap: $0.05-$0.09 / 1M prompt tokens)
+      'nousresearch/hermes-4-70b',
+      'nousresearch/hermes-4-405b',
+    ],
+    defaultModel: 'stepfun/step-3.7-flash:free',
+    rpmLimit: 45,
     requiresAuth: true,
     features: ['tool-calling'],
   }

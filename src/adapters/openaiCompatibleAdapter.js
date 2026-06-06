@@ -95,6 +95,7 @@ export class OpenAICompatibleAdapter extends BaseAdapter {
       'mistral', 'cohere', 'perplexity', 'deepgram', 'assemblyai',
       'kilo', 'vercel-ai-gateway', 'ollama', 'ollama-cloud', 'glm',
       'modelscope', 'ovhcloud', 'nscale', 'aion-labs', 'llm7', 'ai21',
+      'nous',
     ].includes(this.providerName);
     const supportsAdvancedOpenAI = !isStrictProvider;
 

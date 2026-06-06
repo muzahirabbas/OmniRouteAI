@@ -45,6 +45,7 @@ const EXPECTED_URLS = {
   'aion-labs':         'https://api.aionlabs.ai/v1/chat/completions',
   llm7:                'https://api.llm7.io/v1/chat/completions',
   ai21:                'https://api.ai21.com/studio/v1/chat/completions',
+  nous:                'https://inference-api.nousresearch.com/v1/chat/completions',
   mistral:             'https://api.mistral.ai/v1/chat/completions',
   perplexity:          'https://api.perplexity.ai/v1/chat/completions',
   cohere:              'https://api.cohere.com/v1/chat',

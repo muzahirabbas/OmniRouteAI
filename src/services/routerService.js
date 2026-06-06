@@ -256,6 +256,7 @@ export async function getAdapter(providerName, providerConfig = null) {
         'aion-labs': 'https://api.aionlabs.ai/v1/chat/completions',
         llm7:        'https://api.llm7.io/v1/chat/completions',
         ai21:        'https://api.ai21.com/studio/v1/chat/completions',
+        nous:        'https://inference-api.nousresearch.com/v1/chat/completions',
       };
       adapter = new mod.InferenceAdapter(providerName, endpoints[providerName]);
       break;
