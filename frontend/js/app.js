@@ -1135,8 +1135,11 @@ async function refreshModels(force = false) {
     const tbody = document.getElementById('models-body');
     const rows = [];
 
+    const activeOnly = document.getElementById('models-active-only').checked;
+
     providers.forEach(p => {
       if (filterVal && p.name !== filterVal) return;
+      if (activeOnly && p.disabled) return;
       const modelWeights = p.modelWeights || {};
       (p.models || []).forEach(m => {
         const weight = modelWeights[m] ?? 3;
@@ -1145,12 +1148,13 @@ async function refreshModels(force = false) {
     });
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No models found for the selected filter.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No models found for the selected filter.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = rows.map(r => `
+    tbody.innerHTML = rows.map((r, i) => `
       <tr>
+        <td style="text-align: center; color: var(--text-secondary); font-size: 0.85rem;">${i + 1}</td>
         <td><strong>${escapeHTML(r.provider)}</strong></td>
         <td><code>${escapeHTML(r.model)}</code></td>
         <td>
@@ -1165,7 +1169,7 @@ async function refreshModels(force = false) {
       </tr>
     `).join('');
   } catch (err) {
-    document.getElementById('models-body').innerHTML = `<tr><td colspan="4" class="empty-state">Failed to load: ${escapeHTML(err.message)}</td></tr>`;
+    document.getElementById('models-body').innerHTML = `<tr><td colspan="5" class="empty-state">Failed to load: ${escapeHTML(err.message)}</td></tr>`;
   }
 }
 

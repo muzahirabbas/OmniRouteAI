@@ -147,6 +147,11 @@
       <div class="page-header">
         <h2>Model Weights</h2>
         <div class="header-actions">
+          <label class="toggle-switch" title="Show only active providers">
+            <input type="checkbox" id="models-active-only" checked onchange="applyModelsFilter()">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">Active only</span>
+          </label>
           <div class="filter-group">
             <span class="filter-group-label">Provider</span>
             <select id="models-provider-filter" class="input" onchange="applyModelsFilter()">
@@ -166,14 +171,15 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th scope="col" style="width: 40px;">#</th>
                 <th scope="col">Provider</th>
                 <th scope="col">Model</th>
-                <th scope="col">Weight</th>
-                <th scope="col">Status</th>
+                <th scope="col" style="width: 100px;">Weight</th>
+                <th scope="col" style="width: 100px;">Status</th>
               </tr>
             </thead>
             <tbody id="models-body">
-              <tr><td colspan="4" class="empty-state">Loading models...</td></tr>
+              <tr><td colspan="5" class="empty-state">Loading models...</td></tr>
             </tbody>
           </table>
         </div>
