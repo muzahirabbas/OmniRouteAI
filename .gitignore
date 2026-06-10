@@ -2,7 +2,7 @@
 .env
 .env.*
 !.env.example
-
+x.txt
 # Dependencies
 node_modules/
 scratch/
@@ -11,6 +11,7 @@ local-daemon/node_modules/
 # Build artifacts
 dist/
 build/
+test/
 
 # Logs
 *.log
