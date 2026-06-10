@@ -30,6 +30,7 @@ import { flushLogs } from '../services/loggingService.js';
 import { rateLimiters } from '../utils/rateLimiter.js';
 import { keyId } from '../utils/hash.js';
 import { invalidateAdapterCache } from '../services/routerService.js';
+import { loadDaemonPool } from '../utils/daemonPool.js';
 import { disableSearchProvider } from '../services/searchRouterService.js';
 
 /**
@@ -930,10 +931,25 @@ export async function adminRoutes(app) {
 
       let data;
       if (providerName === 'ollama_local_bridge') {
-        const daemonUrl = provider.endpoint || 'http://localhost:5059';
-        const res = await fetch(daemonUrl.replace(/\/$/, '') + '/models', { headers: process.env.LOCAL_DAEMON_TOKEN ? { 'X-Local-Token': process.env.LOCAL_DAEMON_TOKEN } : {}, signal: AbortSignal.timeout(8000) });
-        data = await res.json();
-        return { success: true, provider: providerName, models: data.models?.map(m => m.name).filter(Boolean).sort() || [], count: data.models?.length || 0 };
+        const pool = loadDaemonPool();
+        const allDaemons = pool.getAllDaemons();
+        const modelSet = new Set();
+
+        await Promise.allSettled(
+          allDaemons.map(async (daemon) => {
+            const res = await fetch(`${daemon.url}/models`, {
+              headers: daemon.token ? { 'X-Local-Token': daemon.token } : {},
+              signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+              const body = await res.json();
+              (body.models || []).forEach(m => { if (m.name) modelSet.add(m.name); });
+            }
+          })
+        );
+
+        const models = [...modelSet].sort();
+        return { success: true, provider: providerName, models, count: models.length };
       }
 
       const res = await fetch(providerName === 'google' ? `${modelsUrl}?key=${apiKey}` : modelsUrl, { headers: (providerName === 'google' || providerName === 'huggingface') ? {} : { 'Authorization': `Bearer ${apiKey}` }, signal: AbortSignal.timeout(8000) });

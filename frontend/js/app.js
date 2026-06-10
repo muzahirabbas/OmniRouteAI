@@ -2242,31 +2242,94 @@ async function refreshOllamaLogs(force = false) {
 }
 
 
-// ─── Daemon Settings ─────────────────────────────────────────────────
+// ─── Daemon Settings (multi-daemon load-balanced) ───────────────────
+
+function getDaemonsFromStorage() {
+  try {
+    const raw = localStorage.getItem('daemons');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  // Migrate legacy single-daemon keys
+  const oldUrl = localStorage.getItem('daemonUrl');
+  if (oldUrl) {
+    const daemons = [{ url: oldUrl.replace('localhost', '127.0.0.1'), token: localStorage.getItem('daemonToken') || '' }];
+    localStorage.setItem('daemons', JSON.stringify(daemons));
+    return daemons;
+  }
+  return [{ url: 'http://127.0.0.1:5059', token: '' }];
+}
+
+function renderDaemonRows() {
+  const container = document.getElementById('daemon-list');
+  if (!container) return;
+  const daemons = getDaemonsFromStorage();
+  container.innerHTML = daemons.map((d, i) => `
+    <div class="daemon-row" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+      <input type="text" class="input daemon-url" value="${d.url}" placeholder="http://127.0.0.1:5059" style="flex:2;">
+      <input type="password" class="input daemon-token" value="${d.token ? '********' : ''}" placeholder="Token (optional)" style="flex:2;">
+      ${daemons.length > 1 ? `<button class="btn btn-sm btn-danger" onclick="removeDaemonRow(${i})" title="Remove">✕</button>` : ''}
+    </div>
+  `).join('');
+}
 
 function loadDaemonSettings() {
-  const tokenInput = document.getElementById('settings-daemon-token');
-  const urlInput = document.getElementById('settings-daemon-url');
-  if (tokenInput) {
-    const saved = localStorage.getItem('daemonToken');
-    if (saved) {
-      tokenInput.value = '';
-      tokenInput.placeholder = '•••••••• (saved)';
-    }
-  }
-  if (urlInput) {
-    urlInput.value = (localStorage.getItem('daemonUrl') || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1');
-  }
+  renderDaemonRows();
+}
+
+function addDaemonRow() {
+  const container = document.getElementById('daemon-list');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'daemon-row';
+  div.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+  div.innerHTML = `
+    <input type="text" class="input daemon-url" placeholder="http://192.168.1.100:5059" style="flex:2;">
+    <input type="password" class="input daemon-token" placeholder="Token (optional)" style="flex:2;">
+    <button class="btn btn-sm btn-danger" onclick="this.closest('.daemon-row').remove()" title="Remove">✕</button>
+  `;
+  container.appendChild(div);
+  div.querySelector('.daemon-url').focus();
+}
+
+function removeDaemonRow(index) {
+  const daemons = getDaemonsFromStorage();
+  if (daemons.length <= 1) return;
+  daemons.splice(index, 1);
+  localStorage.setItem('daemons', JSON.stringify(daemons));
+  renderDaemonRows();
+  showToast('info', 'Daemon removed');
 }
 
 function saveDaemonSettings() {
-  const token = document.getElementById('settings-daemon-token').value.trim();
-  const url = document.getElementById('settings-daemon-url').value.trim();
+  const rows = document.querySelectorAll('#daemon-list .daemon-row');
+  const daemons = [];
 
-  if (token) localStorage.setItem('daemonToken', token);
-  if (url) localStorage.setItem('daemonUrl', url);
+  rows.forEach(row => {
+    const urlInput = row.querySelector('.daemon-url');
+    const tokenInput = row.querySelector('.daemon-token');
+    const url = urlInput.value.trim();
+    if (!url) return;
+    let token = tokenInput.value.trim();
+    if (token === '********') {
+      // Preserve existing token from storage if unchanged
+      const existing = getDaemonsFromStorage();
+      const idx = [...rows].indexOf(row);
+      if (existing[idx]) token = existing[idx].token;
+    }
+    daemons.push({ url: url.replace(/\/+$/, ''), token });
+  });
 
-  showToast('success', 'Daemon settings saved');
+  if (daemons.length === 0) {
+    showToast('warning', 'At least one daemon URL is required');
+    return;
+  }
+
+  localStorage.setItem('daemons', JSON.stringify(daemons));
+  renderDaemonRows();
+  showToast('success', `Daemon settings saved (${daemons.length} daemon${daemons.length > 1 ? 's' : ''})`);
 }
 
 // ─── Toast Notifications ─────────────────────────────────────────────

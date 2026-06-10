@@ -3,6 +3,7 @@ import { getActiveProviders, recordProviderResult, weightedShuffle } from './pro
 import { getLeastUsedKey, getLeastUsedKeyExcluding, recordKeyFailure, getKeyMetadata } from './keyService.js';
 import { estimateTokens } from './statsService.js';
 import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
+import { loadDaemonPool } from '../utils/daemonPool.js';
 
 // Providers whose API keys carry per-key metadata required to build a
 // request URL (e.g., Cloudflare Account ID, Vertex project/region).
@@ -300,7 +301,8 @@ export async function getAdapter(providerName, providerConfig = null) {
     }
     case 'ollama_local_bridge': {
       const mod = await import('../adapters/ollamaLocalBridgeAdapter.js');
-      adapter = new mod.OllamaLocalBridgeAdapter();
+      const pool = loadDaemonPool();
+      adapter = new mod.OllamaLocalBridgeAdapter(pool);
       break;
     }
     case 'zai_cli_local':
@@ -319,9 +321,9 @@ export async function getAdapter(providerName, providerConfig = null) {
     case 'qoder_cli_local':
     case 'cursor_cli_local': {
       const mod = await import('../adapters/localHttpAdapter.js');
+      const pool = loadDaemonPool();
       const toolName = providerName.split('_')[0]; // zai, cline, kimi, claude, etc.
-      const daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';
-      adapter = new mod.LocalHttpAdapter(providerName, `${daemonUrl}/${toolName}`);
+      adapter = new mod.LocalHttpAdapter(providerName, pool, toolName);
       break;
     }
     default: {

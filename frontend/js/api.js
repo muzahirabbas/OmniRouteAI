@@ -207,10 +207,14 @@ const API = {
     }
 
     if (daemonUrl) {
-      localStorage.setItem('daemonUrl', daemonUrl.trim().replace(/\/$/, ''));
-    }
-    if (daemonToken) {
-      localStorage.setItem('daemonToken', daemonToken.trim());
+      const existing = this.getDaemons();
+      if (existing.length === 1 && existing[0].url === 'http://127.0.0.1:5059' && !existing[0].token) {
+        localStorage.setItem('daemons', JSON.stringify([{ url: daemonUrl.trim().replace(/\/+$/, ''), token: (daemonToken || '').trim() }]));
+      } else {
+        existing[0].url = daemonUrl.trim().replace(/\/+$/, '');
+        if (daemonToken) existing[0].token = daemonToken.trim();
+        localStorage.setItem('daemons', JSON.stringify(existing));
+      }
     }
   },
 
@@ -522,77 +526,117 @@ const API = {
 
   // ─── Local Daemon (direct localhost calls) ──────────────────────────
 
-  getDaemonUrl() {
-    return (localStorage.getItem('daemonUrl') || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1');
+  _migrateOldDaemonKeys() {
+    const oldUrl = localStorage.getItem('daemonUrl');
+    const oldToken = localStorage.getItem('daemonToken');
+    if (oldUrl && !localStorage.getItem('daemons')) {
+      const daemons = JSON.stringify([{
+        url: oldUrl.replace('localhost', '127.0.0.1').replace(/\/+$/, ''),
+        token: oldToken || ''
+      }]);
+      localStorage.setItem('daemons', daemons);
+    }
   },
 
-  getDaemonToken() {
-    return localStorage.getItem('daemonToken') || '';
+  getDaemons() {
+    this._migrateOldDaemonKeys();
+    try {
+      const raw = localStorage.getItem('daemons');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(d => ({
+            url: (d.url || 'http://127.0.0.1:5059').replace('localhost', '127.0.0.1').replace(/\/+$/, ''),
+            token: d.token || ''
+          }));
+        }
+      }
+    } catch (e) {}
+    return [{ url: 'http://127.0.0.1:5059', token: '' }];
   },
 
   /**
-   * Make a request directly to the local daemon (bypasses cloud backend).
+   * Make a request directly to a local daemon (bypasses cloud backend).
+   * Load-balanced across all configured daemons with automatic failover.
    * Uses X-Local-Token header for auth.
    */
   async daemonRequest(path, options = {}) {
-    const base = this.getDaemonUrl();
-    const token = this.getDaemonToken();
+    const daemons = this.getDaemons();
+    const visited = new Set();
+    let lastError;
 
-    const headers = {
-      ...options.headers,
-      'ngrok-skip-browser-warning': 'true',
-    };
+    for (let attempt = 0; attempt < daemons.length; attempt++) {
+      const available = daemons.filter(d => !visited.has(d.url));
+      if (available.length === 0) break;
 
-    if (options.body && typeof options.body === 'string') {
-      headers['Content-Type'] = 'application/json';
-    }
+      const daemon = available[Math.floor(Math.random() * available.length)];
+      visited.add(daemon.url);
 
-    if (token) {
-      headers['X-Local-Token'] = token;
-    }
+      const headers = {
+        ...options.headers,
+        'ngrok-skip-browser-warning': 'true',
+      };
 
-    const url = `${base}${path}`;
-
-    const isGet = (!options.method || options.method === 'GET');
-    const cacheKey = isGet ? `${base}${path}` : null;
-
-    if (!isGet) {
-       AppCache.clear();
-    } else if (!options.forceRefresh && cacheKey) {
-       const cached = AppCache.get(cacheKey);
-       if (cached) return cached;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+      if (options.body && typeof options.body === 'string') {
+        headers['Content-Type'] = 'application/json';
       }
 
-      const payload = await response.json();
-      if (isGet && cacheKey) AppCache.set(cacheKey, payload);
-      return payload;
-    } catch (err) {
-      if (err.name === 'AbortError') {
+      if (daemon.token) {
+        headers['X-Local-Token'] = daemon.token;
+      }
+
+      const url = `${daemon.url}${path}`;
+      const isGet = (!options.method || options.method === 'GET');
+      const cacheKey = isGet ? `${daemon.url}${path}` : null;
+
+      if (!isGet) {
+        AppCache.clear();
+      } else if (!options.forceRefresh && cacheKey) {
+        const cached = AppCache.get(cacheKey);
+        if (cached) return cached;
+      }
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (isGet && cacheKey) AppCache.set(cacheKey, payload);
+        return payload;
+      } catch (err) {
+        lastError = err;
+        const isConnectionError =
+          err.name === 'AbortError' ||
+          (err.name === 'TypeError' && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) ||
+          err.message.includes('502') ||
+          err.message.includes('Bad Gateway');
+        if (!isConnectionError) throw err;
+      }
+    }
+
+    if (lastError) {
+      if (lastError.name === 'AbortError') {
         throw new Error('Local daemon request timed out. Please check if your PC is online.');
       }
-      if (err.name === 'TypeError' && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
-        throw new Error('Cannot connect to your local daemon. 🛠️ Please run "start-daemon.bat" on your PC.');
+      if (lastError.name === 'TypeError' && (lastError.message.includes('fetch') || lastError.message.includes('Failed to fetch'))) {
+        throw new Error(`Cannot connect to any local daemon (tried ${daemons.length}). 🛠️ Please run "start-daemon.bat" on your PC.`);
       }
-      if (err.message.includes('502') || err.message.includes('Bad Gateway')) {
+      if (lastError.message.includes('502') || lastError.message.includes('Bad Gateway')) {
         throw new Error('Local daemon bridge (ngrok) returned a 502 Bad Gateway. 💡 Your ngrok is running, but the local daemon on your PC is not responding. Please restart the daemon.');
       }
-      throw err;
+      throw lastError;
     }
   },
 };

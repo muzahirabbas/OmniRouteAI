@@ -1,84 +1,109 @@
 import { BaseAdapter } from './baseAdapter.js';
 import { ProviderError } from '../utils/errors.js';
 import { extractTokens } from '../services/statsService.js';
+import { loadDaemonPool } from '../utils/daemonPool.js';
 
-/**
- * Ollama Local Bridge adapter.
- * Tunnels requests through the OmniRouteAI-Local daemon to reach a machine's local Ollama.
- */
+const MAX_RETRIES = 3;
+
 export class OllamaLocalBridgeAdapter extends BaseAdapter {
-  constructor() {
+  constructor(daemonPool) {
     super('ollama_local_bridge');
-    // The daemon URL (usually localhost:5059 or a tunneled endpoint)
-    this.daemonUrl = process.env.LOCAL_DAEMON_URL || 'http://localhost:5059';
+    this.daemonPool = daemonPool || loadDaemonPool();
+  }
+
+  async _fetchWithFailover(url, body, options = {}) {
+    const poolSize = this.daemonPool.getAllDaemons().length;
+    const maxAttempts = Math.min(poolSize, MAX_RETRIES);
+    let lastError;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const daemon = this.daemonPool.getRandomDaemon();
+      const endpoint = `${daemon.url}/ollama`;
+      const controller = this.createTimeout();
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Local-Token': daemon.token || '',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        this.clearTimeout(controller);
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new ProviderError(this.providerName, `Daemon Bridge Error: ${errText}`, response.status);
+        }
+
+        return await response.json();
+      } catch (err) {
+        this.clearTimeout(controller);
+        lastError = err;
+        if (err instanceof ProviderError) {
+          const sc = err.statusCode || 0;
+          if (sc === 503 || sc === 504 || sc === 502 || sc === 0) {
+            this.daemonPool.markFailed(daemon.url);
+            continue;
+          }
+        }
+        if (err.cause?.code === 'ECONNREFUSED' || err.name === 'AbortError') {
+          this.daemonPool.markFailed(daemon.url);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw new ProviderError(
+      this.providerName,
+      `All ${maxAttempts} daemon(s) failed. Last error: ${lastError.message}`,
+      503
+    );
   }
 
   async sendRequest(prompt, model, apiKey, options = {}) {
-    const url = `${this.daemonUrl}/ollama`;
-    const controller = this.createTimeout();
+    let requestBody = { model, stream: false };
 
-    try {
-      let requestBody = { model, stream: false };
-      
-      if (options.messages && options.messages.length > 0) {
-        requestBody.messages = options.messages.filter(m => m.role !== 'system');
-      } else if (Array.isArray(prompt)) {
-        const textPart = prompt.find(p => typeof p === 'string' || p.type === 'text');
-        const imageParts = prompt.filter(p => p.type === 'image');
-        
-        requestBody.prompt = typeof textPart === 'string' ? textPart : (textPart?.text || '');
-        if (imageParts.length > 0) {
-          requestBody.images = imageParts.map(p => p.data);
-        }
-      } else {
-        requestBody.prompt = prompt;
+    if (options.messages && options.messages.length > 0) {
+      requestBody.messages = options.messages.filter(m => m.role !== 'system');
+    } else if (Array.isArray(prompt)) {
+      const textPart = prompt.find(p => typeof p === 'string' || p.type === 'text');
+      const imageParts = prompt.filter(p => p.type === 'image');
+
+      requestBody.prompt = typeof textPart === 'string' ? textPart : (textPart?.text || '');
+      if (imageParts.length > 0) {
+        requestBody.images = imageParts.map(p => p.data);
       }
-
-      if (options.tools && options.tools.length > 0) {
-        requestBody.tools = options.tools.map(t => {
-          if (t.type === 'function' && t.function && t.function.parameters) {
-            return {
-              ...t,
-              function: {
-                ...t.function,
-                parameters: this.cleanSchema(t.function.parameters)
-              }
-            };
-          }
-          return t;
-        });
-      }
-      if (options.tool_choice) {
-        requestBody.tool_choice = options.tool_choice;
-      }
-
-      const response = await fetch(url, {
-        method:  'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Local-Token': process.env.LOCAL_DAEMON_TOKEN || '',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      this.clearTimeout(controller);
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new ProviderError(this.providerName, `Daemon Bridge Error: ${errText}`, response.status);
-      }
-
-      return await response.json();
-    } catch (err) {
-      this.clearTimeout(controller);
-      if (err instanceof ProviderError) throw err;
-      throw this.handleError(err);
+    } else {
+      requestBody.prompt = prompt;
     }
+
+    if (options.tools && options.tools.length > 0) {
+      requestBody.tools = options.tools.map(t => {
+        if (t.type === 'function' && t.function && t.function.parameters) {
+          return {
+            ...t,
+            function: {
+              ...t.function,
+              parameters: this.cleanSchema(t.function.parameters)
+            }
+          };
+        }
+        return t;
+      });
+    }
+    if (options.tool_choice) {
+      requestBody.tool_choice = options.tool_choice;
+    }
+
+    return this._fetchWithFailover('/ollama', requestBody, options);
   }
 
   async sendStreamRequest(prompt, model, apiKey, options = {}) {
-    // Current bridge implementation is non-streaming for simplicity
     const result = await this.sendRequest(prompt, model, apiKey, options);
     if (options.onChunk && result.output) {
       options.onChunk({ content: result.output, provider: this.providerName, model });
