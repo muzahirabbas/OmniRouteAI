@@ -751,9 +751,14 @@
           <div class="form-group">
             <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
               Active Models
-              <button type="button" class="btn btn-sm btn-ghost" id="edit-provider-remove-all-models" onclick="removeAllProviderModels()" style="color: var(--color-danger);">
-                🗑 Remove All
-              </button>
+              <span style="display: flex; gap: 0.4rem;">
+                <button type="button" class="btn btn-sm btn-ghost" onclick="removeDeprecatedProviderModels()" style="color: var(--color-warning); font-size: 0.78rem;">
+                  🧹 Remove Deprecated
+                </button>
+                <button type="button" class="btn btn-sm btn-ghost" onclick="removeAllProviderModels()" style="color: var(--color-danger);">
+                  🗑 Remove All
+                </button>
+              </span>
             </label>
             <div id="edit-provider-models-list" style="display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; min-height: 40px; background: var(--bg-card-secondary); max-height: 120px; overflow-y: auto;">
               <!-- Model tags with remove buttons -->

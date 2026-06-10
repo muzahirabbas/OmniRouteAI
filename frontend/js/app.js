@@ -967,6 +967,55 @@ function removeAllProviderModels() {
   showToast('success', `Cleared ${count} model${count === 1 ? '' : 's'}`);
 }
 
+async function removeDeprecatedProviderModels() {
+  const current = window._currentEditingModels;
+  if (!Array.isArray(current) || current.length === 0) {
+    showToast('info', 'No models to check');
+    return;
+  }
+
+  const name = document.getElementById('edit-provider-name').value;
+  if (!name) return;
+
+  // Fetch the live model list from the provider
+  let live;
+  try {
+    const result = await API.request('/api/admin/providers/fetch-models', {
+      method: 'POST',
+      body: JSON.stringify({ providerName: name })
+    });
+    if (result.success === false) throw new Error(result.error || 'Discovery failed');
+    live = (result.models || []).map(m => m.id || m);
+  } catch (err) {
+    showToast('error', `Failed to fetch models: ${err.message}`);
+    return;
+  }
+
+  if (live.length === 0) {
+    showToast('warning', 'Fetched model list is empty — cannot determine which models are deprecated');
+    return;
+  }
+
+  const liveSet = new Set(live);
+  const deprecated = current.filter(m => !liveSet.has(m));
+
+  if (deprecated.length === 0) {
+    showToast('success', 'All models are current — none are deprecated');
+    return;
+  }
+
+  if (!confirm(`Remove ${deprecated.length} deprecated model${deprecated.length === 1 ? '' : 's'}?\n\n${deprecated.join('\n')}\n\nThis will not be saved until you click "Save Changes".`)) {
+    return;
+  }
+
+  window._currentEditingModels = current.filter(m => liveSet.has(m));
+  const modelSelect = document.getElementById('edit-provider-default-model');
+  const currentDefault = modelSelect.value;
+  renderProviderModelControls(modelSelect, window._currentEditingModels, currentDefault);
+  if (typeof filterDiscoveredModels === 'function') filterDiscoveredModels();
+  showToast('success', `Removed ${deprecated.length} deprecated model${deprecated.length === 1 ? '' : 's'}`);
+}
+
 function addProviderModel() {
   const input = document.getElementById('edit-provider-new-model');
   const model = input.value.trim();
