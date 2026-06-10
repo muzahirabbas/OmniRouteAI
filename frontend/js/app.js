@@ -228,6 +228,7 @@ function navigateTo(page) {
   switch (page) {
     case 'overview': refreshOverview(); break;
     case 'providers': refreshProviders(); break;
+    case 'models': refreshModels(); break;
     case 'keys': refreshKeys(); break;
     case 'logs': refreshLogs(); break;
     case 'stats': 
@@ -424,7 +425,8 @@ function syncProviderDropdowns(providers) {
     'key-provider-select',
     'key-view-provider',
     'log-filter-provider',
-    'playground-provider'
+    'playground-provider',
+    'models-provider-filter'
   ];
 
   providers.sort((a, b) => a.name.localeCompare(b.name));
@@ -444,25 +446,34 @@ function syncProviderDropdowns(providers) {
       filteredProviders = providers.filter(p => !p.disabled);
     }
 
-    const cloudProviders = filteredProviders.filter(p => p.type !== 'local_http');
-    const localProviders = filteredProviders.filter(p => p.type === 'local_http');
-
-    // Specialized "Auto" or "All" options for specific select boxes
-    if (id === 'log-filter-provider') html += '<option value="">All Providers</option>';
-    if (id === 'playground-provider') html += '<option value="auto">Auto Router (All Providers)</option>';
-
-    if (cloudProviders.length) {
-      html += '<option disabled>── Cloud Providers ──</option>';
-      cloudProviders.forEach(p => {
+    // Models filter uses a flat list (no Cloud/Local sections)
+    if (id === 'models-provider-filter') {
+      html += '<option value="">All Providers</option>';
+      const sorted = [...filteredProviders].sort((a, b) => a.name.localeCompare(b.name));
+      sorted.forEach(p => {
         html += `<option value="${p.name}">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</option>`;
       });
-    }
+    } else {
+      const cloudProviders = filteredProviders.filter(p => p.type !== 'local_http');
+      const localProviders = filteredProviders.filter(p => p.type === 'local_http');
 
-    if (localProviders.length) {
-      html += '<option disabled>── Local CLI Daemons ──</option>';
-      localProviders.forEach(p => {
-        html += `<option value="${p.name}">${p.name.split('_')[0].charAt(0).toUpperCase() + p.name.split('_')[0].slice(1)} CLI (Local)</option>`;
-      });
+      // Specialized "Auto" or "All" options for specific select boxes
+      if (id === 'log-filter-provider') html += '<option value="">All Providers</option>';
+      if (id === 'playground-provider') html += '<option value="auto">Auto Router (All Providers)</option>';
+
+      if (cloudProviders.length) {
+        html += '<option disabled>── Cloud Providers ──</option>';
+        cloudProviders.forEach(p => {
+          html += `<option value="${p.name}">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</option>`;
+        });
+      }
+
+      if (localProviders.length) {
+        html += '<option disabled>── Local CLI Daemons ──</option>';
+        localProviders.forEach(p => {
+          html += `<option value="${p.name}">${p.name.split('_')[0].charAt(0).toUpperCase() + p.name.split('_')[0].slice(1)} CLI (Local)</option>`;
+        });
+      }
     }
 
     el.innerHTML = html;
@@ -1109,6 +1120,69 @@ async function saveProviderConfig() {
     refreshOverview();
   } catch (err) {
     showToast('error', `Update failed: ${err.message}`);
+  }
+}
+
+// ─── Models Page ─────────────────────────────────────────────────────
+
+async function refreshModels(force = false) {
+  try {
+    const data = await API.getProviders({ forceRefresh: force });
+    const providers = data.providers || [];
+    const filterVal = document.getElementById('models-provider-filter').value;
+
+    // Build model rows
+    const tbody = document.getElementById('models-body');
+    const rows = [];
+
+    providers.forEach(p => {
+      if (filterVal && p.name !== filterVal) return;
+      const modelWeights = p.modelWeights || {};
+      (p.models || []).forEach(m => {
+        const weight = modelWeights[m] ?? 3;
+        rows.push({ provider: p.name, model: m, weight, disabled: p.disabled, status: p.status });
+      });
+    });
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No models found for the selected filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><strong>${escapeHTML(r.provider)}</strong></td>
+        <td><code>${escapeHTML(r.model)}</code></td>
+        <td>
+          <select class="input model-weight-select" style="width: auto; min-width: 70px; padding: 0.3rem 0.5rem; font-size: 0.85rem;"
+            data-provider="${escapeHTML(r.provider)}"
+            data-model="${escapeHTML(r.model)}"
+            onchange="onModelWeightChange(this)">
+            ${[1,2,3,4,5].map(w => `<option value="${w}"${w === r.weight ? ' selected' : ''}>${w}</option>`).join('')}
+          </select>
+        </td>
+        <td><span class="badge ${r.status === 'active' && !r.disabled ? 'badge-success' : 'badge-error'}">${r.status === 'active' && !r.disabled ? 'Active' : 'Inactive'}</span></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    document.getElementById('models-body').innerHTML = `<tr><td colspan="4" class="empty-state">Failed to load: ${escapeHTML(err.message)}</td></tr>`;
+  }
+}
+
+function applyModelsFilter() {
+  refreshModels(true);
+}
+
+async function onModelWeightChange(select) {
+  const provider = select.dataset.provider;
+  const model = select.dataset.model;
+  const weight = parseInt(select.value, 10);
+  try {
+    await API.setModelWeight(provider, model, weight);
+    showToast('success', `Weight set to ${weight} for ${provider}:${model}`);
+  } catch (err) {
+    showToast('error', `Failed to update weight: ${err.message}`);
+    refreshModels(true);
   }
 }
 

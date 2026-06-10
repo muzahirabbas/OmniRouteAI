@@ -82,17 +82,25 @@ export async function chatRoutes(app) {
     const models = [];
     const seen = new Set();
 
-    // Synthetic "omniauto" model — advertises the router's own auto-route behavior
-    // so any OpenAI-compatible client can pick it from the list and get the
-    // priority/weight provider rotation with each provider's default model.
-    models.push({
-      id:        'omniauto',
-      object:    'model',
-      created:   Math.floor(Date.now() / 1000),
-      owned_by:  'omniroute',
-      features:  ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'],
+    // Synthetic router models
+    const SYNTHETIC_MODELS = [
+      { id: 'omniauto',    features: ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'] },
+      { id: 'omnilowest',  features: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'] },
+      { id: 'omnilow',     features: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'] },
+      { id: 'omnimedium',  features: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'] },
+      { id: 'omnihigh',    features: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'] },
+      { id: 'omnihighest', features: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'] },
+    ];
+    SYNTHETIC_MODELS.forEach(sm => {
+      models.push({
+        id:       sm.id,
+        object:   'model',
+        created:  Math.floor(Date.now() / 1000),
+        owned_by: 'omniroute',
+        features: sm.features,
+      });
+      seen.add(sm.id);
     });
-    seen.add('omniauto');
 
     activeProviders.forEach(p => {
       if (p.models) {
@@ -120,15 +128,23 @@ export async function chatRoutes(app) {
   app.get('/v1/models/:model', async (request, reply) => {
     const { model } = request.params;
 
-    // Synthetic "omniauto" lookup — mirrors the row in /v1/models
-    if (model === 'omniauto') {
+    // Synthetic router models lookup
+    const SYNTHETIC_MODELS = {
+      omniauto:    ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'],
+      omnilowest:  ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'],
+      omnilow:     ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'],
+      omnimedium:  ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'],
+      omnihigh:    ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'],
+      omnihighest: ['router', 'weight-filtered', 'failover', 'multi-provider', 'key-rotation'],
+    };
+    if (SYNTHETIC_MODELS[model]) {
       return {
-        id:        'omniauto',
-        object:    'model',
-        created:   Math.floor(Date.now() / 1000),
-        owned_by:  'omniroute',
-        provider:  'omniroute',
-        features:  ['router', 'auto-route', 'failover', 'multi-provider', 'key-rotation'],
+        id:       model,
+        object:   'model',
+        created:  Math.floor(Date.now() / 1000),
+        owned_by: 'omniroute',
+        provider: 'omniroute',
+        features: SYNTHETIC_MODELS[model],
       };
     }
 

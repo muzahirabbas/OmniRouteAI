@@ -377,6 +377,22 @@ const API = {
     return this.request('/api/admin/seed-providers', { method: 'POST' });
   },
 
+  // ─── Model Weights ────────────────────────────────────────────────
+
+  async setModelWeight(provider, model, weight) {
+    return this.request(`/api/admin/providers/${encodeURIComponent(provider)}/model-weight`, {
+      method: 'PUT',
+      body: JSON.stringify({ model, weight }),
+    });
+  },
+
+  async setModelWeights(provider, modelWeights) {
+    return this.request(`/api/admin/providers/${encodeURIComponent(provider)}/model-weights`, {
+      method: 'PUT',
+      body: JSON.stringify({ modelWeights }),
+    });
+  },
+
   async clearCache() {
     return this.request('/api/admin/clear-cache', { method: 'POST' });
   },

@@ -32,6 +32,9 @@
       <a href="#" class="nav-link" data-page="logs">
         <span class="nav-icon">📝</span>Logs
       </a>
+      <a href="#" class="nav-link" data-page="models">
+        <span class="nav-icon">⚖️</span>Models
+      </a>
       <a href="#" class="nav-link" data-page="playground">
         <span class="nav-icon">🎮</span>Playground
       </a>
@@ -136,6 +139,44 @@
       </div>
       <div id="providers-list" class="providers-grid">
         <div class="empty-state">Loading providers...</div>
+      </div>
+    </section>
+
+    <!-- Page: Models -->
+    <section class="page" id="page-models">
+      <div class="page-header">
+        <h2>Model Weights</h2>
+        <div class="header-actions">
+          <div class="filter-group">
+            <span class="filter-group-label">Provider</span>
+            <select id="models-provider-filter" class="input" onchange="applyModelsFilter()">
+              <option value="">All Providers</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-ghost" onclick="refreshModels(true)">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="form-hint" style="margin-bottom: 1rem;">
+          Set a weight (1–5) for each model. Weight 1 = basic/cheap, weight 5 = premium/best.
+          Default weight is 3. Use <code>omnilowest</code>–<code>omnihighest</code> models
+          to auto-route by weight tier.
+        </p>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Model</th>
+                <th scope="col">Weight</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="models-body">
+              <tr><td colspan="4" class="empty-state">Loading models...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 

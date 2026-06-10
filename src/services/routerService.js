@@ -390,9 +390,26 @@ export async function route(prompt, opts = {}) {
   // getActiveProviders() returns providers ordered by priority-tier weighted random
   const activeProviders = await getActiveProviders();
 
+  // ─── Weight-filtered sentinel models ──────────────────────────────
+  const WEIGHT_SENTINELS = {
+    omnilowest:  { min: 1, max: 1 },
+    omnilow:     { min: 1, max: 2 },
+    omnimedium:  { min: 2, max: 4 },
+    omnihigh:    { min: 4, max: 5 },
+    omnihighest: { min: 5, max: 5 },
+  };
+  const isWeightSentinel = requestedModel && WEIGHT_SENTINELS[requestedModel];
+
   // ─── Validate model exists in ANY active provider BEFORE routing ───
   let searchList;
-  if (requestedModel && requestedModel !== 'auto' && requestedModel !== 'omniauto' && requestedModel !== 'default') {
+  if (isWeightSentinel) {
+    searchList = [...activeProviders];
+    // Apply provider override if specified (e.g., "openai:omnimedium")
+    const effectiveOverride = modelProviderOverride || providerOverride;
+    if (effectiveOverride && effectiveOverride !== 'auto' && effectiveOverride !== 'omniauto') {
+      searchList = searchList.filter(p => p.name === effectiveOverride);
+    }
+  } else if (requestedModel && requestedModel !== 'auto' && requestedModel !== 'omniauto' && requestedModel !== 'default') {
     // For audio transcription, we should allow any model since Whisper adapters
     // handle the model validation. Skip this check for audio_transcription.
     const isAudioTranscription = taskType === 'audio_transcription' || 
@@ -500,6 +517,17 @@ export async function route(prompt, opts = {}) {
       // Handle 'auto' or 'default' by picking provider's default model
       // (camelCase `defaultModel` is the canonical field in STATIC_PROVIDERS)
       model = provider.defaultModel || provider.models?.[0] || 'default';
+    } else if (isWeightSentinel) {
+      // Filter provider's models by the weight range of the sentinel
+      const range = WEIGHT_SENTINELS[requestedModel];
+      const modelWeights = provider.modelWeights || {};
+      const matching = (provider.models || []).filter(m => {
+        const w = modelWeights[m] ?? 3;
+        return w >= range.min && w <= range.max;
+      });
+      if (matching.length === 0) continue; // Skip — no models match the weight range
+      // Pick a random model from the matching set for better distribution
+      model = matching[Math.floor(Math.random() * matching.length)];
     } else {
       // Model requested but not in this provider's models list - SKIP this provider
       continue;

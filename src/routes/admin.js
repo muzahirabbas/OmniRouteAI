@@ -279,6 +279,53 @@ export async function adminRoutes(app) {
     };
   });
 
+  // ─── Model Weight Management ───────────────────────────────────────────
+  app.put('/api/admin/providers/:name/model-weight', async (request, reply) => {
+    const { name } = request.params;
+    const { model, weight } = request.body;
+
+    if (!model) return reply.code(400).send({ error: 'model is required' });
+    if (weight == null || weight < 1 || weight > 5) {
+      return reply.code(400).send({ error: 'weight must be between 1 and 5' });
+    }
+
+    try {
+      const db = getDb();
+      const providerRef = db.collection('providers').doc(name);
+      await providerRef.set({ modelWeights: { [model]: weight } }, { merge: true });
+      await del('providers:list');
+      return { success: true, provider: name, model, weight };
+    } catch (err) {
+      reply.code(500).send({ error: err.message });
+    }
+  });
+
+  app.put('/api/admin/providers/:name/model-weights', async (request, reply) => {
+    const { name } = request.params;
+    const { modelWeights } = request.body;
+
+    if (!modelWeights || typeof modelWeights !== 'object') {
+      return reply.code(400).send({ error: 'modelWeights object is required' });
+    }
+
+    // Validate all weights
+    for (const [model, weight] of Object.entries(modelWeights)) {
+      if (weight < 1 || weight > 5) {
+        return reply.code(400).send({ error: `weight for model '${model}' must be between 1 and 5` });
+      }
+    }
+
+    try {
+      const db = getDb();
+      const providerRef = db.collection('providers').doc(name);
+      await providerRef.set({ modelWeights }, { merge: true });
+      await del('providers:list');
+      return { success: true, provider: name, modelWeights };
+    } catch (err) {
+      reply.code(500).send({ error: err.message });
+    }
+  });
+
   app.put('/api/admin/providers/:name', async (request, reply) => {
     const { name }  = request.params;
     const updates   = request.body;
