@@ -9,6 +9,17 @@ import { AllProvidersExhaustedError, ProviderError } from '../utils/errors.js';
 // Single source of truth — do not hardcode the list inline at call sites.
 const PROVIDERS_REQUIRING_KEY_METADATA = new Set(['cloudflare', 'vertex', 'google_pse']);
 
+function parseProviderModel(modelString) {
+  if (!modelString || !modelString.includes(':')) {
+    return { provider: null, model: modelString };
+  }
+  const firstColon = modelString.indexOf(':');
+  return {
+    provider: modelString.slice(0, firstColon),
+    model: modelString.slice(firstColon + 1)
+  };
+}
+
 /**
  * Router service — provider selection, adapter dispatch, retry/failover.
  *
@@ -365,28 +376,39 @@ export async function route(prompt, opts = {}) {
   const excludeKeys      = opts.excludeKeys      || [];
   const providerOverride = opts.provider;
 
+  // Parse provider:model format (e.g., "openai:gpt-4o")
+  // Split only on first colon to support model names with colons
+  let requestedModel = opts.model;
+  let modelProviderOverride = providerOverride;
+  
+  if (requestedModel && requestedModel.includes(':')) {
+    const parsed = parseProviderModel(requestedModel);
+    modelProviderOverride = parsed.provider;
+    requestedModel = parsed.model;
+  }
+
   // getActiveProviders() returns providers ordered by priority-tier weighted random
   const activeProviders = await getActiveProviders();
 
   // ─── Validate model exists in ANY active provider BEFORE routing ───
   let searchList;
-  if (opts.model && opts.model !== 'auto' && opts.model !== 'omniauto') {
+  if (requestedModel && requestedModel !== 'auto' && requestedModel !== 'omniauto' && requestedModel !== 'default') {
     // For audio transcription, we should allow any model since Whisper adapters
     // handle the model validation. Skip this check for audio_transcription.
     const isAudioTranscription = taskType === 'audio_transcription' || 
-                                  (opts.model && opts.model.toLowerCase().includes('whisper'));
+                                  (requestedModel && requestedModel.toLowerCase().includes('whisper'));
     
     if (!isAudioTranscription) {
       const availableModels = new Set(activeProviders.flatMap(p => p.models || []));
       
-      if (!availableModels.has(opts.model)) {
+      if (!availableModels.has(requestedModel)) {
         // Find similar model suggestions
         const modelSuggestions = [...availableModels]
-          .filter(m => m.toLowerCase().includes(opts.model.toLowerCase().slice(0, 4)))
+          .filter(m => m.toLowerCase().includes(requestedModel.toLowerCase().slice(0, 4)))
           .slice(0, 5);
         
         throw new Error(
-          `Model '${opts.model}' not found in any active provider. ` +
+          `Model '${requestedModel}' not found in any active provider. ` +
           `Did you mean: ${modelSuggestions.join(', ') || 'none'}? ` +
           `Available: ${[...availableModels].slice(0, 20).join(', ')}...`
         );
@@ -394,18 +416,22 @@ export async function route(prompt, opts = {}) {
     }
     
     // ─── PRIORITIZE providers that have the requested model ───
-    let providersWithModel = activeProviders.filter(p => p.models?.includes(opts.model));
-    let providersWithoutModel = activeProviders.filter(p => !p.models?.includes(opts.model));
+    let providersWithModel = activeProviders.filter(p => p.models?.includes(requestedModel));
+    let providersWithoutModel = activeProviders.filter(p => !p.models?.includes(requestedModel));
     
-    // If provider is explicitly specified, filter both lists to only that provider
-    if (providerOverride && providerOverride !== 'auto' && providerOverride !== 'omniauto') {
-      providersWithModel = providersWithModel.filter(p => p.name === providerOverride);
-      providersWithoutModel = providersWithoutModel.filter(p => p.name === providerOverride);
+    // If provider is explicitly specified (via opts.provider or provider:model prefix), filter both lists
+    const effectiveProviderOverride = modelProviderOverride || providerOverride;
+    if (effectiveProviderOverride && effectiveProviderOverride !== 'auto' && effectiveProviderOverride !== 'omniauto') {
+      providersWithModel = providersWithModel.filter(p => p.name === effectiveProviderOverride);
+      providersWithoutModel = providersWithoutModel.filter(p => p.name === effectiveProviderOverride);
     }
 
     // Weighted random within each group, then merge: providers WITH model first
     const shuffle = arr => arr.sort(() => Math.random() - 0.5);
     searchList = [...shuffle(providersWithModel), ...shuffle(providersWithoutModel)];
+  } else if (modelProviderOverride && modelProviderOverride !== 'auto' && modelProviderOverride !== 'omniauto') {
+    const target = activeProviders.find(p => p.name === modelProviderOverride);
+    searchList = target ? [target] : [];
   } else if (providerOverride && providerOverride !== 'auto' && providerOverride !== 'omniauto') {
     const target = activeProviders.find(p => p.name === providerOverride);
     searchList = target ? [target] : [];
@@ -449,7 +475,8 @@ export async function route(prompt, opts = {}) {
 // For audio transcription, only use providers that have transcription adapters
     // Only these providers have transcribe() methods implemented and working:
     // openai (whisper-1), groq (whisper-large-v3), assemblyai, cloudflare, deepgram
-    if (taskType === 'audio_transcription' || (opts.model && opts.model.toLowerCase().includes('whisper'))) {
+    const whisperCheck = requestedModel && requestedModel.toLowerCase().includes('whisper');
+    if (taskType === 'audio_transcription' || whisperCheck) {
       const transcriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare', 'deepgram'];
       if (!transcriptionProviders.includes(provider.name)) {
         continue;
@@ -457,18 +484,18 @@ export async function route(prompt, opts = {}) {
     }
 
     // Model selection: ONLY use providers that have the requested model in their models list
-    const isWhisperModel = opts.model && opts.model.toLowerCase().includes('whisper');
+    const isWhisperModel = whisperCheck;
     const knownTranscriptionProviders = ['openai', 'groq', 'assemblyai', 'cloudflare', 'deepgram'];
     const isKnownTranscriptionProvider = knownTranscriptionProviders.includes(provider.name);
     
     let model = null;
-    const isAutoRequest = !opts.model || opts.model === 'auto' || opts.model === 'default' || opts.model === 'omniauto';
+    const isAutoRequest = !requestedModel || requestedModel === 'auto' || requestedModel === 'default' || requestedModel === 'omniauto';
 
     if (isWhisperModel && isKnownTranscriptionProvider) {
       // For known transcription providers with whisper model, always use the requested whisper model
-      model = opts.model;
-    } else if (opts.model && provider.models?.includes(opts.model)) {
-      model = opts.model;
+      model = requestedModel;
+    } else if (requestedModel && provider.models?.includes(requestedModel)) {
+      model = requestedModel;
     } else if (isAutoRequest) {
       // Handle 'auto' or 'default' by picking provider's default model
       // (camelCase `defaultModel` is the canonical field in STATIC_PROVIDERS)

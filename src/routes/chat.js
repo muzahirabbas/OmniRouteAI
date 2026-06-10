@@ -1,6 +1,21 @@
 import { v4 as uuidv4 } from 'uuid';
 import { rateLimiters } from '../utils/rateLimiter.js';
 
+function parseProviderModel(modelString) {
+  if (!modelString || !modelString.includes(':')) {
+    return { provider: null, model: modelString };
+  }
+  const firstColon = modelString.indexOf(':');
+  return {
+    provider: modelString.slice(0, firstColon),
+    model: modelString.slice(firstColon + 1)
+  };
+}
+
+function formatProviderModel(provider, model) {
+  return `${provider}:${model}`;
+}
+
 /**
  * Chat completions route plugin.
  *
@@ -62,8 +77,8 @@ export async function chatRoutes(app) {
 
   // ─── Standard OpenAI Model Discovery ─────────────────────────────────
   app.get('/v1/models', async () => {
-    const { getProviders } = await import('../config/providers.js');
-    const allProviders = await getProviders();
+    const { getActiveProviders } = await import('../services/providerService.js');
+    const activeProviders = await getActiveProviders();
     const models = [];
     const seen = new Set();
 
@@ -79,16 +94,18 @@ export async function chatRoutes(app) {
     });
     seen.add('omniauto');
 
-    allProviders.forEach(p => {
+    activeProviders.forEach(p => {
       if (p.models) {
         p.models.forEach(m => {
-          if (!seen.has(m)) {
-            seen.add(m);
+          const formatted = formatProviderModel(p.name, m);
+          if (!seen.has(formatted)) {
+            seen.add(formatted);
             models.push({
-              id:       m,
+              id:       formatted,
               object:   'model',
               created:  Math.floor(Date.now() / 1000),
               owned_by: p.name,
+              provider: p.name,
               features: p.features || []
             });
           }
@@ -96,7 +113,7 @@ export async function chatRoutes(app) {
       }
     });
 
-return { object: 'list', data: models };
+    return { object: 'list', data: models };
   });
 
   // ─── Specific Model Details ─────────────────────────────────────────────
@@ -115,14 +132,23 @@ return { object: 'list', data: models };
       };
     }
 
-    const { getProviders } = await import('../config/providers.js');
-    const providers = await getProviders();
+    const { parseProviderModel } = await import('../routes/chat.js');
+    const { provider: requestedProvider, model: modelName } = parseProviderModel(model);
 
-    for (const provider of providers) {
+    const { getActiveProviders } = await import('../services/providerService.js');
+    const activeProviders = await getActiveProviders();
+
+    let providersToSearch = activeProviders;
+    if (requestedProvider) {
+      providersToSearch = activeProviders.filter(p => p.name === requestedProvider);
+    }
+
+    for (const provider of providersToSearch) {
       const models = provider.models || [];
-      if (models.includes(model)) {
+      if (models.includes(modelName)) {
+        const formatted = formatProviderModel(provider.name, modelName);
         return {
-          id: model,
+          id: formatted,
           object: 'model',
           created: Math.floor(Date.now() / 1000),
           owned_by: provider.name,
@@ -144,25 +170,26 @@ return { object: 'list', data: models };
 
   // ─── Provider-Optional Model Discovery ─────────────────────────────────
   app.get('/:provider/v1/models', async (request, reply) => {
-    const { getProviders } = await import('../config/providers.js');
-    const allProviders = await getProviders();
+    const { getActiveProviders } = await import('../services/providerService.js');
+    const activeProviders = await getActiveProviders();
     
     const providerName = request.params.provider;
-    const provider = allProviders.find(p => p.name === providerName);
+    const provider = activeProviders.find(p => p.name === providerName);
     
     if (!provider) {
       return reply.code(404).send({
         error: 'Provider not found',
-        message: `Provider '${providerName}' is not available`,
-        available_providers: allProviders.filter(p => p.status === 'active').map(p => p.name)
+        message: `Provider '${providerName}' is not available or not active`,
+        available_providers: activeProviders.map(p => p.name)
       });
     }
     
     const models = (provider.models || []).map(m => ({
-      id:       m,
+      id:       formatProviderModel(provider.name, m),
       object:   'model',
       created:  Math.floor(Date.now() / 1000),
       owned_by: provider.name,
+      provider: provider.name,
       features: provider.features || []
     }));
     

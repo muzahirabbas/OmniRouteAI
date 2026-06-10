@@ -252,22 +252,29 @@ export async function adminRoutes(app) {
   });
 
   app.get('/api/admin/models', async () => {
-    const allProviders = await getProviders();
-    const uniqueModels = new Set();
-    allProviders.forEach(p => {
-      if (p.models) p.models.forEach(m => uniqueModels.add(m));
+    const { getActiveProviders } = await import('../services/providerService.js');
+    const activeProviders = await getActiveProviders();
+    const models = [];
+    activeProviders.forEach(p => {
+      if (p.models) {
+        p.models.forEach(m => {
+          models.push(`${p.name}:${m}`);
+        });
+      }
     });
-    return { models: Array.from(uniqueModels).sort() };
+    return { models: models.sort() };
   });
 
   app.get('/api/admin/providers/:name/models', async (request, reply) => {
+    const { getActiveProviders } = await import('../services/providerService.js');
     const { name } = request.params;
-    const allProviders = await getProviders();
-    const provider = allProviders.find(p => p.name === name);
-    if (!provider) return reply.code(404).send({ error: `Provider "${name}" not found.` });
+    const activeProviders = await getActiveProviders();
+    const provider = activeProviders.find(p => p.name === name);
+    if (!provider) return reply.code(404).send({ error: `Provider "${name}" not found or not active.` });
+    const models = (provider.models || []).map(m => `${name}:${m}`);
     return { 
       provider: name, 
-      models: provider.models || [],
+      models,
       features: provider.features || []
     };
   });
