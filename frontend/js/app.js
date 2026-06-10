@@ -1143,7 +1143,7 @@ function closeModal(id) {
     }
     const tool = window._currentDeviceFlowTool;
     if (tool) {
-      API.daemonRequest(`/auth/${tool}/callback-server`, { method: 'DELETE' }).catch(() => {});
+      API.daemonRequest(`/auth/${tool}/callback-server`, authOpts({ method: 'DELETE' })).catch(() => {});
       window._currentDeviceFlowTool = null;
     }
   }
@@ -2973,16 +2973,50 @@ function renderMessageContent(content) {
 
 // ─── Local Auth Page ────────────────────────────────────────────────
 window._deviceFlowPolling = null;
+let _authDaemonUrl = null;
+
+function getAuthDaemonUrl() {
+  if (!_authDaemonUrl) {
+    _authDaemonUrl = localStorage.getItem('selectedAuthDaemonUrl');
+  }
+  return _authDaemonUrl;
+}
+
+function populateAuthDaemonSelect() {
+  const sel = document.getElementById('auth-daemon-select');
+  if (!sel) return;
+  const daemons = API.getDaemons();
+  const selected = getAuthDaemonUrl() || daemons[0]?.url || '';
+  sel.innerHTML = daemons.map(d =>
+    `<option value="${d.url}" ${d.url === selected ? 'selected' : ''}>${d.url}</option>`
+  ).join('');
+  if (!_authDaemonUrl && daemons.length > 0) {
+    _authDaemonUrl = daemons[0].url;
+    localStorage.setItem('selectedAuthDaemonUrl', _authDaemonUrl);
+  }
+}
+
+function switchAuthDaemon(url) {
+  _authDaemonUrl = url;
+  localStorage.setItem('selectedAuthDaemonUrl', url);
+  refreshLocalAuth(true);
+}
+
+function authOpts(extra = {}) {
+  return { ...extra, daemonUrl: getAuthDaemonUrl() };
+}
 
 async function refreshLocalAuth(force = false) {
+  populateAuthDaemonSelect();
   const container = document.getElementById('local-auth-list');
   const tbody = document.getElementById('local-auth-body');
 
   try {
+    const daemonUrl = getAuthDaemonUrl();
     const statusPath = force ? '/auth/oauth-status?force=true' : '/auth/oauth-status';
     const [data, envData] = await Promise.all([
-      API.daemonRequest(statusPath),
-      API.daemonRequest('/v1/env')
+      API.daemonRequest(statusPath, authOpts()),
+      API.daemonRequest('/v1/env', authOpts())
     ]);
     const providers = data.providers || {};
     
@@ -3077,10 +3111,9 @@ async function promptManualCallback(toolId) {
     }
 
     showToast('info', `Manually submitting OAuth code for ${toolId}...`);
-    // Hits the daemon's callback directly as if the redirect worked
-    await API.daemonRequest(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || 'none')}`);
+    await API.daemonRequest(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || 'none')}`, authOpts());
     showToast('success', `${toolId} login successful!`);
-    await refreshLocalAuth(); // Refresh the list
+    await refreshLocalAuth();
   } catch (err) {
     showToast('error', `Invalid URL: ${err.message}`);
   }
@@ -3136,7 +3169,7 @@ function closeProviderInfoModal() {
 async function harvestLocalTokens() {
   try {
     showToast('info', 'Scanning local filesystem for AI sessions...');
-    const res = await API.daemonRequest('/auth/harvest', { method: 'POST' });
+    const res = await API.daemonRequest('/auth/harvest', authOpts({ method: 'POST' }));
     const count = Object.keys(res.sessions || {}).length;
     showToast('success', `Harvest complete! Found ${count} active sessions.`);
     refreshLocalAuth(true);
@@ -3147,7 +3180,7 @@ async function harvestLocalTokens() {
 
 async function handleWebLogin(tool) {
   try {
-    const flow = await API.daemonRequest(`/auth/${tool}/login`, { method: 'POST' });
+    const flow = await API.daemonRequest(`/auth/${tool}/login`, authOpts({ method: 'POST' }));
     
     if (flow.method === 'oauth') {
       showToast('info', 'OAuth login opened in your browser...');
@@ -3157,7 +3190,7 @@ async function handleWebLogin(tool) {
       let pollCount = 0;
       window._deviceFlowPolling = setInterval(async () => {
         pollCount++;
-        const statusRes = await API.daemonRequest(`/auth/${tool}/callback-status`, { forceRefresh: true });
+        const statusRes = await API.daemonRequest(`/auth/${tool}/callback-status`, authOpts({ forceRefresh: true }));
         console.log(`[OAuth] Poll ${pollCount} for ${tool}:`, statusRes);
         if (statusRes.status === 'success') {
           clearInterval(window._deviceFlowPolling);
@@ -3197,7 +3230,7 @@ async function startDeviceLogin(tool) {
 async function pollDeviceLogin(tool) {
   try {
     console.log(`[pollDeviceLogin] Polling ${tool}...`);
-    const res = await API.daemonRequest(`/auth/${tool}/poll`, { forceRefresh: true });
+    const res = await API.daemonRequest(`/auth/${tool}/poll`, authOpts({ forceRefresh: true }));
     console.log(`[pollDeviceLogin] Response for ${tool}:`, res);
     
     if (res.interval) {
@@ -3210,21 +3243,21 @@ async function pollDeviceLogin(tool) {
     if (res.status === 'success') {
       clearInterval(window._deviceFlowPolling);
       closeModal('device-flow');
-      API.daemonRequest(`/auth/${tool}/callback-server`, { method: 'DELETE' }).catch(() => {});
+      API.daemonRequest(`/auth/${tool}/callback-server`, authOpts({ method: 'DELETE' })).catch(() => {});
       showToast('success', `Successfully connected to ${tool}!`);
       refreshLocalAuth();
     } else if (res.status === 'expired') {
       clearInterval(window._deviceFlowPolling);
       document.getElementById('df-status-text').textContent = 'Code expired. Please try again.';
       document.getElementById('df-status-text').className = 'text-error';
-      API.daemonRequest(`/auth/${tool}/callback-server`, { method: 'DELETE' }).catch(() => {});
+      API.daemonRequest(`/auth/${tool}/callback-server`, authOpts({ method: 'DELETE' })).catch(() => {});
     } else if (res.status === 'error') {
       clearInterval(window._deviceFlowPolling);
       const errMsg = res.message || 'Unknown error';
       document.getElementById('df-status-text').textContent = `Error: ${errMsg}`;
       document.getElementById('df-status-text').className = 'text-error';
       showToast('error', `${tool} login failed: ${errMsg}`);
-      API.daemonRequest(`/auth/${tool}/callback-server`, { method: 'DELETE' }).catch(() => {});
+      API.daemonRequest(`/auth/${tool}/callback-server`, authOpts({ method: 'DELETE' })).catch(() => {});
     } else if (res.status === 'pending') {
       // Still waiting, do nothing
     }
@@ -3236,7 +3269,7 @@ async function pollDeviceLogin(tool) {
 async function logoutLocalTool(tool) {
   if (!confirm(`Are you sure you want to disconnect ${tool}?`)) return;
   try {
-    await API.daemonRequest(`/auth/${tool}`, { method: 'DELETE' });
+    await API.daemonRequest(`/auth/${tool}`, authOpts({ method: 'DELETE' }));
     showToast('success', `${tool} disconnected.`);
     refreshLocalAuth();
   } catch (err) {

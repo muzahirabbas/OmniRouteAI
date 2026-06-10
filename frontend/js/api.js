@@ -559,9 +559,19 @@ const API = {
    * Make a request directly to a local daemon (bypasses cloud backend).
    * Load-balanced across all configured daemons with automatic failover.
    * Uses X-Local-Token header for auth.
+   * Pass `options.daemonUrl` to pin to a specific daemon (used for auth flows).
    */
   async daemonRequest(path, options = {}) {
-    const daemons = this.getDaemons();
+    let daemons = this.getDaemons();
+
+    // Pin to a specific daemon when requested (e.g. auth flows must stay on one daemon)
+    if (options.daemonUrl) {
+      daemons = daemons.filter(d => d.url === options.daemonUrl);
+      if (daemons.length === 0) {
+        throw new Error(`Daemon ${options.daemonUrl} not found in configuration`);
+      }
+    }
+
     const visited = new Set();
     let lastError;
 

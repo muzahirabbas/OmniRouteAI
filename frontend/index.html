@@ -657,9 +657,13 @@
     <section class="page" id="page-local-auth">
       <div class="page-header">
         <h2>Local CLI Auth Management</h2>
-        <div class="header-actions">
-           <button class="btn btn-secondary" onclick="harvestLocalTokens()">🔄 Re-Scan Files</button>
-           <button class="btn btn-ghost" onclick="refreshLocalAuth(true)">↻ Refresh</button>
+        <div class="header-actions" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:0.85rem;color:var(--text-secondary);white-space:nowrap;">Daemon:</label>
+          <select id="auth-daemon-select" class="input" style="width:auto;min-width:200px;" onchange="switchAuthDaemon(this.value)">
+            <option value="">Loading...</option>
+          </select>
+          <button class="btn btn-secondary" onclick="harvestLocalTokens()">🔄 Re-Scan Files</button>
+          <button class="btn btn-ghost" onclick="refreshLocalAuth(true)">↻ Refresh</button>
         </div>
       </div>
 
